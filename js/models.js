@@ -112,19 +112,11 @@ export function makeTrolley(vkey) {
 
 // ======================= SHOPPING =======================
 export const ITEMS = {
-  cabbage: { name: 'CABBAGE', pts: 120, mass: 0.9, shape: ['ball', 0.085] },
   milk: { name: 'MILK', pts: 150, mass: 2.3, shape: ['cuboid', 0.06, 0.12, 0.06] },
-  beans: { name: 'BAKED BEANS', pts: 100, mass: 0.45, shape: ['cylinder', 0.055, 0.038] },
   loo: { name: 'TOILET ROLL', pts: 200, mass: 0.7, shape: ['cuboid', 0.11, 0.075, 0.11] },
-  crisps: { name: 'CRISPS', pts: 80, mass: 0.25, shape: ['cuboid', 0.1, 0.13, 0.035] },
-  bread: { name: 'LOAF OF BREAD', pts: 100, mass: 0.6, shape: ['cuboid', 0.06, 0.06, 0.13] },
-  spuds: { name: 'POTATOES', pts: 90, mass: 2.5, shape: ['cuboid', 0.12, 0.07, 0.15] },
-  cereal: { name: 'CEREAL', pts: 120, mass: 0.5, shape: ['cuboid', 0.1, 0.15, 0.035] },
   tampons: { name: 'TAMPONS', pts: 110, mass: 0.15, shape: ['cuboid', 0.05, 0.06, 0.035] },
   pineapple: { name: 'PINEAPPLE', pts: 500, mass: 1.2, shape: ['cuboid', 0.07, 0.15, 0.07], bargain: true },
-  trifle: { name: 'FAMILY TRIFLE (REDUCED)', pts: 600, mass: 1.0, shape: ['cylinder', 0.07, 0.1], bargain: true },
   gnome: { name: 'CLEARANCE GNOME', pts: 750, mass: 1.5, shape: ['cuboid', 0.07, 0.14, 0.07], bargain: true },
-  cheese: { name: 'ENORMOUS CHEDDAR', pts: 650, mass: 2.0, shape: ['cylinder', 0.05, 0.12], bargain: true },
 };
 
 const labelMats = {};
@@ -133,19 +125,11 @@ const itemGeoCache = {};
 export function makeItemMesh(k) {
   const g = new T.Group(), mv = lam();
   const B = new Batch();
-  if (k === 'cabbage') { B.add(GEO.ico1, M(0, 0, 0, 0, 0, 0, 0.085, 0.08, 0.085), 0x7fb24a); for (let i = 0; i < 5; i++) { const a = i * 1.26; B.add(GEO.sph, M(Math.cos(a) * 0.05, -0.01, Math.sin(a) * 0.05, 0.6, a, 0, 0.07, 0.02, 0.06), 0x5f9a35); } }
-  else if (k === 'milk') { const m = new T.Mesh(GEO.box, lblMat('milk')); m.scale.set(0.12, 0.2, 0.12); m.position.y = -0.02; g.add(m); B.add(GEO.cyl8, M(0, 0.1, 0.02, 0, 0, 0, 0.03, 0.04, 0.03), 0xf4f4f0); B.add(GEO.cyl8, M(0, 0.125, 0.02, 0, 0, 0, 0.022, 0.02, 0.022), 0x2f9a4a); B.add(GEO.box, M(0, 0.03, -0.055, 0, 0, 0, 0.04, 0.12, 0.02), 0xf4f4f0); }
-  else if (k === 'beans') { const m = new T.Mesh(GEO.cyl16, [lblMat('beans'), new T.MeshLambertMaterial({ color: 0xb9bcc2 }), new T.MeshLambertMaterial({ color: 0xb9bcc2 })]); m.scale.set(0.038, 0.11, 0.038); g.add(m); }
+  if (k === 'milk') { const m = new T.Mesh(GEO.box, lblMat('milk')); m.scale.set(0.12, 0.2, 0.12); m.position.y = -0.02; g.add(m); B.add(GEO.cyl8, M(0, 0.1, 0.02, 0, 0, 0, 0.03, 0.04, 0.03), 0xf4f4f0); B.add(GEO.cyl8, M(0, 0.125, 0.02, 0, 0, 0, 0.022, 0.02, 0.022), 0x2f9a4a); B.add(GEO.box, M(0, 0.03, -0.055, 0, 0, 0, 0.04, 0.12, 0.02), 0xf4f4f0); }
   else if (k === 'loo') { for (let i = 0; i < 4; i++) B.add(GEO.cyl12, M((i % 2 - 0.5) * 0.105, 0, (Math.floor(i / 2) - 0.5) * 0.105, 0, 0, 0, 0.052, 0.14, 0.052), 0xf8f8f8); const w = new T.Mesh(GEO.box, new T.MeshLambertMaterial({ map: labelTex('loo'), transparent: true, opacity: 0.55 })); w.scale.set(0.22, 0.12, 0.222); g.add(w); }
-  else if (k === 'cereal') { const m = new T.Mesh(GEO.box, lblMat('cereal')); m.scale.set(0.2, 0.3, 0.07); g.add(m); }
   else if (k === 'tampons') { const m = new T.Mesh(GEO.box, lblMat('tampons')); m.scale.set(0.1, 0.12, 0.07); g.add(m); }
-  else if (k === 'crisps') { const m = new T.Mesh(GEO.box, lblMat('crisps')); m.scale.set(0.2, 0.26, 0.07); g.add(m); B.add(GEO.box, M(0, 0.135, 0, 0, 0, 0, 0.2, 0.02, 0.02), 0x2f5fd0); }
-  else if (k === 'bread') { const m = new T.Mesh(GEO.box, lblMat('bread')); m.scale.set(0.12, 0.1, 0.26); m.position.y = -0.01; g.add(m); B.add(GEO.cyl12, M(0, 0.04, 0, Math.PI / 2, 0, 0, 0.06, 0.26, 0.04), 0xf2ead8); B.add(GEO.box, M(0, 0.0, 0.14, 0, 0, 0, 0.03, 0.03, 0.04), 0xd8402f); }
-  else if (k === 'spuds') { for (let i = 0; i < 7; i++) B.add(GEO.ico, M((i % 3 - 1) * 0.07, (i > 4 ? 0.04 : -0.02), (Math.floor(i / 3) - 1) * 0.08, i, i * 2, 0, 0.055, 0.045, 0.06), 0xb88c55); const m = new T.Mesh(GEO.box, new T.MeshLambertMaterial({ map: labelTex('spuds'), transparent: true, opacity: 0.7 })); m.scale.set(0.24, 0.14, 0.3); g.add(m); }
   else if (k === 'pineapple') { B.add(GEO.ico1, M(0, -0.03, 0, 0, 0, 0, 0.07, 0.11, 0.07), 0xc98d2a); for (let i = 0; i < 6; i++) B.add(GEO.cone8, M(Math.cos(i) * 0.02, 0.12, Math.sin(i) * 0.02, Math.cos(i) * 0.4, 0, Math.sin(i) * 0.4, 0.02, 0.12, 0.012), 0x3f8a32); }
-  else if (k === 'trifle') { B.add(GEO.cyl12, M(0, -0.03, 0, 0, 0, 0, 0.07, 0.07, 0.07), 0xdcdfe6); B.add(GEO.cyl12, M(0, 0.0, 0, 0, 0, 0, 0.068, 0.03, 0.068), 0xd23a4a); B.add(GEO.cyl12, M(0, 0.03, 0, 0, 0, 0, 0.068, 0.03, 0.068), 0xf7e9b0); B.add(GEO.sph, M(0, 0.05, 0, 0, 0, 0, 0.065, 0.03, 0.065), 0xfffaf0); B.add(GEO.sph, M(0, 0.08, 0, 0, 0, 0, 0.015, 0.015, 0.015), 0xc81e1e); }
   else if (k === 'gnome') { B.add(GEO.cyl8, M(0, -0.06, 0, 0, 0, 0, 0.055, 0.08, 0.05), 0x2f62b8); B.add(GEO.cyl8, M(0, 0.02, 0, 0, 0, 0, 0.05, 0.08, 0.045), 0xc8402f); B.add(GEO.sph, M(0, 0.08, 0, 0, 0, 0, 0.04, 0.04, 0.04), 0xf0c8a0); B.add(GEO.cone8, M(0, 0.06, 0.015, 0, 0, 0, 0.04, 0.05, 0.03), 0xf4f4f4); B.add(GEO.cone8, M(0, 0.15, 0, 0, 0, 0, 0.042, 0.1, 0.042), 0xd21f26); }
-  else if (k === 'cheese') { B.add(GEO.cyl12, M(0, 0, 0, 0, 0, 0, 0.12, 0.1, 0.12), 0xf2c84a); B.add(GEO.cyl12, M(0, 0, 0, 0, 0, 0, 0.122, 0.07, 0.122), 0xe0b23a); }
   if (!B.empty) { const m = new T.Mesh(B.geometry(), mv); g.add(m); }
   if (ITEMS[k].bargain) { const st = new T.Mesh(new T.PlaneGeometry(0.12, 0.06), new T.MeshBasicMaterial({ map: labelTex('reduced'), transparent: true, alphaTest: 0.3, side: T.DoubleSide })); st.position.set(0, 0.02, 0.08); g.add(st); }
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
@@ -179,12 +163,6 @@ export function makeBarrier() {
   for (const sx of [-1, 1]) { B.add(GEO.box, M(sx * 0.9, -0.05, 0, 0, 0, 0, 0.05, 0.9, 0.05), 0x2a2a2a); B.add(GEO.box, M(sx * 0.9, -0.48, 0, 0, 0, 0, 0.06, 0.06, 0.5), 0x2a2a2a); }
   const m = new T.Mesh(B.geometry(), lam()); m.castShadow = true; return m;
 }
-export function makeFencePanel(w = 1.8, h = 1.4) {
-  const B = new Batch();
-  for (let i = 0; i < 6; i++) B.add(GEO.box, M(0, -h / 2 + (i + 0.5) * h / 6, 0, 0, 0, 0, w, h / 6 - 0.015, 0.025), i % 2 ? 0x7a5a3a : 0x86643f);
-  B.add(GEO.box, M(-w / 2 + 0.03, 0, 0.03, 0, 0, 0, 0.06, h, 0.04), 0x6a4c30); B.add(GEO.box, M(w / 2 - 0.03, 0, 0.03, 0, 0, 0, 0.06, h, 0.04), 0x6a4c30);
-  const m = new T.Mesh(B.geometry(), lam()); m.castShadow = true; m.receiveShadow = true; return m;
-}
 export function makePicket(w = 2.4, h = 0.9) {
   const B = new Batch();
   for (let x = -w / 2 + 0.06; x < w / 2; x += 0.14) { B.add(GEO.box, M(x, 0, 0, 0, 0, 0, 0.08, h, 0.02), 0xf4f2ea); B.add(GEO.box, M(x, h / 2 + 0.03, 0, 0, Math.PI / 4, 0, 0.056, 0.056, 0.02), 0xf4f2ea); }
@@ -213,9 +191,7 @@ export function makePot(color = 0xb5603a) {
   const m = new T.Mesh(B.geometry(), lam()); m.castShadow = true; return m;
 }
 export function makeCompost() { const B = new Batch(); B.add(GEO.box, M(0, 0, 0, 0, 0, 0, 0.55, 0.16, 0.85), 0x2f6b32); B.add(GEO.box, M(0, 0.081, 0.1, 0, 0, 0, 0.3, 0.005, 0.3), 0xf2e6c8); const m = new T.Mesh(B.geometry(), lam()); m.castShadow = true; return m; }
-export function makeCrate(c = 0xc69b5e) { const B = new Batch(); B.add(GEO.box, M(0, 0, 0, 0, 0, 0, 0.6, 0.45, 0.4), c); for (const y of [-0.12, 0.12]) B.add(GEO.box, M(0, y, 0.205, 0, 0, 0, 0.6, 0.06, 0.01), 0x8a6a40); const m = new T.Mesh(B.geometry(), lam()); m.castShadow = true; return m; }
 export function makePane(w = 1.0, h = 1.6) { const m = new T.Mesh(new T.BoxGeometry(w, h, 0.02), new T.MeshLambertMaterial({ color: 0xbfe0e8, transparent: true, opacity: 0.45 })); return m; }
-export function makeTrolleyProp(color = 0xf26a1b) { const t = makeTrolley('dave'); t.root.traverse(o => { if (o.material && o.material.color && o.isMesh && o.material.map === TX.wire) { } }); return t.root; }
 
 // ======================= PEOPLE & ANIMALS =======================
 const PEOPLE = {

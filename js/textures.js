@@ -119,22 +119,16 @@ export function fascia(text, o = {}) {
     if (o.sub) { g.font = `700 ${h * 0.18}px ${FONT}`; g.fillText(o.sub, w / 2, h - 22); }
   });
 }
-export function bannerTex(text, bg, fg) { return fascia(text, { w: 256, h: 64, bg, fg, size: 34 }); }
 
 // shopping labels
 export function labelTex(kind) {
   return signTex(128, 64, (g, w, h) => {
-    if (kind === 'beans') { fill(g, w, h, '#1aa39a'); g.fillStyle = '#f07a1c'; g.beginPath(); g.ellipse(64, 34, 40, 20, 0, 0, 7); g.fill(); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 20px ${FONT}`; g.fillText('BEANS', 64, 40); g.fillStyle = '#c0442a'; for (let i = 0; i < 9; i++) { g.beginPath(); g.ellipse(18 + (i % 3) * 7, 46 + Math.floor(i / 3) * 4, 3, 2, 0.4, 0, 7); g.fill(); } }
-    else if (kind === 'crisps') { fill(g, w, h, '#2f5fd0'); g.fillStyle = '#ffd21f'; g.beginPath(); g.arc(64, 30, 18, 0, 7); g.fill(); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 18px ${FONT}`; g.fillText('READY SALTED', 64, 58); }
-    else if (kind === 'milk') { fill(g, w, h, '#f4f4f0'); g.fillStyle = '#2f9a4a'; g.fillRect(0, 22, w, 18); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 15px ${FONT}`; g.fillText('SEMI-SKIMMED  4 PINTS', 64, 36); }
-    else if (kind === 'bread') { fill(g, w, h, '#f2ead8'); g.fillStyle = '#d8402f'; g.fillRect(0, 0, w, 14); g.fillStyle = '#1d3d8f'; g.textAlign = 'center'; g.font = `700 20px ${FONT}`; g.fillText('THICK WHITE', 64, 42); }
+    if (kind === 'milk') { fill(g, w, h, '#f4f4f0'); g.fillStyle = '#2f9a4a'; g.fillRect(0, 22, w, 18); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 15px ${FONT}`; g.fillText('SEMI-SKIMMED  4 PINTS', 64, 36); }
     else if (kind === 'loo') { fill(g, w, h, '#ffffff'); g.fillStyle = '#7cc0e8'; for (let i = 0; i < 8; i++) { g.beginPath(); g.arc(8 + i * 16, 50, 5, 0, 7); g.fill(); } g.fillStyle = '#1b4f9c'; g.textAlign = 'center'; g.font = `700 16px ${FONT}`; g.fillText('9 ROLLS  SOFT', 64, 24); }
-    else if (kind === 'spuds') { fill(g, w, h, '#c8a46a'); g.fillStyle = '#2d7a2a'; g.fillRect(0, 0, w, 18); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 15px ${FONT}`; g.fillText('BAKING POTATOES 2.5kg', 64, 13); }
     else if (kind === 'reduced') { g.clearRect(0, 0, w, h); g.fillStyle = '#ffd21f'; g.beginPath(); g.ellipse(64, 32, 62, 30, 0, 0, 7); g.fill(); g.fillStyle = '#c4161c'; g.textAlign = 'center'; g.font = `700 22px ${FONT}`; g.fillText('REDUCED', 64, 30); g.font = `700 14px ${FONT}`; g.fillText('TO CLEAR', 64, 48); }
     else if (kind === 'plate') { fill(g, w, h, '#f26a1b'); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'SPENDWELLS', 64, 34, 116, 28, DISP, '400'); }
     else if (kind === 'plateR') { fill(g, w, h, '#c81e1e'); g.fillStyle = '#ffd21f'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'SPEED DEMON', 64, 34, 118, 26, DISP, '400'); }
     else if (kind === 'plateT') { fill(g, w, h, '#2f4d34'); g.fillStyle = '#e8e2c8'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'TRADE ONLY', 64, 34, 118, 26, DISP, '400'); }
-    else if (kind === 'cereal') { fill(g, w, h, '#f2c81f'); g.fillStyle = '#d8402f'; g.fillRect(0, 0, w, 16); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 13px ${FONT}`; g.fillText('BREAKFAST', 64, 12); g.fillStyle = '#d8402f'; g.font = `700 22px ${FONT}`; g.fillText('FLAKES', 64, 44); g.fillStyle = '#c98d2a'; for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(18 + i * 23, 58, 8, 4, 0.4, 0, 7); g.fill(); } }
     else if (kind === 'tampons') { fill(g, w, h, '#f4f6f8'); g.fillStyle = '#2aa3a0'; g.fillRect(0, 40, w, 24); g.fillStyle = '#1d3d6f'; g.textAlign = 'center'; g.font = `700 19px ${FONT}`; g.fillText('TAMPONS', 64, 28); g.fillStyle = '#fff'; g.font = `700 13px ${FONT}`; g.fillText('REGULAR · 20', 64, 56); }
     else if (kind === 'plateG') { fill(g, w, h, '#2f7a3a'); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'PLANTASTIC', 64, 34, 118, 26, DISP, '400'); }
     else if (kind === 'plateP') { fill(g, w, h, '#7a2f24'); g.fillStyle = '#efe2c2'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'EST. 1987', 64, 34, 118, 26, DISP, '400'); }

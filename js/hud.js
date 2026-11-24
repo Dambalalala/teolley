@@ -15,7 +15,7 @@ const INK = '#0d0f12', PAPER = '#f6f2e7';
 
 export class HUD {
   constructor(canvas) { this.cv = canvas; this.g = canvas.getContext('2d'); this.w = 1; this.h = 1; this.dpr = 1; this.grads = new Map(); }
-  resize(w, h) { this.dpr = clamp(Math.floor(window.devicePixelRatio || 1), 1, 3); this.w = w; this.h = h; this.cv.width = Math.round(w * this.dpr); this.cv.height = Math.round(h * this.dpr); this.grads.clear(); }
+  resize(w, h) { this.dpr = clamp(Math.floor(window.devicePixelRatio || 1), 1, 2); this.w = w; this.h = h; this.cv.width = Math.round(w * this.dpr); this.cv.height = Math.round(h * this.dpr); this.grads.clear(); }
   snap(v) { return Math.round(v * this.dpr) / this.dpr; }
   // y is the middle of the capitals; o.metal is a band palette for chrome lettering (Press Start only)
   text(t, x, y, face, size, col, align = 'left', o = {}) {

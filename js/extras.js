@@ -28,7 +28,6 @@ function speedBump() {
 
 // ---------------- car transporter parked on the hill, top deck lowered to the road ----------------
 const TR = { s0: 604, len: 18, side: -1 };
-export function transporterSpan() { return TR; }
 function transporter(scene) {
   const S0 = TR.s0, Lt = TR.len, Rm = roadAt(S0 + Lt / 2, {}), dc = TR.side * (Rm.w - 1.35), deckW = 2.6, H = 2.75, kick = 0.22;
   W.transporter = { s0: S0, len: Lt, dc };

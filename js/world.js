@@ -73,7 +73,6 @@ export function prof(s, d) {
 export function P(s, d, h = 0) { const R = roadAt(s, PR); return { x: R.x + R.rx * d, y: prof(s, d) + h, z: R.z + R.rz * d, th: R.th }; }
 // yaw for an object whose local +z should point along (dx, dz)
 export const yawTo = (dx, dz) => Math.atan2(dx, dz);
-export const roadYaw = th => -th; // local -z along the road
 
 // nearest centreline point for any (x,z): grid hash of samples
 const GH = new Map(), GCELL = 12;
