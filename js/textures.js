@@ -8,7 +8,7 @@ export function ctex(w, h, draw, o = {}) {
   const g = c.getContext('2d'); draw(g, w, h);
   const t = new T.CanvasTexture(c);
   t.wrapS = t.wrapT = o.clamp ? T.ClampToEdgeWrapping : T.RepeatWrapping;
-  t.anisotropy = o.aniso || 4;
+  t.anisotropy = Math.min(o.aniso || 8, C.renderer ? C.renderer.capabilities.getMaxAnisotropy() : 8);
   if (o.nearest) { t.magFilter = T.NearestFilter; t.minFilter = T.NearestMipMapLinearFilter; }
   t.userData = { canvas: c };
   return t;

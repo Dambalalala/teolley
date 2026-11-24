@@ -144,7 +144,7 @@ function street(scene) {
   // bin day: wheelie bins at the kerb
   const r = rng(7);
   for (let s = 30; s < 740; s += 9 + r() * 14) {
-    if (Math.abs(s - RA_S) < 50 || (s > 168 && s < 194) || (s > 216 && s < 296) || (s > 312 && s < 324)) continue;
+    if (Math.abs(s - RA_S) < 50 || (s > 168 && s < 194) || (s > 216 && s < 296) || (s > 326 && s < 342)) continue;
     const side = r() < 0.5 ? -1 : 1; if (!hasHouse(s, side)) continue;
     const n = 1 + Math.floor(r() * 2.4);
     for (let i = 0; i < n; i++) { const R = roadAt(s + i * 0.75, {}), d = side * (R.w + 0.6), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'bin', x, y: prof(s + i * 0.75, d) + 0.55, z, yaw: yawTo(-side * R.rx, -side * R.rz) + (r() - 0.5) * 0.3, lid: pick(r, [0x2a2a2c, 0x2a2a2c, 0x2a6a3a, 0x2a4aa0, 0x6a4a2a]) }); }
@@ -186,7 +186,7 @@ function parkedCars(scene) {
   for (let s = 26; s < 736; s += 11 + r() * 16) {
     if ((s > 166 && s < 196) || Math.abs(s - RA_S) < 54 || (s > 470 && s < 486)) continue;
     let bad = false; for (const b of W.bumps) if (Math.abs(s - b) < 7) bad = true; if (bad) continue;
-    const side = r() < 0.5 ? -1 : 1; if (side > 0 && s > 236 && s < 296) continue; if (side < 0 && s > 586 && s < 652) continue;
+    const side = r() < 0.5 ? -1 : 1; if (side > 0 && ((s > 236 && s < 296) || (s > 318 && s < 350))) continue; if (side < 0 && s > 586 && s < 652) continue;
     if (!hasHouse(s, side)) continue;
     let kind = pick(r, kinds); if (s > 410 && !robin) { kind = 'robin'; robin = true; }
     const car = makeCar(kind, kind === 'robin' ? 0xf2c81f : (kind === 'van' ? 0xf2f2ee : null), Math.floor(r() * 1e6));
@@ -222,7 +222,7 @@ function roadworks(scene) {
     staticCyl(x, y + 1.3, z, 0.08, 1.3, { kind: 'pole', name: 'TRAFFIC LIGHTS' }); }
   W.triggers.push({ s0: 220, s1: 292, id: 'roadworks' });
   // the plank someone left as a ramp, on its own further down
-  addRamp(scene, P(318, -1.4), roadAt(318, {}).th, 1.25, 3.2, 0.62, 'wood', 'PLANK RAMP');
+  addRamp(scene, P(334, 1.6), roadAt(334, {}).th, 1.25, 3.2, 0.62, 'wood', 'PLANK RAMP');
 
 }
 // static ramp (wedge collider), rising towards travel direction th
@@ -414,7 +414,7 @@ function placePickups() {
   const add = (k, x, y, z) => W.pickups.push({ k, x, y, z });
   { const p = botToWorld(0, 37); add('milk', p.x, 4.8, p.z); } // over the duck pond
   { const p = P(136, 0, 1.7); add('loo', p.x, p.y, p.z); } // road hump on the hill
-  { const p = P(319.2, -1.4, 1.05); add('tampons', p.x, p.y, p.z); } // on the plank ramp itself
+  { const p = P(335.2, 1.6, 1.05); add('tampons', p.x, p.y, p.z); } // on the plank ramp itself
   // pineapple: on the roundabout island (placed with the island); gnome: off the car transporter (extras)
 }
 

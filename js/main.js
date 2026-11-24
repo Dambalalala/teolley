@@ -40,6 +40,8 @@ async function boot() {
   sun.shadow.mapSize.set(touchy ? 1024 : 2048, touchy ? 1024 : 2048);
   Object.assign(sun.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 260 }); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
   scene.add(sun); scene.add(sun.target); C.lights = { hemi, sun }; const SUN = new T.Vector3(0.55, 0.78, 0.3).normalize();
+  // light-space axes for snapping the shadow camera to whole texels
+  const LR = new T.Vector3().crossVectors(new T.Vector3(0, 1, 0), SUN).normalize(), LU = new T.Vector3().crossVectors(SUN, LR).normalize(), TEX = 64 / sun.shadow.mapSize.x, snapP = new T.Vector3();
   buildTextures();
   buildWorldBase(scene);
   buildScenery(scene);
@@ -113,7 +115,7 @@ async function boot() {
     tr.sync(dtR, C.time); C.props.sync(); C.shopping.sync();
     C.select.update(dtR);
     C.cam.update(dtR);
-    const p = G.state === 'select' && C.select.open ? C.select.focus : tr.pos(); sun.position.set(p.x + SUN.x * 120, p.y + SUN.y * 120, p.z + SUN.z * 120); sun.target.position.set(p.x, p.y, p.z);
+    const p = G.state === 'select' && C.select.open ? C.select.focus : tr.pos(); { const a = Math.round((p.x * LR.x + p.z * LR.z) / TEX) * TEX, b = Math.round((p.x * LU.x + p.y * LU.y + p.z * LU.z) / TEX) * TEX, c = p.x * SUN.x + p.y * SUN.y + p.z * SUN.z; snapP.set(LR.x * a + LU.x * b + SUN.x * c, LU.y * b + SUN.y * c, LR.z * a + LU.z * b + SUN.z * c); } sun.position.set(snapP.x + SUN.x * 120, snapP.y + SUN.y * 120, snapP.z + SUN.z * 120); sun.target.position.copy(snapP);
     const W = C.world; W.sky.position.copy(camera.position); W.clouds.position.set(camera.position.x * 0.9, 0, camera.position.z * 0.9); W.clouds.rotation.y += dtR * 0.002;
     if (W.water && W.water.material.map) W.water.material.map.offset.x += dtR * 0.01;
     for (const t of W.turbines || []) t.rotation.z += dtR * 0.9;
