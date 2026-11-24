@@ -269,7 +269,7 @@ export class Game {
     const R = this.run; R.end = why; this.state = 'over'; this.overT = why === 'returned' ? 2.2 : 2.6;
     this.endLive('speed'); this.endLive('two'); this.endLive('scrape');
     this.msgs = [];
-    if (why === 'crash' || why === 'void') { this.loseCombo(); C.audio.sfx('crash'); this.slowmo = 1.4; }
+    if (why === 'crash' || why === 'void') { this.loseCombo(); C.audio.sfx('crash'); this.slowmo = 1.4; this.say(QUIPS.lost, { dur: 2.6, now: true }); }
     else { this.bank(); }
     if (why === 'returned') { this.task('return'); C.audio.sfx('fanfare'); this.say('TROLLEY RETURNED', { kind: 'cheer', dur: 3 }); }
   }

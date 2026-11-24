@@ -92,7 +92,7 @@ export class Props {
     if (s.s != null) { const p = C.world.P(s.s, s.d); pd.x = p.x; pd.y = p.y; pd.z = p.z; pd.yaw = s.d < 0 ? -p.th - Math.PI / 2 : -p.th + Math.PI / 2; }
     else { pd.x = s.x; pd.z = s.z; pd.y = C.world.groundY(s.x, s.z); pd.yaw = s.yaw || 0; }
     pd.body.setTranslation({ x: pd.x, y: pd.y, z: pd.z }, true); pd.body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
-    pd.P.group.position.set(pd.x, pd.y, pd.z); pd.P.group.rotation.set(0, pd.yaw, 0); pd.P.body.rotation.set(0, 0, 0); pd.P.body.position.set(0, 0, 0);
+    pd.P.group.position.set(pd.x, pd.y, pd.z); pd.P.group.rotation.set(0, pd.yaw, 0); pd.P.body.rotation.set(0, 0, 0); pd.P.body.position.set(0, 0, 0); pd.P.armL.rotation.z = 0; pd.P.armR.rotation.z = 0;
   }
   hitPed(pd, rel, tv) {
     // off she goes: launched up and away, spinning, falling far too slowly
@@ -110,10 +110,14 @@ export class Props {
       const s = pd.spec, A = pd.P;
       if (pd.state === 'down') {
         pd.downT -= dt; const q = pd.body.translation(), r = pd.body.rotation(); A.group.position.set(q.x, q.y, q.z); A.group.quaternion.set(r.x, r.y, r.z, r.w);
+        { const lv = pd.body.linvel(), fl = Math.min(1, Math.hypot(lv.x, lv.y, lv.z) / 3), w = t * 22; // flail while flying
+          A.legL.rotation.x = Math.sin(w) * 1.3 * fl; A.legR.rotation.x = -Math.sin(w * 1.1) * 1.3 * fl; A.armL.rotation.x = -2.2 * fl + Math.sin(w * 1.3) * 1.1 * fl; A.armR.rotation.x = -2.2 * fl - Math.sin(w * 0.9) * 1.1 * fl; A.armL.rotation.z = Math.cos(w) * 0.9 * fl; A.armR.rotation.z = -Math.cos(w * 1.2) * 0.9 * fl; }
         if (pd.downT <= 0) { pd.body.setBodyType(R.RigidBodyType.KinematicPositionBased, true); pd.x = q.x; pd.z = q.z; pd.y = C.world.groundY(q.x, q.z); pd.body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true); pd.body.setTranslation({ x: pd.x, y: pd.y, z: pd.z }, true); A.group.quaternion.set(0, 0, 0, 1); pd.state = 'still'; pd.oiT = 2.2; C.audio.sfx('oi'); }
         continue;
       }
       const moving = false;
+      // stand facing the trolley as it comes down the hill
+      if (tp && !pd.dodge) { const want = Math.atan2(-(tp.x - pd.x), -(tp.z - pd.z)); pd.yaw += angDiff(want, pd.yaw) * Math.min(1, dt * 4); }
       // near misses
       if (tr && !pd.dodge && tp) {
         const dx = pd.x - tp.x, dz = pd.z - tp.z, dist = Math.hypot(dx, dz), vh = Math.hypot(tv.x, tv.z);
