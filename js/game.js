@@ -27,8 +27,18 @@ const QUIPS = { lost: 'UNEXPECTED ITEM IN BAGGING AREA' };
 export class Game {
   constructor() {
     this.state = 'loading'; this.paused = false;
-    this.save = { best: 0, unlocked: { dave: true }, sel: 'dave', muted: false, cam: 0, runs: 0 };
-    try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && typeof s === 'object') Object.assign(this.save, s); } catch (e) {}
+    this.save = { best: 0, unlocked: { dave: true }, sel: 'dave', muted: false, runs: 0 };
+    try {
+      const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+      if (saved && typeof saved === 'object') {
+        const unlocked = this.save.unlocked;
+        for (const key of Object.keys(UNLOCKS)) if (saved.unlocked?.[key] === true) unlocked[key] = true;
+        if (Object.hasOwn(unlocked, saved.sel)) this.save.sel = saved.sel;
+        if (Number.isFinite(saved.best) && saved.best >= 0) this.save.best = saved.best;
+        if (Number.isSafeInteger(saved.runs) && saved.runs >= 0) this.save.runs = saved.runs;
+        this.save.muted = saved.muted === true;
+      }
+    } catch (e) { /* Storage may be unavailable in embedded browsers. */ }
     this.msgs = []; this.pops = []; this.shake = 0; this.flash = 0;
     this.resetRun();
   }
@@ -38,7 +48,7 @@ export class Game {
     this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} };
     this.collectTimes = []; this.chain = { n: 0, t: -9 }; this.lastHit = { t: -9, x: 0, z: 0 };
     this.near = new Map(); this.stillT = 0; this.tiltT = 0; this.wetT = 0; this.wetN = 0; this.overT = 0; this.trail = []; this.trailT = 0;
-    this.air = null; this.landed = 0; this.twoT = 0; this.scrapeT = 0; this.lastS = -30; this.lastPos = null; this.pushPower = 0; this.pushT = 0;
+    this.air = null; this.twoT = 0; this.scrapeT = 0; this.lastPos = null; this.pushPower = 0; this.pushT = 0;
   }
   // ---------- messages ----------
   say(text, o = {}) { const m = { text, t: 0, dur: o.dur || 2.4, kind: o.kind || 'notice', big: o.big }; if (o.now) this.msgs.unshift(m); else this.msgs.push(m); if (this.msgs.length > 4) this.msgs.splice(1, 1); }
@@ -97,14 +107,14 @@ export class Game {
   }
   // Rapier contact events (called after each physics step)
   processEvents() {
-    const R = C.RAPIER, tr = C.trolley; if (!tr) return;
+    const tr = C.trolley; if (!tr) return;
     C.events.drainContactForceEvents(e => {
       const h1 = e.collider1(), h2 = e.collider2(), i1 = C.colInfo.get(h1), i2 = C.colInfo.get(h2);
       if (!i1 || !i2) return;
-      let mine = null, other = null, oh = 0;
-      if (i1.kind === 'trolley') { mine = i1; other = i2; oh = h2; } else if (i2.kind === 'trolley') { mine = i2; other = i1; oh = h1; }
+      let mine = null, other = null, mh = 0, oh = 0;
+      if (i1.kind === 'trolley') { mine = i1; other = i2; mh = h1; oh = h2; } else if (i2.kind === 'trolley') { mine = i2; other = i1; mh = h2; oh = h1; }
       if (!mine) { if (i1.kind === 'item' || i2.kind === 'item') { const f = e.totalForceMagnitude(); if (f > 60 && Math.random() < 0.3) C.audio.sfx('item', clamp(f / 400, 0.2, 1)); } return; }
-      this.trolleyImpact(mine, other, e.totalForceMagnitude(), oh, e);
+      this.trolleyImpact(mine, other, e.totalForceMagnitude(), mh, oh);
     });
     C.events.drainCollisionEvents((h1, h2, started) => {
       if (!started) return;
@@ -113,11 +123,10 @@ export class Game {
       const pair = (a, b) => (i1.kind === a && i2.kind === b) ? [i1, i2] : (i2.kind === a && i1.kind === b) ? [i2, i1] : null;
       let pp;
       if ((pp = pair('trolley', 'prop'))) { const p = pp[1].prop; if (ts > 1.2 && C.props.knock(p, 'trolley', ts)) this.broke(p, ts); else if (ts > 1.2) this.sfxFor(p.type, ts); }
-      else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, ts, tv)) { this.run.peds++; this.addCombo('LOLLIPOP LADY', 700); this.task('lollipop'); } }
+      else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, tv)) { this.run.peds++; this.addCombo('LOLLIPOP LADY', 700); this.task('lollipop'); } }
       else if ((pp = pair('prop', 'prop'))) { const a = pp[0].prop, b = pp[1].prop; const moving = p => !p.body.isFixed() && !p.body.isSleeping() && (C.time - p.hitT < 3); const src = moving(a) ? a : moving(b) ? b : null, dst = src === a ? b : a; if (src && dst && !dst.hit) { const v = src.body.linvel(), rs = Math.hypot(v.x, v.y, v.z); if (rs > 1.5 && C.props.knock(dst, 'prop', rs)) { this.broke(dst, rs, true); } } }
     });
   }
-  loseComboSoft() { /* hitting a person costs you the combo you were building */ this.loseCombo(); }
   sfxFor(type, sp) { const k = clamp(sp / 8, 0.3, 1.2); if (type === 'bin') C.audio.sfx('bonk', k); else if (type === 'cone') C.audio.sfx('thwop', k); else if (type === 'pane') C.audio.sfx('glass'); else C.audio.sfx('thud', k * 0.7); }
   broke(p, sp, chain) {
     const R = this.run; R.broken++; R.brokenBy[p.S.name] = (R.brokenBy[p.S.name] || 0) + 1;
@@ -129,20 +138,24 @@ export class Game {
       if (this.chain.n >= 3) this.countCombo('chain', 'CHAIN REACTION ×' + this.chain.n, 60);
     }
   }
-  trolleyImpact(mine, other, F, oh, e) {
-    const tr = C.trolley, s = tr.s, m = tr.mass / 28, t = C.time, v = tr.vel(), sp = Math.hypot(v.x, v.y, v.z);
+  trolleyImpact(mine, other, F, mh, oh) {
+    if (other.kind === 'item') return;
+    const tr = C.trolley, m = tr.mass / 28, t = C.time, v = tr.vel(), sp = Math.hypot(v.x, v.y, v.z);
     const F0 = 5200 * m, sev = (F - F0) / (38000 * m);
     const kind = other.kind;
-    // where did it happen? first solver contact point
-    let px = 0, py = 0, pz = 0, got = false;
-    C.phys.contactPair(C.phys.getCollider([...tr.colliders].find(h => C.colInfo.get(h) === mine) || 0), C.phys.getCollider(oh), (man) => { if (!got && man.numSolverContacts() > 0) { const q = man.solverContactPoint(0); px = q.x; py = q.y; pz = q.z; got = true; } });
-    if (!got) { const p = tr.pos(); px = p.x; py = p.y; pz = p.z; }
-    if (F > F0 * 0.6 && kind !== 'item') {
+    if (F > F0 * 0.6) {
       const k = clamp(F / (30000 * m), 0.25, 1.3);
-      if (!this.lastClang || t - this.lastClang > 0.09) { this.lastClang = t; if (kind === 'ground') C.audio.sfx('clatter', k); else C.audio.sfx('clang', k); }
-      if (kind !== 'ground' && sp > 3) C.fx.emit('spark', px, py, pz, 0, 1.5, 0, Math.round(6 + k * 10), 2.5);
+      if (!this.lastClang || t - this.lastClang > 0.09) { this.lastClang = t; C.audio.sfx(kind === 'ground' ? 'clatter' : 'clang', k); }
+      if (kind !== 'ground' && sp > 3) {
+        let point;
+        C.phys.contactPair(tr.colliders.get(mh), C.phys.getCollider(oh), man => {
+          if (!point && man.numSolverContacts() > 0) point = man.solverContactPoint(0);
+        });
+        const p = point || tr.pos();
+        C.fx.emit('spark', p.x, p.y, p.z, 0, 1.5, 0, Math.round(6 + k * 10), 2.5);
+      }
       this.shake = Math.max(this.shake, Math.min(0.8, F / (60000 * m)));
-      this.lastHit = { t, x: px, z: pz };
+      this.lastHit.t = t;
     }
     if (sev > 0 && kind !== 'item' && kind !== 'prop' && kind !== 'ped') tr.hurt(mine.part === 'floor' ? 'basket' : mine.part === 'front' ? 'basket' : mine.part, sev * (kind === 'ground' ? 0.5 : 1));
     const active = this.state === 'run' || this.state === 'push';
@@ -165,10 +178,17 @@ export class Game {
     if (this.state === 'run') R.time += dt;
     if (this.lastPos) { const d = Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.z); if (d < 5) R.dist += d; } this.lastPos = { x: p.x, z: p.z };
     if (this.state !== 'over') { R.maxSpeed = Math.max(R.maxSpeed, sp); R.maxMph = Math.max(R.maxMph, mph); }
-    if (this.state === 'over') { this.overT -= dt; if (this.overT <= 0) this.showResults(); return; }
+    if (this.state === 'over') {
+      this.overT -= dt;
+      if (this.refund && this.overT <= 1.1) {
+        this.refund = false; C.audio.sfx('coin');
+        this.say('YOUR QUID POPS OUT', { kind: 'cheer', now: true });
+      }
+      if (this.overT <= 0) this.showResults();
+      return;
+    }
     // where are we on the hill?
     const L = W.locate(p.x, p.z, {}), s = L.s;
-    for (const tg of W.triggers) { if (this.lastS < tg.s0 && s >= tg.s0 && s <= tg.s1) this.trigger(tg.id); } this.lastS = s;
     // speed
     if (mph > 30 && tr.nWheels > 0) this.liveCombo('speed', 'SPEEDING', 55, dt); else this.endLive('speed');
     if (W.speedCam && !R.speedCam && Math.abs(s - W.speedCam.s) < 2.5 && mph > 30) { R.speedCam = true; this.flash = 1; C.audio.sfx('flash'); this.addCombo(`SPEED CAMERA ${Math.round(mph)} MPH`, 400); this.task('camera'); }
@@ -194,7 +214,7 @@ export class Game {
     const up = tr.up;
     // on its side or upside down on the ground for a moment means it's over
     const lying = up < 0.3 && (tr.touching || nw > 0), flat = up < -0.4 && tr.touching;
-    if (!tr.submerged && !(tr.qpT > 0) && (lying || up < 0.15)) { this.tiltT += dt * (flat ? 1.6 : 1); if (this.tiltT > (sp < 6 ? 1.3 : 2.2)) return this.endRun('crash'); } else this.tiltT = Math.max(0, this.tiltT - dt * 2);
+    if (!tr.submerged && (lying || up < 0.15)) { this.tiltT += dt * (flat ? 1.6 : 1); if (this.tiltT > (sp < 6 ? 1.3 : 2.2)) return this.endRun('crash'); } else this.tiltT = Math.max(0, this.tiltT - dt * 2);
     const inputting = C.input && (C.input.ctl.push || C.input.ctl.brake);
     if (this.state === 'run' && sp < 0.35 && s > 2) { this.stillT += inputting ? dt * 0.45 : dt; if (this.stillT > 5.5) return this.endRun('stopped'); } else this.stillT = 0;
     // wedged against something and getting nowhere for a while
@@ -232,7 +252,6 @@ export class Game {
       const B = C.props.bus; if (B && B.x != null) { const dx = p.x - B.x, dz = p.z - B.z; const d = Math.hypot(Math.max(0, Math.abs(dx) - 5.4), Math.max(0, Math.abs(dz) - 1.25)) - r0; check('bus', d, 'THE BUS', 600); }
     }
   }
-  trigger(id) { this.run.flags['at_' + id] = true; }
   // ---------- flow ----------
   ensureTrolley() {
     const key = this.save.unlocked[this.save.sel] ? this.save.sel : 'dave';
@@ -244,11 +263,12 @@ export class Game {
     C.ui.show('select');
   }
   resetWorld() {
-    C.props.reset(); C.shopping.reset(); C.fx.clear();
+    C.input.release(); C.props.reset(); C.shopping.reset(); C.fx.clear();
+    this.shake = 0; this.flash = 0; this.refund = false;
     C.trolley.reset(C.world.start); C.camera.userData.snap = true;
   }
   startRun() {
-    C.audio.init(); this.ensureTrolley(); this.resetWorld(); this.resetRun();
+    C.audio.init(); C.select.close(false); this.ensureTrolley(); this.resetWorld(); this.resetRun();
     this.msgs = []; this.pops = []; this.bankPop = null; this.lostPop = null;
     this.state = 'push'; this.pushT = 2.4; this.paused = false; this.slowmo = 0;
     C.ui.show('hud');
@@ -264,10 +284,10 @@ export class Game {
     this.msgs = [];
     if (why === 'crash' || why === 'void') { this.loseCombo(); C.audio.sfx('crash'); this.slowmo = 1.4; this.say(QUIPS.lost, { dur: 2.6, now: true }); }
     else { this.bank(); }
-    if (why === 'returned') { this.task('return'); C.audio.sfx('fanfare'); this.say('TROLLEY RETURNED', { kind: 'cheer', dur: 3 }); setTimeout(() => { C.audio.sfx('coin'); this.say('YOUR QUID POPS OUT', { kind: 'cheer', dur: 2.6 }); }, 1100); }
+    if (why === 'returned') { this.task('return'); C.audio.sfx('fanfare'); this.say('TROLLEY RETURNED', { kind: 'cheer', dur: 3 }); this.refund = true; }
   }
   showResults() {
-    const R = this.run, tr = C.trolley; this.state = 'results';
+    const R = this.run, tr = C.trolley; this.state = 'results'; C.audio.alarm(false);
     const lines = []; let total = R.score;
     const inBasket = C.shopping.inBasket(); const delivered = {}; let dpts = 0; for (const it of inBasket) { delivered[it.k] = (delivered[it.k] || 0) + 1; dpts += ITEMS[it.k].pts; }
     const bonus = [];

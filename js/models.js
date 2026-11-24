@@ -21,7 +21,7 @@ export const VARIANTS = {
   green: { name: 'Green Fingers', blurb: 'Two-tier, extra shelf. Turns on a sixpence. Not quick.', scale: 0.95, metal: 0x4f7f56, plastic: 0x2f7a3a, plate: 'plateG' },
 };
 
-const wireMats = new Map();
+const wireMats = new Map(), trolleyMaterial = lam();
 function wireMat(color) {
   if (!wireMats.has(color)) wireMats.set(color, new T.MeshLambertMaterial({ map: TX.wire, alphaTest: 0.45, side: T.DoubleSide, color }));
   return wireMats.get(color);
@@ -31,7 +31,7 @@ export function makeTrolley(vkey) {
   const V = VARIANTS[vkey] || VARIANTS.dave, s = V.scale, GY = TD.GY;
   const root = new T.Group(); root.scale.setScalar(s);
   const metal = V.metal, plastic = V.plastic;
-  const matV = lam();
+  const matV = trolleyMaterial;
   const H = h => h + GY; // ground height -> local y
   const t = TD.top, b = TD.bot;
   // ---- basket (its own group so it can be crushed) ----
@@ -59,7 +59,7 @@ export function makeTrolley(vkey) {
   bx(F, null, 0.08, 0.03, 0.03, -t.x + 0.02, H(t.y) + 0.01, t.zf + 0.02, 0x333338);
   bx(F, null, 0.08, 0.03, 0.03, t.x - 0.02, H(t.y) + 0.01, t.zf + 0.02, 0x333338);
   const frame = new T.Mesh(F.geometry(), matV); frame.castShadow = true; basket.add(frame);
-  const plate = new T.Mesh(new T.PlaneGeometry(0.34, 0.12), new T.MeshLambertMaterial({ map: labelTex(V.plate) }));
+  const plate = new T.Mesh(new T.PlaneGeometry(0.34, 0.12), lblMat(V.plate));
   const ph = t.y - 0.12, fz = b.zf + (t.zf - b.zf) * (ph - b.y) / (t.y - b.y) - 0.012; plate.position.set(0, H(ph), fz); plate.rotation.set(-Math.atan2(b.zf - t.zf, t.y - b.y), Math.PI, 0); basket.add(plate);
   // ---- chassis ----
   const Ch = new Batch();
@@ -121,8 +121,10 @@ export const ITEMS = {
 
 const labelMats = {};
 function lblMat(k) { if (!labelMats[k]) labelMats[k] = new T.MeshLambertMaterial({ map: labelTex(k) }); return labelMats[k]; }
-const itemGeoCache = {};
+const itemModels = new Map();
 export function makeItemMesh(k) {
+  const existing = itemModels.get(k);
+  if (existing) return existing.clone();
   const g = new T.Group(), mv = lam();
   const B = new Batch();
   if (k === 'milk') { const m = new T.Mesh(GEO.box, lblMat('milk')); m.scale.set(0.12, 0.2, 0.12); m.position.y = -0.02; g.add(m); B.add(GEO.cyl8, M(0, 0.1, 0.02, 0, 0, 0, 0.03, 0.04, 0.03), 0xf4f4f0); B.add(GEO.cyl8, M(0, 0.125, 0.02, 0, 0, 0, 0.022, 0.02, 0.022), 0x2f9a4a); B.add(GEO.box, M(0, 0.03, -0.055, 0, 0, 0, 0.04, 0.12, 0.02), 0xf4f4f0); }
@@ -132,8 +134,9 @@ export function makeItemMesh(k) {
   else if (k === 'gnome') { B.add(GEO.cyl8, M(0, -0.06, 0, 0, 0, 0, 0.055, 0.08, 0.05), 0x2f62b8); B.add(GEO.cyl8, M(0, 0.02, 0, 0, 0, 0, 0.05, 0.08, 0.045), 0xc8402f); B.add(GEO.sph, M(0, 0.08, 0, 0, 0, 0, 0.04, 0.04, 0.04), 0xf0c8a0); B.add(GEO.cone8, M(0, 0.06, 0.015, 0, 0, 0, 0.04, 0.05, 0.03), 0xf4f4f4); B.add(GEO.cone8, M(0, 0.15, 0, 0, 0, 0, 0.042, 0.1, 0.042), 0xd21f26); }
   if (!B.empty) { const m = new T.Mesh(B.geometry(), mv); g.add(m); }
   if (ITEMS[k].bargain) { const st = new T.Mesh(new T.PlaneGeometry(0.12, 0.06), new T.MeshBasicMaterial({ map: labelTex('reduced'), transparent: true, alphaTest: 0.3, side: T.DoubleSide })); st.position.set(0, 0.02, 0.08); g.add(st); }
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
-  return g;
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  itemModels.set(k, g);
+  return g.clone();
 }
 
 // ======================= PROPS =======================

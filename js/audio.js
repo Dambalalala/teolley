@@ -4,9 +4,9 @@ import { clamp } from './util.js';
 // Everything is synthesised: rattling wire, squeaky casters, a scanner beep, overdramatic crashes,
 // and supermarket muzak that turns into chase music as the trolley speeds up.
 export class Audio {
-  constructor() { this.ok = false; this.muted = false; this.intensity = 0; this.int = 0; this.voice = null; }
+  constructor() { this.ok = false; this.muted = false; this.intensity = 0; this.int = 0; }
   init() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {}); return; }
+    if (this.ctx) { if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.ctx.resume().catch(() => {}); return; }
     try {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
       const A = this.ctx = new AC();
@@ -124,10 +124,15 @@ export class Audio {
     this.timer = setInterval(() => this.schedule(), 40);
   }
   schedule() {
-    if (!this.ok) return; const A = this.ctx, I = this.int, L = this.layers, t0 = A.currentTime;
+    if (!this.ok || this.muted || document.hidden || this.ctx.state !== 'running') return;
+    const A = this.ctx, I = this.int, L = this.layers, t0 = A.currentTime;
     const lv = (k, v) => L[k].gain.setTargetAtTime(v, t0, 0.4);
     lv('keys', 0.9 - I * 0.35); lv('bass', clamp((I - 0.12) * 3, 0, 1) * 0.9); lv('drums', clamp((I - 0.3) * 3, 0, 1)); lv('lead', clamp((I - 0.6) * 3, 0, 1) * 0.6); lv('stab', clamp((I - 0.82) * 5, 0, 1) * 0.6);
     const spb = 60 / this.bpm / 4;
+    if (this.next < t0) {
+      const missed = Math.ceil((t0 - this.next) / spb);
+      this.step += missed; this.next += missed * spb;
+    }
     // I-vi-ii-V in C: chords per bar
     const CH = [[60, 64, 67, 71], [57, 60, 64, 67], [62, 65, 69, 72], [55, 59, 62, 65]];
     const BASS = [36, 33, 38, 31];

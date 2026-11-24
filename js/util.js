@@ -133,12 +133,12 @@ export function vnoise(seed) {
 // Bakes static decorative objects (built from several meshes) into one mesh per material.
 export class Baker {
   constructor() { this.groups = new Map(); }
-  add(obj) {
+  add(obj, area = 'top') {
     obj.updateMatrixWorld(true);
     obj.traverse(o => {
       if (!o.isMesh || !o.visible) return;
       const g = o.geometry, names = ['position', 'normal', 'uv', 'color'].filter(n => g.attributes[n]);
-      const key = o.material.uuid + '|' + names.join(',');
+      const key = [area, o.material.uuid, o.castShadow, o.receiveShadow, ...names].join('|');
       let e = this.groups.get(key); if (!e) { e = { mat: o.material, names, parts: [], cast: o.castShadow, recv: o.receiveShadow }; this.groups.set(key, e); }
       e.parts.push({ g, m: o.matrixWorld.clone() });
     });
@@ -146,23 +146,33 @@ export class Baker {
   flush(scene) {
     const T = window.THREE, v = new T.Vector3(), nm = new T.Matrix3();
     for (const e of this.groups.values()) {
-      let nv = 0; for (const p of e.parts) nv += p.g.index ? p.g.index.count : p.g.attributes.position.count;
-      const out = {}; for (const n of e.names) out[n] = new Float32Array(nv * e.parts[0].g.attributes[n].itemSize);
-      let o = 0;
+      let nv = 0, ni = 0;
+      for (const p of e.parts) { nv += p.g.attributes.position.count; ni += p.g.index?.count ?? p.g.attributes.position.count; }
+      const out = {};
+      for (const n of e.names) out[n] = new Float32Array(nv * e.parts[0].g.attributes[n].itemSize);
+      const index = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+      let offset = 0, indexOffset = 0;
       for (const p of e.parts) {
-        const g = p.g, idx = g.index ? g.index.array : null, cnt = idx ? idx.length : g.attributes.position.count; nm.getNormalMatrix(p.m);
-        for (let k = 0; k < cnt; k++) {
-          const i = idx ? idx[k] : k;
-          for (const n of e.names) {
-            const A = g.attributes[n], sz = A.itemSize, D = out[n];
-            if (n === 'position') { v.fromBufferAttribute(A, i).applyMatrix4(p.m); D[(o + k) * 3] = v.x; D[(o + k) * 3 + 1] = v.y; D[(o + k) * 3 + 2] = v.z; }
-            else if (n === 'normal') { v.fromBufferAttribute(A, i).applyMatrix3(nm).normalize(); D[(o + k) * 3] = v.x; D[(o + k) * 3 + 1] = v.y; D[(o + k) * 3 + 2] = v.z; }
-            else for (let c = 0; c < sz; c++) D[(o + k) * sz + c] = A.array[i * sz + c];
-          }
+        const g = p.g, cnt = g.attributes.position.count;
+        nm.getNormalMatrix(p.m);
+        for (const n of e.names) {
+          const attr = g.attributes[n], size = attr.itemSize, dst = out[n];
+          if (n === 'position' || n === 'normal') {
+            for (let k = 0; k < cnt; k++) {
+              v.fromBufferAttribute(attr, k);
+              if (n === 'position') v.applyMatrix4(p.m);
+              else v.applyMatrix3(nm).normalize();
+              v.toArray(dst, (offset + k) * size);
+            }
+          } else dst.set(attr.array, offset * size);
         }
-        o += cnt;
+        const count = g.index?.count ?? cnt;
+        for (let k = 0; k < count; k++) index[indexOffset++] = offset + (g.index ? g.index.getX(k) : k);
+        offset += cnt;
       }
-      const geo = new T.BufferGeometry(); for (const n of e.names) geo.setAttribute(n, new T.BufferAttribute(out[n], e.parts[0].g.attributes[n].itemSize));
+      const geo = new T.BufferGeometry();
+      for (const n of e.names) geo.setAttribute(n, new T.BufferAttribute(out[n], e.parts[0].g.attributes[n].itemSize));
+      geo.setIndex(new T.BufferAttribute(index, 1));
       geo.computeBoundingSphere();
       const m = new T.Mesh(geo, e.mat); m.castShadow = e.cast; m.receiveShadow = e.recv; m.matrixAutoUpdate = false; scene.add(m);
     }

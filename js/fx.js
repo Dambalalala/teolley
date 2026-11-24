@@ -3,7 +3,7 @@ const T = C.T;
 
 // Point-sprite particles: sparks, dust, splashes, glass and rubbish.
 const VS = 'attribute float aSize;attribute float aAlpha;attribute vec3 aCol;uniform float uScale;varying float vA;varying vec3 vC;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(aSize*uScale/max(0.1,-mv.z),1.0,300.0);vA=aAlpha;vC=aCol;}';
-const FS = 'uniform float uSoft;varying float vA;varying vec3 vC;void main(){vec2 c=gl_PointCoord-0.5;float d=length(c);float a=uSoft>0.5?smoothstep(0.5,0.0,d):step(d,0.5);if(a<0.01)discard;gl_FragColor=vec4(vC,vA*a);}';
+const FS = 'uniform float uSoft;varying float vA;varying vec3 vC;void main(){vec2 c=gl_PointCoord-0.5;float d=length(c);float a=uSoft>0.5?(1.0-smoothstep(0.0,0.5,d)):step(d,0.5);if(a<0.01)discard;gl_FragColor=vec4(vC,vA*a);}';
 function system(max, additive, soft) {
   const g = new T.BufferGeometry(), A = (n, k) => { const a = new T.BufferAttribute(new Float32Array(n * k), k); a.setUsage(T.DynamicDrawUsage); return a; };
   g.setAttribute('position', A(max, 3)); g.setAttribute('aCol', A(max, 3)); g.setAttribute('aSize', A(max, 1)); g.setAttribute('aAlpha', A(max, 1)); g.setDrawRange(0, 0);
@@ -23,7 +23,7 @@ const KINDS = {
 };
 const RUB = [[0.9, 0.9, 0.88], [0.85, 0.2, 0.2], [0.2, 0.45, 0.8], [0.95, 0.8, 0.2], [0.3, 0.6, 0.3], [0.6, 0.45, 0.3]];
 export class FX {
-  constructor() { this.S = { soft: system(1400, false, true), add: system(500, true, true), hard: system(600, false, false) }; }
+  constructor() { this.S = { soft: system(320, false, true), add: system(300, true, true), hard: system(300, false, false) }; }
   emit(kind, x, y, z, vx, vy, vz, n = 1, spd = 1) {
     const K = KINDS[kind]; if (!K) return; const S = this.S[K.sys];
     for (let k = 0; k < n; k++) {
@@ -37,6 +37,7 @@ export class FX {
   }
   update(dt) {
     for (const S of Object.values(this.S)) {
+      if (!S.n) { S.g.setDrawRange(0, 0); continue; }
       for (let i = 0; i < S.n; i++) {
         S.life[i] -= dt;
         if (S.life[i] <= 0) { const j = --S.n; if (i !== j) { const i3 = i * 3, j3 = j * 3; for (let k = 0; k < 3; k++) { S.pos[i3 + k] = S.pos[j3 + k]; S.vel[i3 + k] = S.vel[j3 + k]; S.col[i3 + k] = S.col[j3 + k]; } S.size[i] = S.size[j]; S.life[i] = S.life[j]; S.ml[i] = S.ml[j]; S.grav[i] = S.grav[j]; S.grow[i] = S.grow[j]; S.a0[i] = S.a0[j]; S.drag[i] = S.drag[j]; } i--; continue; }
@@ -45,7 +46,12 @@ export class FX {
         S.pos[i3] += S.vel[i3] * dt; S.pos[i3 + 1] += S.vel[i3 + 1] * dt; S.pos[i3 + 2] += S.vel[i3 + 2] * dt;
         S.size[i] += S.grow[i] * dt; const f = S.life[i] / S.ml[i]; S.alpha[i] = S.a0[i] * Math.min(1, f * 2.5);
       }
-      S.g.setDrawRange(0, S.n); for (const k of ['position', 'aCol', 'aSize', 'aAlpha']) S.g.attributes[k].needsUpdate = true;
+      S.g.setDrawRange(0, S.n);
+      for (const attr of Object.values(S.g.attributes)) {
+        attr.updateRange.offset = 0;
+        attr.updateRange.count = S.n * attr.itemSize;
+        if (S.n) attr.needsUpdate = true;
+      }
     }
   }
   setScale(s) { for (const S of Object.values(this.S)) S.mat.uniforms.uScale.value = s; }

@@ -3,8 +3,12 @@
 <head>
 <meta name="robots" content="noindex, nofollow">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Trolley</title>
+<meta name="theme-color" content="#8fa6b8">
+<link rel="icon" href="data:,">
+<script defer src="vendor/three-r128.min.js"></script>
+<link rel="modulepreload" href="js/main.js">
 <style>
 /* pixel fonts for everything on screen; Bungee and Barlow are only used for signs painted in the world */
 @font-face{font-family:'Press Start 2P';font-style:normal;font-weight:400;font-display:block;src:url(fonts/press-start-2p-latin-400-normal.woff2) format('woff2')}
@@ -28,11 +32,15 @@
   --display:"Press Start 2P",ui-monospace,monospace;
   --label:"Silkscreen",ui-monospace,monospace;
   --body:"Tiny5","Silkscreen",ui-monospace,monospace;
-  --pad:64px;
+  --pad:clamp(48px, 15vw, 64px);
+  --safe-t:env(safe-area-inset-top, 0px);
+  --safe-r:env(safe-area-inset-right, 0px);
+  --safe-b:env(safe-area-inset-bottom, 0px);
+  --safe-l:env(safe-area-inset-left, 0px);
   color-scheme:dark;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;width:100%;overflow:hidden;background:#8fa6b8;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+html,body{height:100%;width:100%;overflow:hidden;background:#8fa6b8;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
 body{font-family:var(--body);font-size:16px;line-height:1.5;color:var(--paper);-webkit-font-smoothing:none;-moz-osx-font-smoothing:unset;font-smooth:never;font-kerning:none;font-variant-ligatures:none}
 canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 #hud{pointer-events:none;z-index:2;image-rendering:pixelated}
@@ -48,24 +56,24 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 .metal{background-image:linear-gradient(180deg,#fff 0 12.5%,#dde3ea 12.5% 25%,#b4bfcb 25% 37.5%,#69737f 37.5% 50%,#8995a3 50% 62.5%,#c3ccd6 62.5% 75%,#eef2f6 75% 87.5%,#c3ccd6 87.5%)}
 .gold{background-image:linear-gradient(180deg,#fffbe0 0 12.5%,#ffe680 12.5% 25%,#ffd21f 25% 37.5%,#c47a0a 37.5% 50%,#e8a313 50% 62.5%,#ffd54d 62.5% 75%,#fff1a6 75% 87.5%,#ffd54d 87.5%)}
 
-.screen{position:fixed;inset:0;z-index:5;display:flex;flex-direction:column;padding:16px}
+.screen{position:fixed;inset:0;z-index:5;display:flex;flex-direction:column;padding:calc(16px + var(--safe-t)) calc(16px + var(--safe-r)) calc(16px + var(--safe-b)) calc(16px + var(--safe-l))}
 .row{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
 
 /* trolley select: the first thing you see */
-#select{justify-content:flex-end;align-items:flex-start;background:linear-gradient(0deg,rgba(22,22,26,.72) 0%,rgba(22,22,26,.3) 45%,rgba(22,22,26,0) 65%)}
-.logo{position:absolute;left:16px;top:16px;font-family:var(--display);font-weight:400;font-size:32px;--fp:4px;margin:0}
+#select{justify-content:safe flex-end;overflow:auto;touch-action:pan-y;align-items:flex-start;background:linear-gradient(0deg,rgba(22,22,26,.72) 0%,rgba(22,22,26,.3) 45%,rgba(22,22,26,0) 65%)}
+.logo{position:absolute;left:calc(16px + var(--safe-l));top:calc(16px + var(--safe-t));font-family:var(--display);font-weight:400;font-size:32px;--fp:4px;margin:0}
 .keys{position:absolute;right:16px;top:16px;display:grid;grid-template-columns:repeat(2,max-content);gap:8px 24px;font-size:16px;line-height:1;padding:12px 16px;background:rgba(22,22,26,.6);border:2px solid rgba(246,242,231,.22)}
 .keys span{display:inline-flex;gap:6px;align-items:center}
 .selPanel{width:min(416px,100%);display:flex;flex-direction:column;gap:12px}
 #selName{font-family:var(--display);font-weight:400;font-size:24px;--fp:3px;text-transform:uppercase;align-self:flex-start;margin:4px 0 2px}
 #selBlurb{font-size:16px;line-height:1.5;color:var(--paper);text-shadow:2px 2px 0 rgba(0,0,0,.6)}
 .selStats{display:grid;gap:8px;margin:2px 0}
-.sst{display:grid;grid-template-columns:136px max-content;align-items:center;font-family:var(--label);font-size:16px;line-height:1;text-transform:uppercase;text-shadow:2px 2px 0 rgba(0,0,0,.6)}
-.segs{display:grid;grid-template-columns:repeat(10,16px);gap:4px}
+.sst{display:grid;grid-template-columns:minmax(104px, 136px) minmax(0, max-content);align-items:center;font-family:var(--label);font-size:16px;line-height:1;text-transform:uppercase;text-shadow:2px 2px 0 rgba(0,0,0,.6)}
+.segs{display:grid;grid-template-columns:repeat(10,clamp(9px, 3.6vw, 16px));gap:3px}
 .segs i{height:12px;background:rgba(246,242,231,.22);box-shadow:inset 0 -4px 0 rgba(0,0,0,.18)}
 .segs i.on{background:var(--yellow);box-shadow:inset 0 -4px 0 #c47a0a,inset 0 4px 0 #fff1a6}
 .selLock{font-size:16px;line-height:1.5;color:#ffc2a0;text-shadow:2px 2px 0 rgba(0,0,0,.7)}
-.selNav{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.selNav{display:flex;align-items:center;gap:clamp(6px, 3vw, 12px);flex-wrap:wrap}
 .selIdx{font-family:var(--label);font-size:16px;line-height:1;min-width:56px;text-align:center}
 .selNav .btn{margin-left:8px}
 .best{font-family:var(--label);font-size:16px;line-height:1;color:var(--yellow);text-shadow:2px 2px 0 rgba(0,0,0,.6)}
@@ -79,8 +87,8 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 .btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
 .btn:disabled{opacity:.45;cursor:default;box-shadow:none;transform:none}
 
-#results{align-items:center;justify-content:center;background:rgba(22,22,26,.6);overflow-y:auto}
-.receipt{width:min(400px,92vw);max-height:calc(100% - 96px);overflow-y:auto;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.25;padding:20px 20px 24px;box-shadow:8px 8px 0 rgba(0,0,0,.45);-webkit-mask:linear-gradient(#000 calc(100% - 8px),transparent 0) top/100% 100% no-repeat,linear-gradient(90deg,#000 50%,transparent 0) bottom/16px 8px repeat-x;mask:linear-gradient(#000 calc(100% - 8px),transparent 0) top/100% 100% no-repeat,linear-gradient(90deg,#000 50%,transparent 0) bottom/16px 8px repeat-x}
+#results{align-items:center;justify-content:safe center;background:rgba(22,22,26,.6);overflow-y:auto;touch-action:pan-y}
+.receipt{width:min(400px,92vw);max-height:calc(100% - 96px);overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.25;padding:20px 20px 24px;box-shadow:8px 8px 0 rgba(0,0,0,.45);-webkit-mask:linear-gradient(#000 calc(100% - 8px),transparent 0) top/100% 100% no-repeat,linear-gradient(90deg,#000 50%,transparent 0) bottom/16px 8px repeat-x;mask:linear-gradient(#000 calc(100% - 8px),transparent 0) top/100% 100% no-repeat,linear-gradient(90deg,#000 50%,transparent 0) bottom/16px 8px repeat-x}
 .receipt .shop{font-family:var(--display);font-size:24px;line-height:1;text-align:center;margin-bottom:8px}
 .receipt .c{text-align:center}
 .receipt .head{font-family:var(--label);font-weight:700;font-size:16px;text-align:center;margin:8px 0 4px;text-transform:uppercase}
@@ -93,7 +101,7 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 .receipt .stamp{font-family:var(--display);font-size:16px;line-height:1.5;color:#b3221b;border:4px solid #b3221b;text-align:center;padding:8px;margin:12px auto 4px;width:max-content;max-width:100%;opacity:.9}
 .resbtns{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;justify-content:center}
 
-#pause{align-items:center;justify-content:center;gap:16px;background:rgba(22,22,26,.6)}
+#pause{align-items:center;justify-content:safe center;gap:16px;overflow:auto;touch-action:pan-y;background:rgba(22,22,26,.6)}
 #pause h2{font-family:var(--display);font-weight:400;font-size:32px;--fp:4px;text-transform:uppercase;margin-bottom:8px}
 .plist{background:var(--paper);color:var(--ink);padding:16px 20px 12px;min-width:min(320px,90vw);font-size:16px;line-height:1.5;box-shadow:8px 8px 0 rgba(0,0,0,.4)}
 .plist h3{font-family:var(--label);font-size:16px;font-weight:700;line-height:1;margin-bottom:8px}
@@ -104,16 +112,16 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 .plist li.done{color:#4a4a52}
 .plist li.done::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%2316161a' d='M0 0h8v1H0zM0 7h8v1H0zM0 1h1v6H0zM7 1h1v6H7z'/%3E%3Cpath fill='%231f8a3a' d='M6 2h1v1H6zM5 3h2v1H5zM1 4h1v1H1zM4 4h2v1H4zM1 5h4v1H1zM2 6h2v1H2z'/%3E%3C/svg%3E")}
 
-#hudBtns{position:fixed;top:8px;right:8px;z-index:4;display:flex;gap:8px}
+#hudBtns{position:fixed;top:calc(8px + var(--safe-t));right:calc(8px + var(--safe-r));z-index:4;display:flex;gap:8px}
 .hb{min-width:44px;height:44px;padding:0 8px;background:rgba(22,22,26,.6);border:2px solid rgba(246,242,231,.85);color:var(--paper);font-family:var(--display);font-size:16px;line-height:1;display:grid;place-items:center}
 #touch{position:fixed;inset:0;z-index:3;pointer-events:none}
 .pad{position:absolute;pointer-events:auto;display:grid;place-items:center;width:var(--pad);height:var(--pad);background:rgba(22,22,26,.45);border:4px solid rgba(246,242,231,.75);color:var(--paper);font-family:var(--label);font-weight:700;font-size:16px;line-height:1;touch-action:none;text-align:center}
 .pad.on{background:rgba(242,106,27,.9);color:var(--ink);border-color:var(--ink)}
-#tL{left:14px;bottom:16px}
-#tR{left:calc(26px + var(--pad));bottom:16px}
-#tG{right:14px;bottom:calc(28px + var(--pad))}
-#tB{right:calc(26px + var(--pad));bottom:16px}
-#tH{right:14px;bottom:16px}
+#tL{left:calc(12px + var(--safe-l));bottom:calc(12px + var(--safe-b))}
+#tR{left:calc(20px + var(--pad) + var(--safe-l));bottom:calc(12px + var(--safe-b))}
+#tG{right:calc(12px + var(--safe-r));bottom:calc(20px + var(--pad) + var(--safe-b))}
+#tB{right:calc(20px + var(--pad) + var(--safe-r));bottom:calc(12px + var(--safe-b))}
+#tH{right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b))}
 #loading .dots i{font-style:normal;animation:dot 1.2s steps(1) infinite;opacity:0}
 #loading .dots i:nth-child(2){animation-delay:.3s}
 #loading .dots i:nth-child(3){animation-delay:.6s}
@@ -121,10 +129,10 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 #loading,#err{position:fixed;inset:0;z-index:9;display:grid;place-items:center;text-align:center;padding:24px;background:#8fa6b8;color:var(--ink);font-family:var(--display);font-size:16px;line-height:1.5}
 #err{font-family:var(--body);background:#2a2a30;color:var(--paper)}
 
-@media (min-width:560px){:root{--pad:88px}}
+@media (min-width:560px){:root{--pad:clamp(56px, 16vh, 76px)}}
 @media (min-width:760px) and (min-height:560px){
-  .screen{padding:32px}
-  .logo{left:32px;top:32px;font-size:48px;--fp:6px}
+  .screen{padding:calc(32px + var(--safe-t)) calc(32px + var(--safe-r)) calc(32px + var(--safe-b)) calc(32px + var(--safe-l))}
+  .logo{left:calc(32px + var(--safe-l));top:calc(32px + var(--safe-t));font-size:48px;--fp:6px}
   .keys{right:32px;top:32px}
   #selBlurb{font-size:24px;line-height:1.334}
   #pause h2{font-size:48px;--fp:6px}
@@ -135,26 +143,29 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
   #select .logo{left:50%;transform:translateX(-50%)}
 }
 @media (max-height:559px){
-  .screen{padding:12px 16px}
-  .logo{top:12px;font-size:24px;--fp:3px}
-  #select .logo{left:auto;right:16px;transform:none}
+  .screen{padding-top:calc(12px + var(--safe-t));padding-bottom:calc(12px + var(--safe-b))}
+  .logo{top:calc(12px + var(--safe-t));font-size:24px;--fp:3px}
+  #select .logo{left:auto;right:calc(16px + var(--safe-r));transform:none}
   .keys{display:none}
   .selPanel{gap:8px}
   #selName{margin:0}
   .selStats{gap:4px}
-  #pause{gap:8px;padding-top:8px}
+  #pause{gap:8px}
   #pause h2{font-size:24px;--fp:3px;margin:0}
   .plist{padding:8px 16px;line-height:1.25}
   .plist ul.tasks{grid-template-columns:1fr 1fr;gap:0 24px;margin-top:4px;padding-top:4px}
   .receipt{max-height:calc(100% - 80px)}
   .resbtns{margin-top:8px}
 }
-@media (max-width:559px){.pad{border-width:2px}}
+@media (max-width:559px){.pad{border-width:2px}.selNav .btn{margin-left:0}}
+@media (max-width:369px){#selName{font-size:16px;--fp:2px}.selNav .btn{padding-inline:12px}.selIdx{min-width:46px}}
+#gl{touch-action:none;outline:none}
+.touch .key-hint{display:none}
 @media (prefers-reduced-motion:reduce){.nudge{animation:none}}
 </style>
 </head>
 <body>
-<canvas id="gl" aria-label="Trolley 3D view"></canvas>
+<canvas id="gl" tabindex="-1" aria-label="Trolley 3D view"></canvas>
 <canvas id="hud" aria-hidden="true"></canvas>
 
 <div id="fade"></div>
@@ -186,7 +197,7 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 
 <div id="results" class="screen hidden" role="dialog" aria-label="Run results">
   <div class="receipt" id="receipt"></div>
-  <div class="resbtns"><button id="bAgain" class="btn">Again (R)</button><button id="bTrolleys" class="btn alt">Trolleys</button></div>
+  <div class="resbtns"><button id="bAgain" class="btn">Again<span class="key-hint"> (R)</span></button><button id="bTrolleys" class="btn alt">Trolleys</button></div>
 </div>
 
 <div id="pause" class="screen hidden" role="dialog" aria-label="Paused">
@@ -200,16 +211,15 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
   <button id="bPause" class="hb" aria-label="Pause">II</button>
 </div>
 <div id="touch" class="hidden">
-  <div id="tL" class="pad" role="button" aria-label="Steer left"><svg class="px" viewBox="0 0 5 9" width="15" height="27"><path d="M4 0h1v1h-1zM3 1h2v1h-2zM2 2h3v1h-3zM1 3h4v1h-4zM0 4h5v1h-5zM1 5h4v1h-4zM2 6h3v1h-3zM3 7h2v1h-2zM4 8h1v1h-1z"/></svg></div>
-  <div id="tR" class="pad" role="button" aria-label="Steer right"><svg class="px" viewBox="0 0 5 9" width="15" height="27"><path d="M0 0h1v1h-1zM0 1h2v1h-2zM0 2h3v1h-3zM0 3h4v1h-4zM0 4h5v1h-5zM0 5h4v1h-4zM0 6h3v1h-3zM0 7h2v1h-2zM0 8h1v1h-1z"/></svg></div>
-  <div id="tG" class="pad" role="button" aria-label="Push">PUSH</div>
-  <div id="tB" class="pad" role="button" aria-label="Brake">STOP</div>
-  <div id="tH" class="pad" role="button" aria-label="Hop">HOP</div>
+  <button id="tL" class="pad" aria-label="Steer left"><svg class="px" viewBox="0 0 5 9" width="15" height="27"><path d="M4 0h1v1h-1zM3 1h2v1h-2zM2 2h3v1h-3zM1 3h4v1h-4zM0 4h5v1h-5zM1 5h4v1h-4zM2 6h3v1h-3zM3 7h2v1h-2zM4 8h1v1h-1z"/></svg></button>
+  <button id="tR" class="pad" aria-label="Steer right"><svg class="px" viewBox="0 0 5 9" width="15" height="27"><path d="M0 0h1v1h-1zM0 1h2v1h-2zM0 2h3v1h-3zM0 3h4v1h-4zM0 4h5v1h-5zM0 5h4v1h-4zM0 6h3v1h-3zM0 7h2v1h-2zM0 8h1v1h-1z"/></svg></button>
+  <button id="tG" class="pad" aria-label="Push">PUSH</button>
+  <button id="tB" class="pad" aria-label="Brake">STOP</button>
+  <button id="tH" class="pad" aria-label="Hop">HOP</button>
 </div>
 <div id="loading"><span>FETCHING A TROLLEY<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>
 <div id="err" class="hidden"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

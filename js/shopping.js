@@ -9,7 +9,6 @@ export class Shopping {
     this.pickups = []; this.items = []; // items: {k, body, mesh, state:'basket'|'loose', lostT, looseT}
     const ringG = new T.TorusGeometry(0.42, 0.04, 6, 24); ringG.rotateX(Math.PI / 2);
     this.ringMat = new T.MeshBasicMaterial({ color: 0xffd21f, transparent: true, opacity: 0.85 });
-    this.tagMat = new T.MeshBasicMaterial({ color: 0xffd21f });
     for (const sp of C.world.pickups) {
       const g = new T.Group(); g.position.set(sp.x, sp.y, sp.z); C.scene.add(g);
       const m = makeItemMesh(sp.k); m.scale.setScalar(2.3); g.add(m);
@@ -39,14 +38,12 @@ export class Shopping {
     const tr = C.trolley, s = tr.s, p = tr.local((Math.random() - 0.5) * 0.2 * s, 0.32 * s, (Math.random() - 0.5) * 0.3 * s), v = tr.vel();
     return this.spawn(k, p.x, p.y, p.z, v, 'basket');
   }
-  update(dt, t, active) {
+  update(dt, active) {
     const tr = C.trolley; if (!tr) return;
     const s = tr.s, mouth = tr.local(0, 0.42 * s, -0.05 * s);
-    const cp = C.camera.position;
     for (const p of this.pickups) {
       if (p.taken) continue;
-      const cx = p.x - cp.x, cz = p.z - cp.z; p.g.visible = !this.hidden && cx * cx + cz * cz < 190 * 190;
-      p.ph += dt; p.m.rotation.y += dt * 1.6; p.m.position.y = Math.sin(p.ph * 2.2) * 0.08; p.ring.rotation.y -= dt;
+      p.ph += dt; p.m.rotation.y += dt * 1.6; p.m.position.y = Math.sin(p.ph * 2.2) * 0.08;
       if (!active) continue;
       const dx = p.x - mouth.x, dy = p.y - mouth.y, dz = p.z - mouth.z, r = 0.95 * Math.max(1, s);
       if (dx * dx + dy * dy + dz * dz < r * r) {
@@ -76,5 +73,11 @@ export class Shopping {
       }
     }
   }
-  sync() { for (const it of this.items) { const p = it.body.translation(), q = it.body.rotation(); it.mesh.position.set(p.x, p.y, p.z); it.mesh.quaternion.set(q.x, q.y, q.z, q.w); } }
+  sync() {
+    const camera = C.camera.position;
+    for (const p of this.pickups) {
+      const dx = p.x - camera.x, dz = p.z - camera.z;
+      p.g.visible = !p.taken && !this.hidden && dx * dx + dz * dz < 160 ** 2;
+    }
+    for (const it of this.items) { const p = it.body.translation(), q = it.body.rotation(); it.mesh.position.set(p.x, p.y, p.z); it.mesh.quaternion.set(q.x, q.y, q.z, q.w); } }
 }

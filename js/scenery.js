@@ -220,7 +220,6 @@ function roadworks(scene) {
     cy(L, F, 0.05, 2.4, 0, 1.2, 0, 0x2a2a2e); bx(L, F, 0.3, 0.8, 0.25, 0, 2.6, 0, 0x2a2a2e); bx(L, F, 0.5, 0.15, 0.5, 0, 0.1, 0, 0xf2c81f);
     const red = new T.Mesh(new T.CircleGeometry(0.09, 10), new T.MeshBasicMaterial({ color: 0xff2a1f })); const rp = new T.Vector3(0, 2.85, -0.13).applyMatrix4(F); red.position.copy(rp); red.rotation.y = -R.th + (s > 250 ? 0 : Math.PI); scene.add(red);
     staticCyl(x, y + 1.3, z, 0.08, 1.3, { kind: 'pole', name: 'TRAFFIC LIGHTS' }); }
-  W.triggers.push({ s0: 220, s1: 292, id: 'roadworks' });
   // the plank someone left as a ramp, on its own further down
   addRamp(scene, P(334, 1.6), roadAt(334, {}).th, 1.25, 3.2, 0.62, 'wood', 'PLANK RAMP');
 
@@ -242,7 +241,6 @@ export function addRamp(scene, at, th, w, len, h, mat, name, lipDeg = 28) {
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv.map(x => x * 0.5), 2)); g.setAttribute('color', new T.Float32BufferAttribute(col, 3)); g.setIndex(tri); g.computeVertexNormals();
   const m = new T.Mesh(g, mat === 'wood' ? mats().wood : mats().lam); m.castShadow = true; m.receiveShadow = true; scene.add(m);
   staticMeshCol(g, { kind: 'ground', name }, { friction: 0.6, rest: 0.02 });
-  W.ramps.push({ x: at.x + fx * len / 2, z: at.z + fz * len / 2, th });
 }
 
 // ---------------- roundabout ----------------
@@ -267,7 +265,6 @@ function roundabout(scene) {
     const x = c.x + (fx * back * ca + rx * side * sa) * rr2, z = c.z + (fz * back * ca + rz * side * sa) * rr2;
     signPost(scene, x, base + domeH(rr2) - 0.05, z, yaw, chev, 1.6, 0.8, 0.45, { name: 'CHEVRON SIGN', twin: true });
   }
-  W.triggers.push({ s0: RA_S - 14, s1: RA_S + 14, id: 'roundabout' });
   W.roundabout = { x: c.x, z: c.z, r: R0, top: base + 0.16 + top };
   // pickups on the island
   W.pickups.push({ k: 'pineapple', x: c.x, y: base + top + 1.4, z: c.z });
@@ -337,7 +334,6 @@ function topScenery(scene) {
   // perimeter: low wall with railings, open at the exit
   const wall = (x0, z0, x1, z1) => { const len = Math.hypot(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, yaw = Math.atan2(x1 - x0, z1 - z0), F = frame(cx, y, cz, yaw); tbox(sb('top', 'brick'), F, 0.3, 0.9, len, 0, 0.45, 0, 0xffffff); for (let k = -len / 2 + 0.2; k < len / 2; k += 0.25) cy(L, F, 0.012, 0.7, 0, 1.25, k, 0x1c1c1e, 6); bx(L, F, 0.04, 0.04, len, 0, 1.6, 0, 0x1c1c1e); staticBox(cx, y + 0.8, cz, 0.15, 0.8, len / 2, yaw, { kind: 'wall', name: 'CAR PARK WALL' }); };
   wall(TOP.x0, 0.2, -5.95, 0.2); wall(5.95, 0.2, TOP.x1, 0.2); wall(TOP.x0, 0.2, TOP.x0, 62); wall(TOP.x1, 0.2, TOP.x1, 62);
-  W.triggers.push({ s0: -1, s1: 3, id: 'exit' });
 }
 
 // ---------------- the bottom ----------------
@@ -356,7 +352,7 @@ function bottomScenery(scene) {
   const tmpl = makeTrolley('dave').root;
   const shelter = (lx, lf, n, finish) => { const F = bf(lx, lf, 0); for (const sx of [-1.4, 1.4]) for (const sz of [-4, 4]) bx(L, F, 0.1, 2.4, 0.1, sx, 1.2, sz, 0x9a9da2); bx(L, F, 3.0, 0.08, 8.4, 0, 2.45, 0, 0x0c5a37); bx(L, F, 0.06, 0.5, 8.4, -1.4, 2.15, 0, 0xffd21f);
     const p = BW(lx, lf); staticBox(p.x, 2.45, p.z, 1.5, 0.08, 4.2, 0, { kind: 'wall', name: 'TROLLEY SHELTER' });
-    for (let k = 0; k < n; k++) { const t = tmpl.clone(); const q = BW(lx, lf - 3 + k * 0.34); t.position.set(q.x, 0.5, q.z); t.rotation.y = Math.PI; DECOR.add(t); }
+    for (let k = 0; k < n; k++) { const t = tmpl.clone(); const q = BW(lx, lf - 3 + k * 0.34); t.position.set(q.x, 0.5, q.z); t.rotation.y = Math.PI; DECOR.add(t, 'bottom'); }
     if (finish) { (W.finishes = W.finishes || []).push({ x: p.x, z: p.z + 0.5, hx: 1.6, hz: 4.2 }); const sp = BW(lx + 2.0, lf + 4.5); signPost(scene, sp.x, 0, sp.z, Math.PI, plainSign(['RETURN', 'TROLLEYS', 'HERE'], { w: 128, h: 128, bg: '#0c5a37', fg: '#ffd21f', border: '#ffd21f' }), 0.7, 0.7, 2.0, { name: 'TROLLEY SIGN' }); } };
   shelter(-22, 70, 6, true); shelter(22, 70, 3, true); shelter(12, 96, 2, true);
   // a few parked cars
@@ -405,7 +401,6 @@ function bottomScenery(scene) {
   fence(BOT.lx0 + 1, 1, BOT.lx0 + 1, BOT.lf1 - 1); fence(BOT.lx1 - 1, 1, BOT.lx1 - 1, BOT.lf1 - 1); fence(BOT.lx0 + 1, BOT.lf1 - 1, BOT.lx1 - 1, BOT.lf1 - 1);
   const edge = (lx0, lx1) => { const a = BW(lx0, 0.8), b = BW(lx1, 0.8), len = Math.abs(b.x - a.x), cx = (a.x + b.x) / 2; tbox(sb('bot', 'brick'), frame(cx, 0, a.z, Math.PI / 2), 0.3, 1.0, len, 0, 0.5, 0, 0xffffff); staticBox(cx, 0.6, a.z, len / 2, 0.6, 0.15, 0, { kind: 'wall', name: 'WALL' }); };
   edge(BOT.lx0 + 1, -10.5); edge(10.5, BOT.lx1 - 1);
-  W.triggers.push({ s0: 772, s1: 2000, id: 'bottom' });
 }
 
 // ---------------- shopping placement ----------------
@@ -420,7 +415,7 @@ function placePickups() {
 
 // ---------------- pedestrians ----------------
 function placePeds() {
-  W.peds.push({ kind: 'lollipop', s: 181, d: -1.8, still: true });
+  W.peds.push({ kind: 'lollipop', s: 181, d: -1.8 });
 }
 
 export function buildScenery(scene) {

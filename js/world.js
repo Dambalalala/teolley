@@ -10,7 +10,7 @@ const KERB = 0.13, PAVE = 2.2, CROWN = 0.07;
 export const W = {
   KERB, PAVE,
   bumps: [72, 136, 226, 516, 652],
-  potholes: [], nearTargets: [], pickups: [], triggers: [], ramps: [],
+  potholes: [], nearTargets: [], pickups: [],
   houses: { L: [[8, 372], [486, 738]], R: [[8, 296], [490, 738]] },
 };
 
@@ -114,12 +114,14 @@ export function mats() {
 }
 const SB = new Map();
 export function sb(chunk, mat) { const k = chunk + '|' + mat; if (!SB.has(k)) SB.set(k, { chunk, mat, B: new Batch() }); return SB.get(k).B; }
-export const chunkOf = s => 'c' + Math.floor(clamp(s, -100, 999) / 200);
+export const chunkOf = s => 'c' + Math.floor(clamp(s, -100, 999) / 90);
 export function flushStatics(scene) {
   const MM = mats();
-  for (const { mat, B } of SB.values()) {
+  for (const { chunk, mat, B } of SB.values()) {
     if (B.empty) continue; const m = new T.Mesh(B.geometry(), MM[mat] || MM.lam);
-    m.receiveShadow = true; m.castShadow = !(mat === 'road' || mat === 'pave' || mat === 'grass' || mat === 'kerb' || mat === 'mark' || mat === 'tarmac' || mat === 'dirt' || mat === 'gravel');
+    const background = chunk.startsWith('bg');
+    m.userData.background = background;
+    m.receiveShadow = !background; m.castShadow = !background && !(mat === 'road' || mat === 'pave' || mat === 'grass' || mat === 'kerb' || mat === 'mark' || mat === 'tarmac' || mat === 'dirt' || mat === 'gravel' || mat === 'glass');
     m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
   }
   SB.clear();
@@ -156,7 +158,7 @@ function triOK(P, a, b, c) {
 }
 function buildCorridor(scene) {
   const MM = mats(), ss = sampleList(), n = ss.length;
-  const phys = { p: [], i: [] };
+  const phys = { p: [], i: [] }, renderBatches = new Map();
   // lanes: list of d (with explicit y overrides) across the road, left to right
   const lanes = [
     { mat: 'grass', pts: (w, s) => [[-w - 16, null], [-w - PAVE, null]], uv: (d, s, w) => [d / 5, s / 5] },
@@ -182,24 +184,30 @@ function buildCorridor(scene) {
         const x = R.x + R.rx * d, z = R.z + R.rz * d; row.push([x, y, z, lane.uv(d, s, R.w, j)]);
       }
       const ck = Math.floor((s + 10) / CH);
-      if (ck !== chunk) { if (B) { addLaneMesh(B, lane.mat); } B = { p: [], u: [], i: [], n: 0 }; chunk = ck; if (prevRow) pushRow(B, prevRow); }
+      if (ck !== chunk) { if (B) { addLaneMesh(B, lane.mat, chunk); } B = { p: [], u: [], i: [], n: 0 }; chunk = ck; if (prevRow) pushRow(B, prevRow); }
       pushRow(B, row);
       // physics
       const base = phys.p.length / 3; for (const r of row) phys.p.push(r[0], r[1], r[2]);
       if (prevRow) { const pb = base - row.length; for (let j = 0; j < row.length - 1; j++) { const a = pb + j, b = base + j, c = pb + j + 1, d = base + j + 1; if (triOK(phys.p, a, c, b)) phys.i.push(a, c, b); if (triOK(phys.p, b, c, d)) phys.i.push(b, c, d); } }
       prevRow = row;
     }
-    if (B) addLaneMesh(B, lane.mat);
+    if (B) addLaneMesh(B, lane.mat, chunk);
+  }
+  for (const { batch, material } of renderBatches.values()) {
+    const mesh = batch.mesh(material, [false, true]);
+    mesh.matrixAutoUpdate = false;
+    scene.add(mesh);
   }
   function pushRow(B, row) {
     const base = B.n; for (const r of row) { B.p.push(r[0], r[1], r[2]); B.u.push(r[3][0], r[3][1]); } B.n += row.length;
     if (base > 0) { const pb = base - row.length; for (let j = 0; j < row.length - 1; j++) { const a = pb + j, b = base + j, c = pb + j + 1, d = base + j + 1; B.i.push(a, c, b, b, c, d); } }
   }
-  function addLaneMesh(B, mat) {
+  function addLaneMesh(B, mat, chunk) {
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(B.p, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(B.u, 2));
-    const cols = new Float32Array(B.n * 3).fill(1); g.setAttribute('color', new T.BufferAttribute(cols, 3));
-    g.setIndex(B.i); g.computeVertexNormals(); g.computeBoundingSphere();
-    const m = new T.Mesh(g, MM[mat]); m.receiveShadow = true; m.matrixAutoUpdate = false; scene.add(m);
+    g.setIndex(B.i); g.computeVertexNormals();
+    const key = chunk + '|' + mat;
+    if (!renderBatches.has(key)) renderBatches.set(key, { batch: new Batch(), material: MM[mat] });
+    renderBatches.get(key).batch.add(g, null);
   }
   // end caps so the raised pavements don't show open edges
   for (const s of [ss[0], ss[n - 1]]) {
@@ -218,37 +226,50 @@ function buildCorridor(scene) {
 }
 
 // ============ road markings ============
-function markQuad(B, s0, s1, d0, d1, color, lift = 0.012) {
+function markQuad(s0, s1, d0, d1, color, lift = 0.017) {
   const steps = Math.max(1, Math.ceil((s1 - s0) / 1.0));
   for (let k = 0; k < steps; k++) {
     const sa = s0 + (s1 - s0) * k / steps, sb2 = s0 + (s1 - s0) * (k + 1) / steps;
-    const A = roadAt(sa, { }), Bq = roadAt(sb2, {});
+    const B = sb(chunkOf(sa), 'mark'), A = roadAt(sa, {}), Bq = roadAt(sb2, {});
     const pt = (R, s, d) => [R.x + R.rx * d, prof(s, d) + lift, R.z + R.rz * d];
     B.quad(pt(A, sa, d0), pt(A, sa, d1), pt(Bq, sb2, d1), pt(Bq, sb2, d0), color);
   }
 }
 function buildMarkings(scene) {
-  const B = sb('marks', 'mark'), WHITE = 0xf2f2ee, YEL = 0xf2c81f;
-  for (let s = 6; s < 772; s += 6) { if (s > 392 && s < 448) continue; if (s > 172 && s < 190) continue; markQuad(B, s, s + 2, -0.05, 0.05, WHITE); }
+  const WHITE = 0xf2f2ee, YEL = 0xf2c81f;
+  for (let s = 6; s < 772; s += 6) { if (s > 392 && s < 448) continue; if (s > 172 && s < 190) continue; markQuad(s, s + 2, -0.05, 0.05, WHITE); }
   const dbl = [[2, 40], [160, 200], [380, 400], [440, 460], [736, 772]];
   for (const [a, b] of dbl) for (const side of [-1, 1]) for (const off of [0.22, 0.36]) {
-    for (let s = a; s < b; s += 4) { const w = roadW(s); const d = side * (w - off); markQuad(B, s, Math.min(b, s + 4), d - 0.05, d + 0.05, YEL); }
+    for (let s = a; s < b; s += 4) { const w = roadW(s); const d = side * (w - off); markQuad(s, Math.min(b, s + 4), d - 0.05, d + 0.05, YEL); }
   }
   // zebra crossing with zig-zags
   const zs = 180, w0 = roadW(zs);
-  for (let d = -w0 + 0.3; d < w0 - 0.3; d += 1.0) markQuad(B, zs - 1.6, zs + 1.6, d, d + 0.5, WHITE, 0.013);
+  for (let d = -w0 + 0.3; d < w0 - 0.3; d += 1.0) markQuad(zs - 1.6, zs + 1.6, d, d + 0.5, WHITE, 0.018);
   for (const [a, b] of [[164, 177], [183, 196]]) for (const d0 of [-w0 + 0.3, 0, w0 - 0.3]) {
-    for (let s = a; s < b; s += 1.0) { const k = Math.floor((s - a)) % 2; markQuad(B, s, s + 1, d0 + (k ? -0.15 : 0.15) - 0.05, d0 + (k ? -0.15 : 0.15) + 0.05, WHITE, 0.013); }
+    for (let s = a; s < b; s += 1.0) { const k = Math.floor((s - a)) % 2; markQuad(s, s + 1, d0 + (k ? -0.15 : 0.15) - 0.05, d0 + (k ? -0.15 : 0.15) + 0.05, WHITE, 0.018); }
   }
   // give way dashes at the roundabout entries
-  for (const [s, dir] of [[RA_S - 15.5, -1], [RA_S + 15.5, 1]]) { const w = roadW(s); for (let d = 0; d < w - 0.3; d += 0.9) { const dd = dir < 0 ? -d - 0.6 : d; markQuad(B, s - 0.15, s + 0.15, dd, dd + 0.6, WHITE, 0.013); } }
+  for (const [s, dir] of [[RA_S - 15.5, -1], [RA_S + 15.5, 1]]) { const w = roadW(s); for (let d = 0; d < w - 0.3; d += 0.9) { const dd = dir < 0 ? -d - 0.6 : d; markQuad(s - 0.15, s + 0.15, dd, dd + 0.6, WHITE, 0.018); } }
   // SLOW painted on the road (one textured decal each)
   const slowTex = ctex(256, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#f2f2ee'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 110px "Barlow Condensed",Arial Narrow,Arial'; g.fillText('SLOW', w / 2, h / 2 + 6); }, { clamp: true });
   const slowMat = new T.MeshLambertMaterial({ map: slowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
   for (const [s, d] of [[152, -1.8], [384, -1.8], [600, -1.8]]) {
-    const R = roadAt(s), m = new T.Mesh(new T.PlaneGeometry(2.6, 3.6), slowMat);
-    m.position.set(R.x + R.rx * d, prof(s, d) + 0.02, R.z + R.rz * d); m.rotation.order = 'YXZ'; m.rotation.set(-Math.PI / 2, -R.th, 0); scene.add(m);
+    roadDecal(scene, slowMat, s, d, 2.6, 3.6);
   }
+}
+
+// Follow the road's grade and crown so transparent markings stay above its mesh.
+function roadDecal(scene, material, s, d, width, length) {
+  const geo = new T.PlaneGeometry(width, length, 4, Math.ceil(length / 0.35));
+  const vertices = geo.attributes.position;
+  for (let i = 0; i < vertices.count; i++) {
+    const point = P(s + vertices.getY(i), d + vertices.getX(i), 0.027);
+    vertices.setXYZ(i, point.x, point.y, point.z);
+  }
+  geo.computeVertexNormals();
+  const mesh = new T.Mesh(geo, material);
+  mesh.receiveShadow = true; mesh.matrixAutoUpdate = false;
+  scene.add(mesh);
 }
 
 // ============ potholes (virtual dips with a decal) ============
@@ -259,7 +280,7 @@ function buildPotholes(scene) {
   for (const [s, d] of list) {
     const R = roadAt(s), x = R.x + R.rx * d, z = R.z + R.rz * d, rad = 0.45 + (s % 3) * 0.08;
     W.potholes.push({ x, z, r: rad, depth: 0.06 + (s % 2) * 0.03 });
-    const m = new T.Mesh(new T.PlaneGeometry(rad * 2.4, rad * 2.4), mat); m.position.set(x, prof(s, d) + 0.015, z); m.rotation.x = -Math.PI / 2; m.rotation.z = s; scene.add(m);
+    roadDecal(scene, mat, s, d, rad * 2.4, rad * 2.4);
   }
 }
 
@@ -392,16 +413,17 @@ function buildBackdrop(scene) {
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const a = i * (N + 1) + j, b = a + 1, c = a + N + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new T.Float32BufferAttribute(colr, 3)); g.setIndex(idx); g.computeVertexNormals();
   const g2 = g.toNonIndexed(); g2.computeVertexNormals();
-  const m = new T.Mesh(g2, new T.MeshLambertMaterial({ vertexColors: true })); m.receiveShadow = false; scene.add(m);
+  const m = new T.Mesh(g2, new T.MeshLambertMaterial({ vertexColors: true })); m.userData.background = true; scene.add(m);
   W.backdropH = heightAt;
   // rows of terraces filling the town either side of the hill road
-  const BB = sb('bg', 'lam'), BR = sb('bg', 'roof'), r = rng(31);
+  const r = rng(31);
   for (const off of [32, 48, 64, 82, 104]) for (const side of [-1, 1]) {
     for (let s = 30; s < 800; s += 14 + r() * 10) {
       if (Math.abs(s - RA_S) < 40 && off < 50) continue;
       const R = roadAt(s, {}), d = side * (off + R.w - 3.6 + r() * 4), x = R.x + R.rx * d, z = R.z + R.rz * d;
       { const b = worldToBot(x, z); if (b.lf > -14 && Math.abs(b.lx) < 150) continue; } // keep the town back from Station Road
       const h = Math.max(heightAt(x, z) + 6, ELEV(s) - 0.5 - (off - 30) * 0.05), len = 10 + r() * 14, yaw = -R.th;
+      const section = 'bg' + Math.floor(s / 150), BB = sb(section, 'lam'), BR = sb(section, 'roof');
       const F = frame(x, h, z, yaw);
       const c = [0x8f4a35, 0x9a5a3e, 0xc19a68, 0xe8e0d0, 0x7a4030][Math.floor(r() * 5)];
       bx(BB, F, 7.5, 6, len, 0, 3, 0, c);
@@ -410,7 +432,7 @@ function buildBackdrop(scene) {
     }
   }
   // church with a spire, a gasholder and some wind turbines on the far hills
-  const E = roadAt(760, {});
+  const BB = sb('bg-landmarks', 'lam'), BR = sb('bg-landmarks', 'roof'), E = roadAt(760, {});
   const ch = frame(E.x - 190, heightAt(E.x - 190, E.z - 120), E.z - 120, 0.4);
   bx(BB, ch, 9, 9, 22, 0, 4.5, 0, 0x9a9488); BR.add(GEO.prism, FM(ch, 0, 9, 0, 0, 0, 0, 10, 4, 22.4), 0xffffff, [4, 2]);
   bx(BB, ch, 6, 18, 6, 0, 9, 12, 0x9a9488); BB.add(GEO.cone8, FM(ch, 0, 26, 12, 0, Math.PI / 8, 0, 4.2, 16, 4.2), 0x6a6e76);

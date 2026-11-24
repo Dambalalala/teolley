@@ -14,13 +14,31 @@ const RING = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 
 const INK = '#0d0f12', PAPER = '#f6f2e7';
 
 export class HUD {
-  constructor(canvas) { this.cv = canvas; this.g = canvas.getContext('2d'); this.w = 1; this.h = 1; this.dpr = 1; this.grads = new Map(); }
-  resize(w, h) { this.dpr = clamp(Math.floor(window.devicePixelRatio || 1), 1, 2); this.w = w; this.h = h; this.cv.width = Math.round(w * this.dpr); this.cv.height = Math.round(h * this.dpr); this.grads.clear(); }
+  constructor(canvas) { this.cv = canvas; this.g = canvas.getContext('2d'); this.w = 1; this.h = 1; this.dpr = 1; this.grads = new Map(); this.widths = new Map(); this.elapsed = 0; this.visible = false;
+    this.motion = matchMedia('(prefers-reduced-motion: reduce)');
+  }
+  resize(w, h) {
+    this.dpr = clamp(Math.floor(window.devicePixelRatio || 1), 1, 2); this.w = w; this.h = h;
+    this.cv.width = Math.round(w * this.dpr); this.cv.height = Math.round(h * this.dpr);
+    this.g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.grads.clear(); this.elapsed = 1;
+    const css = getComputedStyle(document.documentElement);
+    this.insets = ['t', 'r', 'b', 'l'].map(key => parseFloat(css.getPropertyValue('--safe-' + key)) || 0);
+  }
+  measure(t) {
+    const key = this.g.font + '|' + t;
+    let width = this.widths.get(key);
+    if (width === undefined) {
+      if (this.widths.size >= 256) this.widths.clear();
+      width = this.g.measureText(t).width; this.widths.set(key, width);
+    }
+    return width;
+  }
   snap(v) { return Math.round(v * this.dpr) / this.dpr; }
   // y is the middle of the capitals; o.metal is a band palette for chrome lettering (Press Start only)
   text(t, x, y, face, size, col, align = 'left', o = {}) {
     const g = this.g, fp = size / 8; g.font = `${o.bold ? '700 ' : ''}${size}px ${FACE[face]}`; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-    const w = g.measureText(t).width, x0 = this.snap(align === 'center' ? x - w / 2 : align === 'right' ? x - w : x), yb = this.snap(y + MID[face] * fp);
+    const w = this.measure(t), x0 = this.snap(align === 'center' ? x - w / 2 : align === 'right' ? x - w : x), yb = this.snap(y + MID[face] * fp);
     if (o.metal) {
       g.fillStyle = INK; g.fillText(t, x0 + fp, yb + 2 * fp); for (const [dx, dy] of RING) g.fillText(t, x0 + dx * fp, yb + dy * fp);
       g.fillStyle = this.bands(yb - 8 * fp, fp, o.metal); g.fillText(t, x0, yb);
@@ -37,48 +55,62 @@ export class HUD {
     if (this.grads.size > 96) this.grads.clear(); this.grads.set(key, gr); return gr;
   }
   // the biggest of the given sizes that fits
-  fit(t, maxW, sizes, face) { const g = this.g; for (const s of sizes) { g.font = `${s}px ${FACE[face]}`; if (g.measureText(t).width <= maxW) return s; } return sizes[sizes.length - 1]; }
+  fit(t, maxW, sizes, face) { const g = this.g; for (const s of sizes) { g.font = `${s}px ${FACE[face]}`; if (this.measure(t) <= maxW) return s; } return sizes[sizes.length - 1]; }
   rect(x, y, w, h) { const s = v => this.snap(v); this.g.fillRect(s(x), s(y), s(x + w) - s(x), s(y + h) - s(y)); }
   // a line drawn as a staircase of square pixels, and a filled pixel disc
   pxLine(x0, y0, x1, y1, t) { const n = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / t)); for (let i = 0; i <= n; i++) this.rect(x0 + (x1 - x0) * i / n - t / 2, y0 + (y1 - y0) * i / n - t / 2, t, t); }
   pxDisc(cx, cy, r, p = 2) { for (let y = -r; y < r; y += p) { const hw = Math.round(Math.sqrt(Math.max(0, r * r - (y + p / 2) * (y + p / 2))) / p) * p; if (hw > 0) this.rect(cx - hw, cy + y, hw * 2, p); } }
   draw(dt) {
-    const g = this.g, G = C.game, W = this.w, H = this.h; g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); g.clearRect(0, 0, W, H); g.imageSmoothingEnabled = false;
-    const st = G.state; if (!(st === 'push' || st === 'run' || st === 'over')) return;
+    const g = this.g, G = C.game, W = this.w, H = this.h, st = G.state;
+    const visible = !G.paused && (st === 'push' || st === 'run' || st === 'over');
+    this.elapsed += dt;
+    if (visible === this.visible && (!visible || (dt > 0 && this.elapsed < 1 / 30))) return;
+    this.visible = visible; this.elapsed %= 1 / 30;
+    g.clearRect(0, 0, W, H);
+    if (!visible) return;
+    const [top, right, bottom, left] = this.insets;
     const R = G.run, tr = C.trolley, small = W < 640, narrow = W < 520, pad = small ? 12 : 16;
+    const xPad = pad + left, yPad = pad + top, width = W - left - right, mid = left + width / 2;
     // score / best
-    this.text('SCORE', pad, pad + 6, 'l', 16, PAPER);
-    this.text(fmt(R.score), pad, pad + (small ? 30 : 34), 'd', small ? 24 : 32, null, 'left', { metal: GOLD });
-    this.text('BEST ' + fmt(G.save.best), pad, pad + (small ? 58 : 66), 'l', 16, PAPER);
+    this.text('SCORE', xPad, yPad + 6, 'l', 16, PAPER);
+    this.text(fmt(R.score), xPad, yPad + (small ? 30 : 34), 'd', small ? 24 : 32, null, 'left', { metal: GOLD });
+    this.text('BEST ' + fmt(G.save.best), xPad, yPad + (small ? 58 : 66), 'l', 16, PAPER);
     // the task list: in full at the start, then just a count
-    const got = SHOPPING_LIST.filter(k => R.got[k]).length, nd = TASKS.filter(t => R.done[t.id]).length;
-    const cardA = G.paused ? 0 : st === 'push' ? 1 : st === 'run' ? clamp((4.5 - R.time) / 0.8, 0, 1) : 0;
+    const nd = TASKS.filter(t => R.done[t.id]).length;
+    const cardA = C.touch ? 0 : st === 'push' ? 1 : st === 'run' ? clamp((4.5 - R.time) / 0.8, 0, 1) : 0;
+    let listBottom = yPad + 70;
     if (cardA < 1) { // the list lights up as you get things, like S-K-A-T-E
-      let x = pad, y = pad + (small ? 74 : 84); g.font = `16px ${FACE.l}`;
+      let x = xPad, y = yPad + (small ? 76 : 84); g.font = `16px ${FACE.l}`;
       for (const k of SHOPPING_LIST) {
-        const lab = LIST_NAMES[k].toUpperCase(), w = Math.ceil(g.measureText(lab).width) + 16, on = R.got[k];
-        if (x + w > W - pad) { x = pad; y += 28; }
-        g.fillStyle = on ? '#ffd21f' : 'rgba(22,22,26,.55)'; this.rect(x, y, w, 24);
-        this.text(lab, x + 8, y + 12, 'l', 16, on ? '#16161a' : 'rgba(246,242,231,.6)', 'left', { shadow: false });
+        const lab = LIST_NAMES[k].toUpperCase(), w = Math.ceil(this.measure(lab)) + 14, on = R.got[k];
+        if (x + w > W - pad - right) { x = xPad; y += 24; }
+        g.fillStyle = on ? '#ffd21f' : 'rgba(22,22,26,.55)'; this.rect(x, y, w, 20);
+        this.text(lab, x + 7, y + 10, 'l', 16, on ? '#16161a' : 'rgba(246,242,231,.6)', 'left', { shadow: false });
         x += w + 6;
       }
-      this.text(`TASKS ${nd}/${TASKS.length}`, pad, y + 44, 'l', 16, PAPER);
+      this.text(`TASKS ${nd}/${TASKS.length}`, xPad, y + 32, 'l', 16, PAPER);
+      listBottom = y + 44;
     }
     // time: top centre, or under the buttons on a narrow screen
-    const tm = R.time, mm = Math.floor(tm / 60), ss = (tm % 60).toFixed(1).padStart(4, '0');
-    if (narrow) this.text(`${mm}:${ss}`, W - pad, 76, 'd', 16, PAPER, 'right'); else this.text(`${mm}:${ss}`, W / 2, pad + 14, 'd', 24, PAPER, 'center');
+    const ticks = Math.floor(R.time * 10), mm = Math.floor(ticks / 600), ss = (ticks % 600 / 10).toFixed(1).padStart(4, '0');
+    if (narrow) this.text(`${mm}:${ss}`, W - pad - right, top + 66, 'd', 16, PAPER, 'right');
+    else this.text(`${mm}:${ss}`, mid, yPad + 14, 'd', 24, PAPER, 'center');
     // combo
-    const cb = G.combo, cy = narrow ? 222 : small ? 96 : 92;
+    const cb = G.combo, cy = narrow ? listBottom + 14 : C.touch ? listBottom - 8 : yPad + 80;
+    const comboSize = small || H < 440 ? 24 : 32;
     if (cb.list.length) {
-      const names = cb.list.map(e => e.name + (e.pts >= 1 && e.name.length < 18 && cb.live && Object.values(cb.live).includes(e) ? ' ' + Math.round(e.pts) : ''));
-      let line = names.slice(-4).join(' + '); if (names.length > 4) line = '… + ' + line;
-      this.text(line, W / 2, cy, 'b', this.fit(line, W * 0.92, small ? [16] : [24, 16], 'b'), PAPER, 'center');
-      this.text(`${fmt(cb.base)} × ${cb.mult}`, W / 2, cy + (small ? 30 : 38), 'd', small ? 24 : 32, null, 'center', { metal: GOLD });
-      const tw = Math.min(160, W * 0.3), by = cy + (small ? 52 : 64); g.fillStyle = 'rgba(22,22,26,.5)'; this.rect(W / 2 - tw / 2, by, tw, 4); g.fillStyle = '#f26a1b'; this.rect(W / 2 - tw / 2, by, tw * clamp(cb.timer / 3, 0, 1), 4);
-    } else if (G.bankPop) { g.globalAlpha = clamp(2 - G.bankPop.t, 0, 1); this.text('+' + fmt(G.bankPop.v), W / 2, cy + 24 - Math.round(G.bankPop.t * 12), 'd', small ? 24 : 40, null, 'center', { metal: GOLD }); g.globalAlpha = 1; }
-    else if (G.lostPop) { g.globalAlpha = clamp(1.8 - G.lostPop.t, 0, 1); this.text('COMBO LOST  -' + fmt(G.lostPop.v), W / 2, cy + 10, 'l', 16, '#ff8a7a', 'center', { bold: true }); g.globalAlpha = 1; }
+      const shown = cb.list.slice(-4), live = Object.values(cb.live);
+      const names = shown.map(e => e.name + (e.pts >= 1 && e.name.length < 18 && live.includes(e) ? ' ' + Math.round(e.pts) : ''));
+      g.font = '16px ' + FACE.b;
+      while (names.length > 1 && this.measure(names.join(' + ')) > width * 0.88) names.shift();
+      const line = names.join(' + ');
+      this.text(line, mid, cy, 'b', this.fit(line, W * 0.92, small ? [16] : [24, 16], 'b'), PAPER, 'center');
+      this.text(`${fmt(cb.base)} × ${cb.mult}`, mid, cy + (small ? 30 : 38), 'd', comboSize, null, 'center', { metal: GOLD });
+      const tw = Math.min(160, W * 0.3), by = cy + (small ? 52 : 64); g.fillStyle = 'rgba(22,22,26,.5)'; this.rect(mid - tw / 2, by, tw, 4); g.fillStyle = '#f26a1b'; this.rect(mid - tw / 2, by, tw * clamp(cb.timer / 3, 0, 1), 4);
+    } else if (G.bankPop) { g.globalAlpha = clamp(2 - G.bankPop.t, 0, 1); this.text('+' + fmt(G.bankPop.v), mid, cy + 24 - Math.round(G.bankPop.t * 12), 'd', small ? 24 : 40, null, 'center', { metal: GOLD }); g.globalAlpha = 1; }
+    else if (G.lostPop) { g.globalAlpha = clamp(1.8 - G.lostPop.t, 0, 1); this.text('COMBO LOST  -' + fmt(G.lostPop.v), mid, cy + 10, 'l', 16, '#ff8a7a', 'center', { bold: true }); g.globalAlpha = 1; }
     // trick names (actual tricks only)
-    if (G.pops.length) {
+    if (G.pops.length && !C.touch) {
       const p = G.pops[G.pops.length - 1], a = p.t > 0.9 ? clamp((1.3 - p.t) / 0.4, 0, 1) : 1, big = p.t < 0.1 ? 8 : 0;
       g.globalAlpha = a; this.text(p.text, W / 2, H * 0.38, 'd', this.fit(p.text, W * 0.86, small ? [24 + big, 16] : [32 + big, 24, 16], 'd'), null, 'center', { metal: p.col ? HOT : STEEL }); g.globalAlpha = 1;
     }
@@ -86,25 +118,24 @@ export class HUD {
     if (G.msgs.length) this.message(G.msgs[0], W, H, small);
     // speed
     const mph = Math.round((tr ? tr.speed() : 0) * 2.237);
-    this.text(String(mph), W / 2, H - pad - (small ? 42 : 52), 'd', small ? 32 : 40, null, 'center', { metal: mph > 30 ? HOT : STEEL });
-    this.text('MPH', W / 2, H - pad - 10, 'l', 16, PAPER, 'center');
-    // damage diagram + basket count
-    // (on touch screens the steering pads live bottom-left, so the panel moves up under the score)
-    if (cardA > 0) this.listCard(R, pad, pad + (small ? 72 : 84), W, H, cardA);
+    const speedSize = width < 375 ? 24 : small ? 32 : 40;
+    this.text(String(mph), mid, H - bottom - pad - (small ? 36 : 48), 'd', speedSize, null, 'center', { metal: mph > 30 ? HOT : STEEL });
+    this.text('MPH', mid, H - bottom - pad - 8, 'l', 16, PAPER, 'center');
+    if (cardA > 0) this.listCard(R, xPad, yPad + (small ? 72 : 84), W, H, cardA);
     // push-off meter
     if (st === 'push') {
-      const pw = clamp(G.pushPower / 6, 0, 1), bw = Math.min(256, W * 0.5), bx = W / 2 - bw / 2, by = Math.round(H * 0.64);
+      const pw = clamp(G.pushPower / 6, 0, 1), bw = Math.min(256, W * 0.44), bx = mid - bw / 2, by = Math.round(H * (C.touch ? 0.56 : 0.64));
       g.fillStyle = 'rgba(22,22,26,.55)'; this.rect(bx - 4, by - 4, bw + 8, 16); g.fillStyle = '#f26a1b'; this.rect(bx, by, bw * pw, 8);
-      this.text(C.touch ? 'TAP PUSH TO GET GOING' : 'TAP W TO GET GOING', W / 2, by - 20, 'l', 16, PAPER, 'center', { bold: true });
+      this.text(C.touch ? 'TAP PUSH' : 'TAP W TO GET GOING', mid, by - 20, 'l', 16, PAPER, 'center', { bold: true });
     }
-    if (G.flash > 0) { g.fillStyle = `rgba(255,255,255,${G.flash * 0.8})`; g.fillRect(0, 0, W, H); }
+    if (G.flash > 0 && !this.motion.matches) { g.fillStyle = `rgba(255,255,255,${G.flash * 0.5})`; g.fillRect(0, 0, W, H); }
   }
   message(m, W, H, small) {
     // one plain style: a dark label with light text
-    const g = this.g, a = m.t < 0.2 ? m.t / 0.2 : m.t > m.dur - 0.4 ? clamp((m.dur - m.t) / 0.4, 0, 1) : 1, y = Math.round(H * (small ? 0.3 : 0.25));
+    const g = this.g, a = m.t < 0.2 ? m.t / 0.2 : m.t > m.dur - 0.4 ? clamp((m.dur - m.t) / 0.4, 0, 1) : 1, y = Math.round(H * (C.touch ? 0.56 : small ? 0.3 : 0.25));
     g.globalAlpha = a;
     const size = this.fit(m.text, W * 0.84, small ? [16] : [24, 16], 'b'); g.font = `${size}px ${FACE.b}`;
-    const tw = g.measureText(m.text).width, bw = Math.round(tw + 32), bh = size + 16, x = Math.round(W / 2 - bw / 2);
+    const tw = this.measure(m.text), bw = Math.round(tw + 32), bh = size + 16, x = Math.round(W / 2 - bw / 2);
     g.fillStyle = 'rgba(22,22,26,.78)'; this.rect(x, y - bh / 2, bw, bh);
     this.text(m.text, W / 2, y, 'b', size, m.kind === 'cheer' ? '#ffd21f' : PAPER, 'center', { shadow: false });
     g.globalAlpha = 1;

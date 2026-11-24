@@ -34,8 +34,15 @@ export class UI {
     const li = (txt, done) => `<li class="${done ? 'done' : ''}">${esc(txt)}</li>`;
     return `<h3>TODAY'S LIST</h3><ul>${SHOPPING_LIST.map(k => li(LIST_NAMES[k], R.got[k])).join('')}</ul><ul class="tasks">${TASKS.map(t => li(t.id === 'cones' && !R.done.cones && R.cones ? `${t.label} (${R.cones})` : t.label, R.done[t.id])).join('')}</ul>`;
   }
-  pause() { const G = C.game; if (!(G.state === 'run' || G.state === 'push') || G.paused) return; G.paused = true; $('pauseList').innerHTML = this.listHTML(G.run); this.show('pause'); setTimeout(() => { try { $('bResume').focus({ preventScroll: true }); } catch (e) {} }, 30); }
-  resume() { C.game.paused = false; this.show('hud'); }
+  pause() { const G = C.game; if (!(G.state === 'run' || G.state === 'push') || G.paused) return; G.paused = true; C.input.release(); C.audio.alarm(false); $('pauseList').innerHTML = this.listHTML(G.run); this.show('pause'); setTimeout(() => { try { $('bResume').focus({ preventScroll: true }); } catch (e) {} }, 30); }
+  resume() {
+    C.game.paused = false;
+    C.input.release();
+    C.audio.init();
+    C.props.refreshAlarm();
+    this.show('hud');
+    $('gl').focus({ preventScroll: true });
+  }
   toggleMute() { const S = C.game.save; S.muted = !S.muted; C.game.persist(); C.audio.setMuted(S.muted); this.setMuteBtn(); }
   setMuteBtn() { const m = C.game && C.game.save.muted; $('bMute').setAttribute('aria-pressed', String(!!m)); $('bMute').innerHTML = m ? '×' : NOTE; }
   receipt(d) {
@@ -61,7 +68,8 @@ export class UI {
     ln('BEST', fmt(d.best));
     if (d.newBest) L.push(`<div class="new">NEW BEST SCORE</div>`);
     L.push('<hr>');
-    ln('TOP SPEED', Math.round(R.maxMph) + ' MPH'); ln('DISTANCE', Math.round(R.dist) + ' M'); ln('TIME', `${Math.floor(R.time / 60)}:${(R.time % 60).toFixed(1).padStart(4, '0')}`); ln('LONGEST AIR', R.airMax.toFixed(2) + ' S');
+    const ticks = Math.floor(R.time * 10);
+    ln('TOP SPEED', Math.round(R.maxMph) + ' MPH'); ln('TIME', `${Math.floor(ticks / 600)}:${(ticks % 600 / 10).toFixed(1).padStart(4, '0')}`); ln('LONGEST AIR', R.airMax.toFixed(2) + ' S');
     if (R.wheels) ln('WHEELS LOST', String(R.wheels), 'neg');
     L.push('<hr>');
     ln('LOYALTY POINTS EARNED', fmt(Math.floor(d.total / 100)));

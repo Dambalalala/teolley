@@ -25,21 +25,28 @@ function stops() {
     { key: 'pensioner', area: 'bot', amb: 'pond', light: 'damp', at: B(-12.6, 33.0), yaw: 1.2, cam: B(-16.7, 29.7, 1.2), look: B(-11.7, 34.0, 0.32) },
   ];
 }
-const V3 = (p) => new T.Vector3(p.x, p.y, p.z);
 const ease = t => t * t * t * (t * (t * 6 - 15) + 10);
 
 export class Select {
   constructor() {
     this.open = false; this.S = null; this.models = []; this.idx = 0;
     this.pos = new T.Vector3(); this.look = new T.Vector3(); this.focus = new T.Vector3(); this.tw = null; this.fade = 0; this.t = 0;
-    this.light = Object.assign({}, LIGHT.neutral);
+    this.light = { ...LIGHT.neutral };
+    this.targetPos = new T.Vector3(); this.targetLook = new T.Vector3();
+    this.mixColor = new T.Color(); this.targetColor = new T.Color();
+    this.motion = matchMedia('(prefers-reduced-motion: reduce)');
     $('selPrev').addEventListener('click', () => { C.audio.init(); this.step(-1); });
     $('selNext').addEventListener('click', () => { C.audio.init(); this.step(1); });
     $('bSelDone').addEventListener('click', () => this.confirm());
     // swipe left/right on the view to change trolley
-    let sx = null; const sel = $('select');
-    sel.addEventListener('pointerdown', e => { if (e.target === sel) sx = e.clientX; });
-    sel.addEventListener('pointerup', e => { if (sx != null && Math.abs(e.clientX - sx) > 50) this.step(e.clientX < sx ? 1 : -1); sx = null; });
+    let swipe;
+    const sel = $('select');
+    sel.addEventListener('pointerdown', e => { if (e.target === sel) swipe = { id: e.pointerId, x: e.clientX }; });
+    sel.addEventListener('pointerup', e => {
+      if (swipe?.id === e.pointerId && Math.abs(e.clientX - swipe.x) > 50) this.step(e.clientX < swipe.x ? 1 : -1);
+      swipe = null;
+    });
+    sel.addEventListener('pointercancel', () => { swipe = null; });
   }
   build() {
     if (this.S) return;
@@ -48,13 +55,12 @@ export class Select {
       const m = makeTrolley(st.key), s = VARIANTS[st.key].scale; m.root.position.set(st.at.x, st.at.y + 0.5 * s + 0.01, st.at.z); m.root.rotation.y = st.yaw;
       if (st.key === 'pensioner') m.wheels[0].pivot.rotation.y = 0.6; // the wonky one
       else m.wheels.forEach((w, i) => { if (i < 2) w.pivot.rotation.y = (i ? -0.15 : 0.25); });
-      m.root.visible = false; m.root.userData.noCull = true; C.scene.add(m.root); m.root.traverse(o => { if (o.isMesh) o.castShadow = true; }); this.models.push(m);
+      m.root.visible = false; C.scene.add(m.root); m.root.traverse(o => { if (o.isMesh) o.castShadow = true; }); this.models.push(m);
     }
   }
   show() {
     this.build(); this.open = true;
     const sel = C.game.save.sel, i = this.S.findIndex(s => s.key === sel); this.idx = i < 0 ? 0 : i;
-    for (const m of this.models) m.root.visible = true;
     if (C.trolley) C.trolley.vis.root.visible = false;
     C.shopping.hidden = true;
     this.snapTo(this.idx); this.panel();
@@ -81,31 +87,36 @@ export class Select {
     const n = this.S.length, from = this.idx; this.idx = (this.idx + d + n) % n;
     C.audio.sfx('click');
     const a = this.S[from], b = this.S[this.idx];
-    if (a.area === b.area) this.tw = { mode: 'pan', t: 0, dur: 1.7, p0: this.pos.clone(), l0: this.look.clone(), f0: this.focus.clone() };
-    else this.tw = { mode: 'cut', t: 0, dur: 0.75, switched: false };
+    if (this.motion.matches) { this.tw = null; this.setFade(0); this.snapTo(this.idx); }
+    else if (a.area === b.area && (!this.tw || this.tw.mode === 'pan')) {
+      this.setFade(0); this.showModels(from, this.idx);
+      this.tw = { mode: 'pan', t: 0, dur: 1.7, p0: this.pos.clone(), l0: this.look.clone(), f0: this.focus.clone() };
+    } else this.tw = { mode: 'cut', t: 0, dur: 0.75, switched: false };
     this.panel(); C.audio.setAmbience(b.amb);
   }
-  snapTo(i) { const st = this.S[i]; this.pos.copy(V3(st.cam)); this.look.copy(V3(st.look)); this.focus.copy(V3(st.at)); Object.assign(this.light, LIGHT[st.light]); this.applyLight(); }
+  showModels(...indices) { this.models.forEach((model, index) => { model.root.visible = indices.includes(index); }); }
+  snapTo(i) { const st = this.S[i]; this.showModels(i); this.pos.copy(st.cam); this.look.copy(st.look); this.focus.copy(st.at); Object.assign(this.light, LIGHT[st.light]); this.applyLight(); }
   // the view each stop settles into, with a slow drift round the trolley
   pose(i, outPos, outLook) {
     const st = this.S[i], a = Math.sin(this.t * 0.22) * 0.09, cx = st.cam.x - st.at.x, cz = st.cam.z - st.at.z;
     outPos.set(st.at.x + cx * Math.cos(a) - cz * Math.sin(a), st.cam.y + Math.sin(this.t * 0.31) * 0.06, st.at.z + cx * Math.sin(a) + cz * Math.cos(a));
-    outLook.copy(V3(st.look));
+    outLook.copy(st.look);
   }
   update(dt) {
     if (!this.open) return;
-    this.t += dt;
+    if (!this.motion.matches) this.t += dt;
     const cur = this.S[this.idx], m = this.models[this.idx];
-    m.root.rotation.y += dt * 0.32;
-    const P = new T.Vector3(), L = new T.Vector3(); this.pose(this.idx, P, L);
+    if (!this.motion.matches) m.root.rotation.y += dt * 0.32;
+    const P = this.targetPos, L = this.targetLook;
+    this.pose(this.idx, P, L);
     const tw = this.tw;
-    if (!tw) { this.pos.copy(P); this.look.copy(L); this.focus.copy(V3(cur.at)); this.lerpLight(LIGHT[cur.light], 1); }
+    if (!tw) { this.pos.copy(P); this.look.copy(L); this.focus.copy(cur.at); }
     else if (tw.mode === 'pan') {
       tw.t += dt; const k = ease(clamp(tw.t / tw.dur, 0, 1));
       this.pos.lerpVectors(tw.p0, P, k); this.pos.y += Math.sin(Math.PI * k) * Math.min(9, tw.p0.distanceTo(P) * 0.1);
-      this.look.lerpVectors(tw.l0, L, k); this.focus.lerpVectors(tw.f0, V3(cur.at), k);
+      this.look.lerpVectors(tw.l0, L, k); this.focus.lerpVectors(tw.f0, cur.at, k);
       this.lerpLight(LIGHT[cur.light], Math.min(1, dt * 2.5));
-      if (tw.t >= tw.dur) this.tw = null;
+      if (tw.t >= tw.dur) { this.tw = null; this.showModels(this.idx); Object.assign(this.light, LIGHT[cur.light]); this.applyLight(); }
     } else {
       tw.t += dt; const h = tw.dur / 2;
       if (tw.t < h) this.setFade(tw.t / h); else { if (!tw.switched) { tw.switched = true; this.snapTo(this.idx); C.camera.userData.snap = true; } this.setFade(1 - (tw.t - h) / h); }
@@ -117,7 +128,7 @@ export class Select {
   setFade(v) { this.fade = v; $('fade').style.opacity = String(clamp(v, 0, 1)); }
   lerpLight(to, k) {
     const L = this.light; for (const n of ['sun', 'hemi', 'near', 'far']) L[n] = lerp(L[n], to[n], k);
-    for (const n of ['sunC', 'sky', 'gnd', 'fog']) L[n] = new T.Color(L[n]).lerp(new T.Color(to[n]), k).getHex();
+    for (const n of ['sunC', 'sky', 'gnd', 'fog']) L[n] = this.mixColor.setHex(L[n]).lerp(this.targetColor.setHex(to[n]), k).getHex();
     this.applyLight();
   }
   applyLight() {
