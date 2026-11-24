@@ -175,13 +175,6 @@ function street(scene) {
     staticCyl(x, y + 1.5, z, 0.1, 1.5, { kind: 'pole', name: 'SPEED CAMERA' }); W.speedCam = { s, x, y: y + 3.3, z };
   }
   // CCTV along the route
-  W.cctv.push({ x: 8, y: TOP.y + 5.5, z: 6, name: 'CAM 01  SPENDWELLS CAR PARK' });
-  const c2 = P(210, -9, 5.6); W.cctv.push({ x: c2.x, y: c2.y, z: c2.z, name: 'CAM 02  HILL ROAD' });
-  const c3 = P(410, 16, 6); W.cctv.push({ x: c3.x, y: c3.y, z: c3.z, name: 'CAM 03  GRUMBLETON ROUNDABOUT' });
-  const c4 = P(640, 9, 6); W.cctv.push({ x: c4.x, y: c4.y, z: c4.z, name: 'CAM 04  LOWER HILL ROAD' });
-  const b5 = botToWorld(-30, 30); W.cctv.push({ x: b5.x, y: 7, z: b5.z, name: 'CAM 05  DUCK POND' });
-  const b6 = botToWorld(30, 80); W.cctv.push({ x: b6.x, y: 8, z: b6.z, name: 'CAM 06  HARRISONS' });
-  for (const c of W.cctv) { const B = sb('cctv', 'lam'); bx(B, null, 0.22, 0.2, 0.42, c.x, c.y, c.z, 0xe8e8e2); cy(B, null, 0.05, c.y - groundAt(c), c.x, (c.y + groundAt(c)) / 2, c.z + 0.3, 0x6a6e74, 6); }
 }
 function groundAt(c) { return c.y > 50 ? TOP.y : (C.world && C.world.groundY ? C.world.groundY(c.x, c.z) : 0); }
 
@@ -417,7 +410,7 @@ function bottomScenery(scene) {
 function placePickups() {
   const r = rng(99), add = (k, x, y, z) => W.pickups.push({ k, x, y, z });
   const onRoad = (s, d, h = 0.9) => { const p = P(s, d, h); add(pick(r, ITEM_KEYS), p.x, p.y, p.z); };
-  add('milk', 0, TOP.y + 0.9, 16); add('bread', 0, TOP.y + 0.9, 10); add('cabbage', 0, TOP.y + 0.9, 5);
+  add('milk', 0, TOP.y + 0.9, 16); add('loo', 0, TOP.y + 0.9, 10); add('tampons', 0, TOP.y + 0.9, 5);
   for (let s = 14; s < 760; s += 10 + r() * 12) {
     if (Math.abs(s - RA_S) < 14) continue;
     const R = roadAt(s, {}); let d = (r() - 0.5) * 2 * (R.w - 1.2);
@@ -426,7 +419,7 @@ function placePickups() {
     onRoad(s, d, h);
   }
   // today's list: a couple of each, somewhere sensible
-  for (const [s, d, k] of [[95, 0.6, 'loo'], [150, 1.3, 'cereal'], [262, -1.0, 'tampons'], [342, -1.4, 'milk'], [505, 0.8, 'tampons'], [548, -0.6, 'cereal'], [690, 1.2, 'pineapple']]) { const p = P(s, d, 0.9); add(k, p.x, p.y, p.z); }
+  for (const [s, d, k] of [[95, 0.6, 'loo'], [150, 1.3, 'gnome'], [262, -1.0, 'tampons'], [342, -1.4, 'milk'], [505, 0.8, 'tampons'], [548, -0.6, 'loo'], [690, 1.2, 'pineapple']]) { const p = P(s, d, 0.9); add(k, p.x, p.y, p.z); }
   { const p = botToWorld(-54, 27); add('pineapple', p.x, 0.9, p.z); }
   // a line along each pavement for people who like pedestrians
   for (const [a, b, side] of [[60, 100, -1], [205, 240, 1], [520, 560, -1], [640, 680, 1]]) for (let s = a; s < b; s += 12) { const R = roadAt(s, {}); onRoad(s, side * (R.w + 1.1), 0.9); }
@@ -435,10 +428,10 @@ function placePickups() {
   // over the plank ramp
   { const s = 318; for (let k = 1; k <= 3; k++) { const p = P(s + 2 + k * 2.6, -1.4, 1.2 + k * 0.4 - (k === 3 ? 0.4 : 0)); add(pick(r, ITEM_KEYS), p.x, p.y, p.z); } }
   // the pond arc and the far side
-  for (let k = 0; k < 5; k++) { const lf = 27 + k * 5, p = botToWorld(0, lf); add(k === 2 ? 'trifle' : pick(r, ITEM_KEYS), p.x, 2.4 + Math.sin(k / 4 * Math.PI) * 2.4, p.z); }
-  { const p = botToWorld(82, 72); add('cheese', p.x, botH(82, 72) + 1.6, p.z); }
+  for (let k = 0; k < 5; k++) { const lf = 27 + k * 5, p = botToWorld(0, lf); add(k === 2 ? 'gnome' : pick(r, ITEM_KEYS), p.x, 2.4 + Math.sin(k / 4 * Math.PI) * 2.4, p.z); }
+  { const p = botToWorld(82, 72); add('pineapple', p.x, botH(82, 72) + 1.6, p.z); }
   { const p = botToWorld(-70, 40); add('gnome', p.x, 1.0, p.z); }
-  { const p = botToWorld(-24, 17.5); add('crisps', p.x, 0.9, p.z); }
+  { const p = botToWorld(-24, 17.5); add('milk', p.x, 0.9, p.z); }
   for (let k = 0; k < 4; k++) { const p = botToWorld(-18 + k * 12, 78); add(k === 1 ? 'tampons' : pick(r, ITEM_KEYS), p.x, 0.9, p.z); }
 }
 

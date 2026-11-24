@@ -11,8 +11,8 @@ export const UNLOCKS = {
   green: { need: 'Get everything on the shopping list in one run', test: r => !!(r.done && r.done.list) },
 };
 // the list each run starts with
-export const SHOPPING_LIST = ['pineapple', 'cereal', 'milk', 'tampons', 'loo'];
-export const LIST_NAMES = { pineapple: 'Pineapple', cereal: 'Cereal', milk: 'Milk', tampons: 'Tampons', loo: 'Toilet roll' };
+export const SHOPPING_LIST = ['pineapple', 'gnome', 'milk', 'tampons', 'loo'];
+export const LIST_NAMES = { pineapple: 'Pineapple', gnome: 'Garden gnome', milk: 'Milk', tampons: 'Tampons', loo: 'Toilet roll' };
 export const TASKS = [
   { id: 'list', label: 'Get everything on the list', short: 'SHOPPING LIST', pts: 1000 },
   { id: 'cones', label: 'Knock over 10 traffic cones', short: '10 CONES', n: 10, pts: 500 },

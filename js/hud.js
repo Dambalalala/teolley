@@ -1,6 +1,5 @@
 import { C } from './core.js';
 import { clamp, fmt } from './util.js';
-import { CAM_NAMES } from './camera.js';
 import { SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js';
 
 // All three fonts are drawn on an 8-pixel grid, so sizes stay at multiples of 8 and every glyph is placed on a whole
@@ -15,9 +14,8 @@ const RING = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 
 const INK = '#0d0f12', PAPER = '#f6f2e7';
 
 export class HUD {
-  constructor(canvas) { this.cv = canvas; this.g = canvas.getContext('2d'); this.w = 1; this.h = 1; this.dpr = 1; this.toast = null; this.grads = new Map(); }
+  constructor(canvas) { this.cv = canvas; this.g = canvas.getContext('2d'); this.w = 1; this.h = 1; this.dpr = 1; this.grads = new Map(); }
   resize(w, h) { this.dpr = clamp(Math.floor(window.devicePixelRatio || 1), 1, 3); this.w = w; this.h = h; this.cv.width = Math.round(w * this.dpr); this.cv.height = Math.round(h * this.dpr); this.grads.clear(); }
-  camToast(name) { this.toast = { text: name, t: 0 }; }
   snap(v) { return Math.round(v * this.dpr) / this.dpr; }
   // y is the middle of the capitals; o.metal is a band palette for chrome lettering (Press Start only)
   text(t, x, y, face, size, col, align = 'left', o = {}) {
@@ -48,23 +46,13 @@ export class HUD {
     const g = this.g, G = C.game, W = this.w, H = this.h; g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); g.clearRect(0, 0, W, H); g.imageSmoothingEnabled = false;
     const st = G.state; if (!(st === 'push' || st === 'run' || st === 'over')) return;
     const R = G.run, tr = C.trolley, small = W < 640, narrow = W < 520, pad = small ? 12 : 16;
-    // CCTV look
-    if (C.cam.mode === 2 && C.cam.cctv) {
-      g.fillStyle = 'rgba(20,30,20,.12)'; g.fillRect(0, 0, W, H);
-      g.fillStyle = 'rgba(0,0,0,.1)'; for (let y = 0; y < H; y += 4) this.rect(0, y, W, 2);
-      const cy0 = pad + 124 + (C.touch ? 96 : 0);
-      if (Math.sin(performance.now() / 300) > 0) { g.fillStyle = '#e0302a'; this.pxDisc(pad + 8, cy0, 6); }
-      this.text('REC  ' + C.cam.cctv.name, pad + 22, cy0, 'l', 16, '#e8f0e0');
-      const d = new Date(), ts = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${d.toTimeString().slice(0, 8)}`;
-      this.text(ts, pad + 22, cy0 + 22, 'l', 16, '#e8f0e0');
-    }
     // score / best
     this.text('SCORE', pad, pad + 6, 'l', 16, PAPER);
     this.text(fmt(R.score), pad, pad + (small ? 30 : 34), 'd', small ? 24 : 32, null, 'left', { metal: GOLD });
     this.text('BEST ' + fmt(G.save.best), pad, pad + (small ? 58 : 66), 'l', 16, PAPER);
     // the task list: in full at the start, then just a count
     const got = SHOPPING_LIST.filter(k => R.got[k]).length, nd = TASKS.filter(t => R.done[t.id]).length;
-    const cardA = st === 'push' ? 1 : st === 'run' ? clamp((4.5 - R.time) / 0.8, 0, 1) : 0;
+    const cardA = G.paused ? 0 : st === 'push' ? 1 : st === 'run' ? clamp((4.5 - R.time) / 0.8, 0, 1) : 0;
     if (cardA < 1) this.text(`LIST ${got}/${SHOPPING_LIST.length} · TASKS ${nd}/${TASKS.length}`, pad, pad + (small ? 80 : 90), 'l', 16, PAPER);
     // time: top centre, or under the buttons on a narrow screen
     const tm = R.time, mm = Math.floor(tm / 60), ss = (tm % 60).toFixed(1).padStart(4, '0');
@@ -100,8 +88,6 @@ export class HUD {
       g.fillStyle = 'rgba(22,22,26,.55)'; this.rect(bx - 4, by - 4, bw + 8, 16); g.fillStyle = '#f26a1b'; this.rect(bx, by, bw * pw, 8);
       this.text(C.touch ? 'TAP PUSH TO GET GOING' : 'TAP W TO GET GOING', W / 2, by - 20, 'l', 16, PAPER, 'center', { bold: true });
     }
-    // camera toast
-    if (this.toast) { this.toast.t += dt; g.globalAlpha = clamp(1.6 - this.toast.t, 0, 1); this.text('CAMERA: ' + this.toast.text, W - pad, narrow ? 100 : pad + 72, 'l', 16, PAPER, 'right', { bold: true }); g.globalAlpha = 1; if (this.toast.t > 1.6) this.toast = null; }
     if (G.flash > 0) { g.fillStyle = `rgba(255,255,255,${G.flash * 0.8})`; g.fillRect(0, 0, W, H); }
   }
   message(m, W, H, small) {

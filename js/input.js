@@ -25,7 +25,6 @@ export class Input {
       if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) { if (G.state === 'push') this.pushQ = true; else this.hopQ = true; } }
       if (e.repeat) return;
       if (e.code === 'KeyR') G.startRun();
-      else if (e.code === 'KeyC') C.cam.next();
       else if (e.code === 'KeyP' || e.code === 'Escape') C.ui.pause();
       else if (e.code === 'KeyM') C.ui.toggleMute();
     });

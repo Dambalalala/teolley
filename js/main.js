@@ -47,7 +47,7 @@ async function boot() {
   flushStatics(scene);
   C.fx = new FX(); C.props = new Props(); C.shopping = new Shopping(); C.audio = new Audio(); C.game = new Game();
   C.audio.muted = !!C.game.save.muted;
-  C.input = new Input(); C.cam = new Cam(camera); C.cam.mode = C.game.save.cam || 0; C.hud = new HUD($('hud')); C.ui = new UI(); C.select = new Select();
+  C.input = new Input(); C.cam = new Cam(camera); C.hud = new HUD($('hud')); C.ui = new UI(); C.select = new Select();
   // compile the select screen's trolleys up front so opening it doesn't stall
   C.select.build(); for (const m of C.select.models) m.root.visible = true; try { renderer.compile(scene, camera); } catch (e) {} for (const m of C.select.models) m.root.visible = false;
   // settle the props before the first frame
@@ -135,7 +135,6 @@ async function boot() {
     vel: (vx, vy, vz) => C.trolley.body.setLinvel({ x: vx, y: vy, z: vz }, true),
     sim: (sec, k) => { window.__trolley.keys(k || {}); const n = Math.round(sec * 60); for (let i = 0; i < n; i++) step(1 / 60); return window.__trolley.get(); },
     render: on => { window.__noRender = !on; },
-    cam: m => { C.cam.mode = m; C.camera.userData.snap = true; },
     frame: () => render(1 / 60),
     world: () => C.world, C,
   };

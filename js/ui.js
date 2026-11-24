@@ -16,7 +16,6 @@ export class UI {
     $('bRestart').addEventListener('click', () => { this.resume(); C.game.startRun(); });
     $('bQuit').addEventListener('click', () => { this.resume(); C.game.toSelect(); });
     $('select').addEventListener('pointerdown', () => C.audio.init()); // sound can only start after a touch or a key
-    $('bCam').addEventListener('click', () => C.cam.next());
     $('bMute').addEventListener('click', () => { C.audio.init(); this.toggleMute(); });
     $('bPause').addEventListener('click', () => this.pause());
     this.setMuteBtn();

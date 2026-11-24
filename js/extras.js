@@ -76,7 +76,7 @@ function transporter(scene) {
   // the driver, waiting on the pavement
   W.nearTargets.push({ x: (pr[0] + pf[0]) / 2, z: (pr[2] + pf[2]) / 2, r: 9, kind: 'LORRY', box: { hx: 1.25, hz: Lt / 2, yaw: -Rm.th } });
   // a couple of things to collect on the way off the end
-  for (const [dv, hh, k] of [[5, 3.0, 'cereal'], [10, 2.4, 'milk']]) { const p = at(Lt + dv, dc, hAt(Lt) + hh - 2.75); W.pickups.push({ k, x: p[0], y: p[1] + 0.5, z: p[2] }); }
+  for (const [dv, hh, k] of [[5, 3.0, 'gnome'], [10, 2.4, 'milk']]) { const p = at(Lt + dv, dc, hAt(Lt) + hh - 2.75); W.pickups.push({ k, x: p[0], y: p[1] + 0.5, z: p[2] }); }
 }
 
 // ---------------- embankments round Harrison's car park ----------------
