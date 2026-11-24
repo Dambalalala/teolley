@@ -12,7 +12,7 @@ export const UNLOCKS = {
 };
 // the list each run starts with
 export const SHOPPING_LIST = ['pineapple', 'gnome', 'milk', 'tampons', 'loo'];
-export const LIST_NAMES = { pineapple: 'Pineapple', gnome: 'Garden gnome', milk: 'Milk', tampons: 'Tampons', loo: 'Toilet roll' };
+export const LIST_NAMES = { pineapple: 'Pineapple', gnome: 'Garden gnome', milk: 'Milk', tampons: 'Tampons', loo: 'Loo roll' };
 export const TASKS = [
   { id: 'list', label: 'Get everything on the list', short: 'SHOPPING LIST', pts: 1000 },
   { id: 'cones', label: 'Knock over 10 traffic cones', short: '10 CONES', n: 10, pts: 500 },
@@ -115,7 +115,7 @@ export class Game {
       const pair = (a, b) => (i1.kind === a && i2.kind === b) ? [i1, i2] : (i2.kind === a && i1.kind === b) ? [i2, i1] : null;
       let pp;
       if ((pp = pair('trolley', 'prop'))) { const p = pp[1].prop; if (ts > 1.2 && C.props.knock(p, 'trolley', ts)) this.broke(p, ts); else if (ts > 1.2) this.sfxFor(p.type, ts); }
-      else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, ts, tv)) { this.run.peds++; C.audio.sfx('thud'); this.addCombo('LOLLIPOP LADY', 700); this.task('lollipop'); } }
+      else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, ts, tv)) { this.run.peds++; this.addCombo('LOLLIPOP LADY', 700); this.task('lollipop'); } }
       else if ((pp = pair('prop', 'prop'))) { const a = pp[0].prop, b = pp[1].prop; const moving = p => !p.body.isFixed() && !p.body.isSleeping() && (C.time - p.hitT < 3); const src = moving(a) ? a : moving(b) ? b : null, dst = src === a ? b : a; if (src && dst && !dst.hit) { const v = src.body.linvel(), rs = Math.hypot(v.x, v.y, v.z); if (rs > 1.5 && C.props.knock(dst, 'prop', rs)) { this.broke(dst, rs, true); } } }
     });
   }

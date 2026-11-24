@@ -3,7 +3,7 @@ import { TAU, clamp, sstep, rng, pick, Batch, GEO, M, FM, frame, bx, cy, seg, Ba
 const DECOR = new Baker();
 import { TX, signTex, plainSign, limitSign, warnSign, giveWay, chevron, fascia, textFit } from './textures.js';
 import { W, RA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js';
-import { makeTrolley, makeCar, ITEM_KEYS, BARGAIN_KEYS } from './models.js';
+import { makeTrolley, makeCar } from './models.js';
 const T = C.T;
 const _v = new T.Vector3();
 const tp = (F, x, y, z) => { _v.set(x, y, z); if (F) _v.applyMatrix4(F); return [_v.x, _v.y, _v.z]; };
@@ -408,31 +408,12 @@ function bottomScenery(scene) {
 
 // ---------------- shopping placement ----------------
 function placePickups() {
-  const r = rng(99), add = (k, x, y, z) => W.pickups.push({ k, x, y, z });
-  const onRoad = (s, d, h = 0.9) => { const p = P(s, d, h); add(pick(r, ITEM_KEYS), p.x, p.y, p.z); };
-  add('milk', 0, TOP.y + 0.9, 16); add('loo', 0, TOP.y + 0.9, 10); add('tampons', 0, TOP.y + 0.9, 5);
-  for (let s = 14; s < 760; s += 10 + r() * 12) {
-    if (Math.abs(s - RA_S) < 14) continue;
-    const R = roadAt(s, {}); let d = (r() - 0.5) * 2 * (R.w - 1.2);
-    if (s > 598 && s < 624 && d < 0) d = -d * 0.5 + 0.5; // keep the transporter's deck clear
-    let h = 0.9; for (const b of W.bumps) if (Math.abs(s - b) < 2.2) h = 1.6;
-    onRoad(s, d, h);
-  }
-  // today's list: a couple of each, somewhere sensible
-  for (const [s, d, k] of [[95, 0.6, 'loo'], [150, 1.3, 'gnome'], [262, -1.0, 'tampons'], [342, -1.4, 'milk'], [505, 0.8, 'tampons'], [548, -0.6, 'loo'], [690, 1.2, 'pineapple']]) { const p = P(s, d, 0.9); add(k, p.x, p.y, p.z); }
-  { const p = botToWorld(-54, 27); add('pineapple', p.x, 0.9, p.z); }
-  // a line along each pavement for people who like pedestrians
-  for (const [a, b, side] of [[60, 100, -1], [205, 240, 1], [520, 560, -1], [640, 680, 1]]) for (let s = a; s < b; s += 12) { const R = roadAt(s, {}); onRoad(s, side * (R.w + 1.1), 0.9); }
-  // front gardens: hop the wall
-  for (const [s, side] of [[90, 1], [250, -1], [610, 1], [700, -1]]) { const R = roadAt(s, {}); const p = P(s, side * (R.w + 4.2), 0.8); add(pick(r, BARGAIN_KEYS), p.x, p.y, p.z); }
-  // over the plank ramp
-  { const s = 318; for (let k = 1; k <= 3; k++) { const p = P(s + 2 + k * 2.6, -1.4, 1.2 + k * 0.4 - (k === 3 ? 0.4 : 0)); add(pick(r, ITEM_KEYS), p.x, p.y, p.z); } }
-  // the pond arc and the far side
-  for (let k = 0; k < 5; k++) { const lf = 27 + k * 5, p = botToWorld(0, lf); add(k === 2 ? 'gnome' : pick(r, ITEM_KEYS), p.x, 2.4 + Math.sin(k / 4 * Math.PI) * 2.4, p.z); }
-  { const p = botToWorld(82, 72); add('pineapple', p.x, botH(82, 72) + 1.6, p.z); }
-  { const p = botToWorld(-70, 40); add('gnome', p.x, 1.0, p.z); }
-  { const p = botToWorld(-24, 17.5); add('milk', p.x, 0.9, p.z); }
-  for (let k = 0; k < 4; k++) { const p = botToWorld(-18 + k * 12, 78); add(k === 1 ? 'tampons' : pick(r, ITEM_KEYS), p.x, 0.9, p.z); }
+  // one of each thing on the list, each sat over something you can jump off
+  const add = (k, x, y, z) => W.pickups.push({ k, x, y, z });
+  add('milk', 0, TOP.y + 1.5, 12); // Spendwells car park speed bump
+  { const p = P(136, 0, 1.7); add('loo', p.x, p.y, p.z); } // road hump on the hill
+  { const p = P(318 + 2 + 2 * 2.6, -1.4, 2.0); add('tampons', p.x, p.y, p.z); } // off the plank ramp
+  // pineapple: on the roundabout island (placed with the island); gnome: off the car transporter (extras)
 }
 
 // ---------------- pedestrians ----------------

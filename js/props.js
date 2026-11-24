@@ -87,7 +87,7 @@ export class Props {
   }
   resetPed(pd) {
     const R = C.RAPIER, s = pd.spec;
-    if (pd.body.bodyType() !== R.RigidBodyType.KinematicPositionBased) pd.body.setBodyType(R.RigidBodyType.KinematicPositionBased, true);
+    if (pd.body.bodyType() !== R.RigidBodyType.KinematicPositionBased) pd.body.setBodyType(R.RigidBodyType.KinematicPositionBased, true); pd.body.setGravityScale(1, true);
     pd.state = 'still'; pd.dodge = null; pd.near = null; pd.downT = 0; pd.oiT = 0; pd.hitOnce = false;
     if (s.s != null) { const p = C.world.P(s.s, s.d); pd.x = p.x; pd.y = p.y; pd.z = p.z; pd.yaw = s.d < 0 ? -p.th - Math.PI / 2 : -p.th + Math.PI / 2; }
     else { pd.x = s.x; pd.z = s.z; pd.y = C.world.groundY(s.x, s.z); pd.yaw = s.yaw || 0; }
@@ -95,11 +95,15 @@ export class Props {
     pd.P.group.position.set(pd.x, pd.y, pd.z); pd.P.group.rotation.set(0, pd.yaw, 0); pd.P.body.rotation.set(0, 0, 0); pd.P.body.position.set(0, 0, 0);
   }
   hitPed(pd, rel, tv) {
+    // off she goes: launched up and away, spinning, falling far too slowly
     const R = C.RAPIER; if (pd.state === 'down') return false;
-    pd.state = 'down'; pd.downT = 3.2; pd.body.setBodyType(R.RigidBodyType.Dynamic, true);
-    pd.body.setLinvel({ x: tv.x * 0.45, y: 2.2, z: tv.z * 0.45 }, true); pd.body.setAngvel({ x: (Math.random() - 0.5) * 6, y: (Math.random() - 0.5) * 3, z: (Math.random() - 0.5) * 6 }, true);
+    pd.state = 'down'; pd.downT = 1e9; pd.body.setBodyType(R.RigidBodyType.Dynamic, true); pd.body.setGravityScale(0.35, true);
+    const vh = Math.hypot(tv.x, tv.z) || 1, k = (14 + vh * 0.6) / vh;
+    pd.body.setLinvel({ x: tv.x * k, y: 11, z: tv.z * k }, true); pd.body.setAngvel({ x: 9, y: 26, z: 7 }, true);
+    C.audio.sfx('spin');
     const first = !pd.hitOnce; pd.hitOnce = true; return first;
   }
+
   updatePeds(dt, t) {
     const R = C.RAPIER, tr = C.trolley, tp = tr ? tr.pos() : null, tv = tr ? tr.vel() : null;
     for (const pd of this.peds) {

@@ -18,11 +18,11 @@ function stops() {
   const W = C.world, B = (lx, lf, h = 0) => { const p = W.botToWorld(lx, lf); return { x: p.x, y: W.groundY(p.x, p.z) + h, z: p.z }; };
   const top = (x, z, h = 0) => ({ x, y: W.groundY(x, z) + h, z });
   return [
-    { key: 'dave', place: 'Spendwells', desc: 'Supermarket car park', area: 'top', amb: 'muzak', light: 'neutral', at: top(-8.4, 27.2), yaw: 2.35, cam: top(-5.5, 24.3, 1.25), look: top(-9.2, 28.2, 0.42) },
-    { key: 'demon', place: "Harrison's", desc: 'Car park', area: 'bot', amb: 'carpark', light: 'bright', at: B(-2, 92), yaw: 2.6, cam: B(1.4, 88.9, 1.2), look: B(-2.8, 93.0, 0.4) },
-    { key: 'tank', place: 'Builders Merchant', desc: 'Beside the building materials', area: 'bot', amb: 'yard', light: 'dusty', at: B(52.6, 23.3), yaw: -2.3, cam: B(48.9, 19.7, 1.35), look: B(53.4, 24.2, 0.45) },
-    { key: 'green', place: 'Garden Centre', desc: 'Garden centre car park', area: 'bot', amb: 'garden', light: 'soft', at: B(-52.0, 29.6), yaw: -0.6, cam: B(-49.0, 25.0, 1.25), look: B(-52.6, 30.7, 0.45) },
-    { key: 'pensioner', place: 'Pond', desc: 'Beside the duck pond', area: 'bot', amb: 'pond', light: 'damp', at: B(-12.6, 33.0), yaw: 1.2, cam: B(-16.7, 29.7, 1.2), look: B(-11.7, 34.0, 0.32) },
+    { key: 'dave', area: 'top', amb: 'muzak', light: 'neutral', at: top(-8.4, 27.2), yaw: 2.35, cam: top(-5.5, 24.3, 1.25), look: top(-9.2, 28.2, 0.42) },
+    { key: 'demon', area: 'bot', amb: 'carpark', light: 'bright', at: B(-2, 92), yaw: 2.6, cam: B(1.4, 88.9, 1.2), look: B(-2.8, 93.0, 0.4) },
+    { key: 'tank', area: 'bot', amb: 'yard', light: 'dusty', at: B(52.6, 23.3), yaw: -2.3, cam: B(48.9, 19.7, 1.35), look: B(53.4, 24.2, 0.45) },
+    { key: 'green', area: 'bot', amb: 'garden', light: 'soft', at: B(-52.0, 29.6), yaw: -0.6, cam: B(-49.0, 25.0, 1.25), look: B(-52.6, 30.7, 0.45) },
+    { key: 'pensioner', area: 'bot', amb: 'pond', light: 'damp', at: B(-12.6, 33.0), yaw: 1.2, cam: B(-16.7, 29.7, 1.2), look: B(-11.7, 34.0, 0.32) },
   ];
 }
 const V3 = (p) => new T.Vector3(p.x, p.y, p.z);
@@ -127,7 +127,6 @@ export class Select {
   }
   panel() {
     const st = this.S[this.idx], V = VARIANTS[st.key], un = !!C.game.save.unlocked[st.key], S = trolleyStats(st.key);
-    $('selPlace').textContent = st.place; $('selDesc').textContent = st.desc;
     $('selName').textContent = V.name; $('selBlurb').textContent = V.blurb;
     $('selStats').innerHTML = [['Speed', S.speed], ['Stability', S.stability], ['Handling', S.handling]].map(([n, v]) =>
       `<div class="sst"><span>${n}</span><span class="segs" role="img" aria-label="${n} ${v} out of 10">${'<i class="on"></i>'.repeat(v)}${'<i></i>'.repeat(10 - v)}</span></div>`).join('');

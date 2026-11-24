@@ -54,6 +54,10 @@ export class Audio {
       case 'glass': this.hiss(0.5, 0.2, 5200, 0.6, 'highpass'); for (let i = 0; i < 9; i++) this.tone(2800 + Math.random() * 3800, 0.15 + Math.random() * 0.25, 'sine', 0.02, 0, Math.random() * 0.25); break;
       case 'splash': this.hiss(0.9, 0.28, 1800, 0.6, 'lowpass', 0, 300); this.tone(140, 0.4, 'sine', 0.12, 60); break;
       case 'quack': for (let i = 0; i < 3; i++) { this.tone(620, 0.12, 'sawtooth', 0.03, 380, i * 0.22); this.hiss(0.1, 0.03, 900, 3, 'bandpass', i * 0.22); } break;
+      case 'spin': // cartoon launch: a boing, then a warbling slide whistle spinning off into the distance
+        this.tone(180, 0.28, 'triangle', 0.12, 520);
+        for (let i = 0; i < 12; i++) this.tone(520 + i * 70, 0.1, 'sine', 0.07, 980 + i * 90, 0.08 + i * 0.1);
+        this.tone(700, 1.4, 'sine', 0.05, 2600, 0.2); break;
       case 'oi': this.tone(380, 0.18, 'sawtooth', 0.035, 260); this.hiss(0.14, 0.03, 1100, 4); break;
       case 'gasp': this.hiss(0.22, 0.04, 1500, 2, 'bandpass', 0, 2600); break;
       case 'flash': this.hiss(0.04, 0.12, 6000, 0.8, 'highpass'); this.tone(5200, 0.4, 'sine', 0.02, 9000, 0.03); break;

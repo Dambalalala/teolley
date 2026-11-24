@@ -53,7 +53,17 @@ export class HUD {
     // the task list: in full at the start, then just a count
     const got = SHOPPING_LIST.filter(k => R.got[k]).length, nd = TASKS.filter(t => R.done[t.id]).length;
     const cardA = G.paused ? 0 : st === 'push' ? 1 : st === 'run' ? clamp((4.5 - R.time) / 0.8, 0, 1) : 0;
-    if (cardA < 1) this.text(`LIST ${got}/${SHOPPING_LIST.length} · TASKS ${nd}/${TASKS.length}`, pad, pad + (small ? 80 : 90), 'l', 16, PAPER);
+    if (cardA < 1) { // the list lights up as you get things, like S-K-A-T-E
+      let x = pad, y = pad + (small ? 74 : 84); g.font = `16px ${FACE.l}`;
+      for (const k of SHOPPING_LIST) {
+        const lab = LIST_NAMES[k].toUpperCase(), w = Math.ceil(g.measureText(lab).width) + 16, on = R.got[k];
+        if (x + w > W - pad) { x = pad; y += 28; }
+        g.fillStyle = on ? '#ffd21f' : 'rgba(22,22,26,.55)'; this.rect(x, y, w, 24);
+        this.text(lab, x + 8, y + 12, 'l', 16, on ? '#16161a' : 'rgba(246,242,231,.6)', 'left', { shadow: false });
+        x += w + 6;
+      }
+      this.text(`TASKS ${nd}/${TASKS.length}`, pad, y + 44, 'l', 16, PAPER);
+    }
     // time: top centre, or under the buttons on a narrow screen
     const tm = R.time, mm = Math.floor(tm / 60), ss = (tm % 60).toFixed(1).padStart(4, '0');
     if (narrow) this.text(`${mm}:${ss}`, W - pad, 76, 'd', 16, PAPER, 'right'); else this.text(`${mm}:${ss}`, W / 2, pad + 14, 'd', 24, PAPER, 'center');
@@ -81,7 +91,7 @@ export class HUD {
     // damage diagram + basket count
     // (on touch screens the steering pads live bottom-left, so the panel moves up under the score)
     if (cardA > 0) this.listCard(R, pad, pad + (small ? 72 : 84), W, H, cardA);
-    if (tr && !(C.touch && cardA > 0)) this.damage(tr, pad, C.touch ? pad + 100 : H - pad - 96);
+    if (tr && !(C.touch && cardA > 0)) this.damage(tr, pad, C.touch ? pad + 196 : H - pad - 96);
     // push-off meter
     if (st === 'push') {
       const pw = clamp(G.pushPower / 6, 0, 1), bw = Math.min(256, W * 0.5), bx = W / 2 - bw / 2, by = Math.round(H * 0.64);

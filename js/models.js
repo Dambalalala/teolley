@@ -126,8 +126,6 @@ export const ITEMS = {
   gnome: { name: 'CLEARANCE GNOME', pts: 750, mass: 1.5, shape: ['cuboid', 0.07, 0.14, 0.07], bargain: true },
   cheese: { name: 'ENORMOUS CHEDDAR', pts: 650, mass: 2.0, shape: ['cylinder', 0.05, 0.12], bargain: true },
 };
-export const ITEM_KEYS = ['milk', 'loo', 'tampons', 'pineapple', 'gnome'];
-export const BARGAIN_KEYS = ['pineapple', 'gnome'];
 
 const labelMats = {};
 function lblMat(k) { if (!labelMats[k]) labelMats[k] = new T.MeshLambertMaterial({ map: labelTex(k) }); return labelMats[k]; }
