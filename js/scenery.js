@@ -144,7 +144,7 @@ function street(scene) {
   // bin day: wheelie bins at the kerb
   const r = rng(7);
   for (let s = 30; s < 740; s += 9 + r() * 14) {
-    if (Math.abs(s - RA_S) < 50 || (s > 168 && s < 194) || (s > 296 && s < 376)) continue;
+    if (Math.abs(s - RA_S) < 50 || (s > 168 && s < 194) || (s > 216 && s < 296) || (s > 312 && s < 324)) continue;
     const side = r() < 0.5 ? -1 : 1; if (!hasHouse(s, side)) continue;
     const n = 1 + Math.floor(r() * 2.4);
     for (let i = 0; i < n; i++) { const R = roadAt(s + i * 0.75, {}), d = side * (R.w + 0.6), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'bin', x, y: prof(s + i * 0.75, d) + 0.55, z, yaw: yawTo(-side * R.rx, -side * R.rz) + (r() - 0.5) * 0.3, lid: pick(r, [0x2a2a2c, 0x2a2a2c, 0x2a6a3a, 0x2a4aa0, 0x6a4a2a]) }); }
@@ -162,7 +162,7 @@ function street(scene) {
   const L30 = limitSign(30);
   S(10, -1, L30, 0.75, 0.75, 2.2, { name: '30 SIGN' }); S(10, 1, L30, 0.75, 0.75, 2.2, { name: '30 SIGN' }); S(498, -1, L30, 0.75, 0.75, 2.2, { name: '30 SIGN' });
   S(52, -1, warnSign('humps'), 0.8, 0.72, 2.0, { name: 'HUMPS SIGN' }); S(146, 1, warnSign('children'), 0.8, 0.72, 2.0, { name: 'SCHOOL SIGN' });
-  S(282, -1, warnSign('works'), 0.85, 0.77, 1.6, { name: 'ROADWORKS SIGN' });
+  S(202, -1, warnSign('works'), 0.85, 0.77, 1.6, { name: 'ROADWORKS SIGN' });
   S(366, -1, warnSign('roundabout'), 0.85, 0.77, 2.0, { name: 'ROUNDABOUT SIGN' }); S(398, -1, giveWay(), 0.75, 0.68, 1.6, { name: 'GIVE WAY SIGN' });
   S(388, -1, plainSign(['GRUMBLETON', ['Please drive carefully', 22], ['Twinned with nowhere in particular', 18]], { w: 256, h: 150, bg: '#ffffff', fg: '#111111', border: '#111111' }), 2.0, 1.15, 0.8, { name: 'TOWN SIGN', twin: true, off: 3 });
   S(538, 1, plainSign(['SPEED', 'CAMERAS'], { w: 128, h: 128, bg: '#ffffff', border: '#111' }), 0.7, 0.7, 2.0, { name: 'CAMERA SIGN' });
@@ -186,7 +186,7 @@ function parkedCars(scene) {
   for (let s = 26; s < 736; s += 11 + r() * 16) {
     if ((s > 166 && s < 196) || Math.abs(s - RA_S) < 54 || (s > 470 && s < 486)) continue;
     let bad = false; for (const b of W.bumps) if (Math.abs(s - b) < 7) bad = true; if (bad) continue;
-    const side = r() < 0.5 ? -1 : 1; if (side > 0 && s > 290 && s < 378) continue; if (side < 0 && s > 586 && s < 652) continue;
+    const side = r() < 0.5 ? -1 : 1; if (side > 0 && s > 236 && s < 296) continue; if (side < 0 && s > 586 && s < 652) continue;
     if (!hasHouse(s, side)) continue;
     let kind = pick(r, kinds); if (s > 410 && !robin) { kind = 'robin'; robin = true; }
     const car = makeCar(kind, kind === 'robin' ? 0xf2c81f : (kind === 'van' ? 0xf2f2ee : null), Math.floor(r() * 1e6));
@@ -203,28 +203,27 @@ function parkedCars(scene) {
 
 // ---------------- roadworks ----------------
 function roadworks(scene) {
-  // barriered-off right lane with a hole, sand pile and a plank someone left as a ramp
-  // cones along the works, after the plank
-  for (let s = 323; s <= 351; s += 2.6) { const R = roadAt(s, {}), d = 0.45, x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'cone', x, y: prof(s, d) + 0.36, z, yaw: 0 }); }
-  // a slalom of cones further up the hill, away from the plank ramp, so both fit in one run
-  for (let k = 0; k < 14; k++) { const sc = 238 + k * 3.2, R = roadAt(sc, {}), d = (k % 2 ? 1 : -1) * 1.6, x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'cone', x, y: prof(sc, d) + 0.36, z, yaw: 0 }); }
-  for (const [s, d, turn] of [[324, 2.2, 0], [346, 2.2, 0], [335, 0.85, Math.PI / 2], [335, 3.3, Math.PI / 2]]) { const R = roadAt(s, {}), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'barrier', x, y: prof(s, d) + 0.55, z, yaw: -R.th + turn + (turn ? 0 : Math.PI / 2) }); }
+  // barriered-off right lane with a hole and a sand pile, well up the hill from the plank
+  // cones along the works
+  for (let s = 243; s <= 271; s += 2.6) { const R = roadAt(s, {}), d = 0.45, x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'cone', x, y: prof(s, d) + 0.36, z, yaw: 0 }); }
+  for (const [s, d, turn] of [[244, 2.2, 0], [266, 2.2, 0], [255, 0.85, Math.PI / 2], [255, 3.3, Math.PI / 2]]) { const R = roadAt(s, {}), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'barrier', x, y: prof(s, d) + 0.55, z, yaw: -R.th + turn + (turn ? 0 : Math.PI / 2) }); }
   const hole = new T.Mesh(new T.PlaneGeometry(2.0, 18), new T.MeshLambertMaterial({ color: 0x3a2c22, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-  const hp = P(335, 2.1, 0.02); hole.position.set(hp.x, hp.y, hp.z); hole.rotation.order = 'YXZ'; hole.rotation.set(-Math.PI / 2, -hp.th, 0); scene.add(hole);
+  const hp = P(255, 2.1, 0.02); hole.position.set(hp.x, hp.y, hp.z); hole.rotation.order = 'YXZ'; hole.rotation.set(-Math.PI / 2, -hp.th, 0); scene.add(hole);
   // sand pile (static, rideable)
-  { const c = P(352, 2.2), pts = []; for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; pts.push(c.x + Math.cos(a) * 1.9, c.y, c.z + Math.sin(a) * 1.4); } pts.push(c.x, c.y + 1.05, c.z); staticHull(pts, { kind: 'ground', name: 'SAND PILE' });
+  { const c = P(272, 2.2), pts = []; for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; pts.push(c.x + Math.cos(a) * 1.9, c.y, c.z + Math.sin(a) * 1.4); } pts.push(c.x, c.y + 1.05, c.z); staticHull(pts, { kind: 'ground', name: 'SAND PILE' });
     const g = new T.SphereGeometry(1, 10, 6, 0, TAU, 0, Math.PI / 2); const m = new T.Mesh(g, mats().dirt); m.scale.set(1.9, 1.05, 1.4); m.position.set(c.x, c.y, c.z); m.receiveShadow = true; m.castShadow = true; scene.add(m); }
-  // plank ramp on the open lane
-  addRamp(scene, P(318, -1.4), roadAt(318, {}).th, 1.25, 3.2, 0.62, 'wood', 'PLANK RAMP');
   // skip and temporary lights
-  { const c = P(370, 2.4), F = frame(c.x, c.y, c.z, -c.th), L = sb(chunkOf(370), 'lam');
+  { const c = P(290, 2.4), F = frame(c.x, c.y, c.z, -c.th), L = sb(chunkOf(290), 'lam');
     bx(L, F, 1.8, 1.2, 3.6, 0, 0.6, 0, 0xf2c81f); for (let i = 0; i < 6; i++) L.add(GEO.ico, FM(F, (i % 3 - 1) * 0.5, 1.25, (Math.floor(i / 3) - 0.5) * 1.2, i, i, 0, 0.35, 0.3, 0.4), pick(rng(i), [0x8a7a6a, 0xa4523a, 0x6a6a6a, 0x9b7148]));
     staticBox(c.x, c.y + 0.6, c.z, 0.9, 0.6, 1.8, -c.th, { kind: 'wall', name: 'SKIP' }); }
-  for (const s of [300, 372]) { const R = roadAt(s, {}), d = -(R.w + 0.8), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d), L = sb(chunkOf(s), 'lam'), F = frame(x, y, z, -R.th + (s > 330 ? Math.PI : 0));
+  for (const s of [220, 292]) { const R = roadAt(s, {}), d = -(R.w + 0.8), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d), L = sb(chunkOf(s), 'lam'), F = frame(x, y, z, -R.th + (s > 250 ? Math.PI : 0));
     cy(L, F, 0.05, 2.4, 0, 1.2, 0, 0x2a2a2e); bx(L, F, 0.3, 0.8, 0.25, 0, 2.6, 0, 0x2a2a2e); bx(L, F, 0.5, 0.15, 0.5, 0, 0.1, 0, 0xf2c81f);
-    const red = new T.Mesh(new T.CircleGeometry(0.09, 10), new T.MeshBasicMaterial({ color: 0xff2a1f })); const rp = new T.Vector3(0, 2.85, -0.13).applyMatrix4(F); red.position.copy(rp); red.rotation.y = -R.th + (s > 330 ? 0 : Math.PI); scene.add(red);
+    const red = new T.Mesh(new T.CircleGeometry(0.09, 10), new T.MeshBasicMaterial({ color: 0xff2a1f })); const rp = new T.Vector3(0, 2.85, -0.13).applyMatrix4(F); red.position.copy(rp); red.rotation.y = -R.th + (s > 250 ? 0 : Math.PI); scene.add(red);
     staticCyl(x, y + 1.3, z, 0.08, 1.3, { kind: 'pole', name: 'TRAFFIC LIGHTS' }); }
-  W.triggers.push({ s0: 300, s1: 372, id: 'roadworks' });
+  W.triggers.push({ s0: 220, s1: 292, id: 'roadworks' });
+  // the plank someone left as a ramp, on its own further down
+  addRamp(scene, P(318, -1.4), roadAt(318, {}).th, 1.25, 3.2, 0.62, 'wood', 'PLANK RAMP');
+
 }
 // static ramp (wedge collider), rising towards travel direction th
 // a curved kicker: flat at the start, curving up to the lip angle at the far end (heading th, centred on at)

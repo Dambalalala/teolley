@@ -14,7 +14,6 @@ export class UI {
     $('bTrolleys').addEventListener('click', () => C.game.toSelect());
     $('bResume').addEventListener('click', () => this.resume());
     $('bRestart').addEventListener('click', () => { this.resume(); C.game.startRun(); });
-    $('bQuit').addEventListener('click', () => { this.resume(); C.game.toSelect(); });
     $('select').addEventListener('pointerdown', () => C.audio.init()); // sound can only start after a touch or a key
     $('bMute').addEventListener('click', () => { C.audio.init(); this.toggleMute(); });
     $('bPause').addEventListener('click', () => this.pause());
@@ -49,6 +48,7 @@ export class UI {
     for (const [k, n] of Object.entries(R.items)) { anyItem = true; ln(`${ITEMS[k].name}${n > 1 ? ' ×' + n : ''}`, fmt(ITEMS[k].pts * n)); }
     if (!anyItem) ln('NO SHOPPING', '0.00');
     if (R.lost) ln(`SHOPPING LOST ×${R.lost}`, '—', 'neg');
+    if (R.end === 'returned') ln('TROLLEY DEPOSIT REFUNDED', '£1.00');
     L.push('<hr>');
     ln('TRICKS & COMBOS', fmt(R.score));
     if (R.bestCombo) ln('  BEST COMBO', fmt(R.bestCombo));

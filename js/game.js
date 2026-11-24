@@ -264,7 +264,7 @@ export class Game {
     this.msgs = [];
     if (why === 'crash' || why === 'void') { this.loseCombo(); C.audio.sfx('crash'); this.slowmo = 1.4; this.say(QUIPS.lost, { dur: 2.6, now: true }); }
     else { this.bank(); }
-    if (why === 'returned') { this.task('return'); C.audio.sfx('fanfare'); this.say('TROLLEY RETURNED', { kind: 'cheer', dur: 3 }); }
+    if (why === 'returned') { this.task('return'); C.audio.sfx('fanfare'); this.say('TROLLEY RETURNED', { kind: 'cheer', dur: 3 }); setTimeout(() => { C.audio.sfx('coin'); this.say('YOUR QUID POPS OUT', { kind: 'cheer', dur: 2.6 }); }, 1100); }
   }
   showResults() {
     const R = this.run, tr = C.trolley; this.state = 'results';

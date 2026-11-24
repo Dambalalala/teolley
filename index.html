@@ -114,6 +114,10 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 #tG{right:14px;bottom:calc(28px + var(--pad))}
 #tB{right:calc(26px + var(--pad));bottom:16px}
 #tH{right:14px;bottom:16px}
+#loading .dots i{font-style:normal;animation:dot 1.2s steps(1) infinite;opacity:0}
+#loading .dots i:nth-child(2){animation-delay:.3s}
+#loading .dots i:nth-child(3){animation-delay:.6s}
+@keyframes dot{0%{opacity:0}25%{opacity:1}100%{opacity:1}}
 #loading,#err{position:fixed;inset:0;z-index:9;display:grid;place-items:center;text-align:center;padding:24px;background:#8fa6b8;color:var(--ink);font-family:var(--display);font-size:16px;line-height:1.5}
 #err{font-family:var(--body);background:#2a2a30;color:var(--paper)}
 
@@ -188,7 +192,7 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 <div id="pause" class="screen hidden" role="dialog" aria-label="Paused">
   <h2 class="metal">Paused</h2>
   <div class="plist" id="pauseList"></div>
-  <div class="row"><button id="bResume" class="btn">Resume</button><button id="bRestart" class="btn alt">Restart</button><button id="bQuit" class="btn alt">Trolleys</button></div>
+  <div class="row"><button id="bResume" class="btn">Resume</button><button id="bRestart" class="btn alt">Restart</button></div>
 </div>
 
 <div id="hudBtns" class="hidden">
@@ -199,10 +203,10 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
   <div id="tL" class="pad" role="button" aria-label="Steer left"><svg class="px" viewBox="0 0 5 9" width="15" height="27"><path d="M4 0h1v1h-1zM3 1h2v1h-2zM2 2h3v1h-3zM1 3h4v1h-4zM0 4h5v1h-5zM1 5h4v1h-4zM2 6h3v1h-3zM3 7h2v1h-2zM4 8h1v1h-1z"/></svg></div>
   <div id="tR" class="pad" role="button" aria-label="Steer right"><svg class="px" viewBox="0 0 5 9" width="15" height="27"><path d="M0 0h1v1h-1zM0 1h2v1h-2zM0 2h3v1h-3zM0 3h4v1h-4zM0 4h5v1h-5zM0 5h4v1h-4zM0 6h3v1h-3zM0 7h2v1h-2zM0 8h1v1h-1z"/></svg></div>
   <div id="tG" class="pad" role="button" aria-label="Push">PUSH</div>
-  <div id="tB" class="pad" role="button" aria-label="Brake">BRAKE</div>
+  <div id="tB" class="pad" role="button" aria-label="Brake">STOP</div>
   <div id="tH" class="pad" role="button" aria-label="Hop">HOP</div>
 </div>
-<div id="loading">FETCHING A TROLLEY…</div>
+<div id="loading"><span>FETCHING A TROLLEY<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>
 <div id="err" class="hidden"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

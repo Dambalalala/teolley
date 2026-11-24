@@ -74,6 +74,7 @@ export class Audio {
         this.sfx('clatter', 1.2); break;
       }
       case 'sting': for (const [f, w] of [[392, 0], [370, 0.32], [349, 0.64], [330, 0.96]]) this.tone(f, w === 0.96 ? 1.1 : 0.3, 'square', 0.04, w === 0.96 ? 300 : 0, w); break; // wah-wah-wah-waaah
+      case 'coin': this.tone(1568, 0.07, 'square', 0.04, 0, 0); this.tone(2093, 0.5, 'square', 0.04, 0, 0.07); this.tone(2637, 0.12, 'sine', 0.02, 0, 0.5); this.tone(2489, 0.12, 'sine', 0.02, 0, 0.58); break;
       case 'fanfare': [523, 659, 784, 1046].forEach((f, i) => this.tone(f, i === 3 ? 0.8 : 0.16, 'square', 0.035, 0, i * 0.12)); break;
     }
   }
