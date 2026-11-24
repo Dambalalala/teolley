@@ -212,24 +212,42 @@ function roadworks(scene) {
   // sand pile (static, rideable)
   { const c = P(272, 2.2), pts = []; for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; pts.push(c.x + Math.cos(a) * 1.9, c.y, c.z + Math.sin(a) * 1.4); } pts.push(c.x, c.y + 1.05, c.z); staticHull(pts, { kind: 'ground', name: 'SAND PILE' });
     const g = new T.SphereGeometry(1, 10, 6, 0, TAU, 0, Math.PI / 2); const m = new T.Mesh(g, mats().dirt); m.scale.set(1.9, 1.05, 1.4); m.position.set(c.x, c.y, c.z); m.receiveShadow = true; m.castShadow = true; scene.add(m); }
-  // skip and temporary lights
-  { const c = P(290, 2.4), F = frame(c.x, c.y, c.z, -c.th), L = sb(chunkOf(290), 'lam');
-    bx(L, F, 1.8, 1.2, 3.6, 0, 0.6, 0, 0xf2c81f); for (let i = 0; i < 6; i++) L.add(GEO.ico, FM(F, (i % 3 - 1) * 0.5, 1.25, (Math.floor(i / 3) - 0.5) * 1.2, i, i, 0, 0.35, 0.3, 0.4), pick(rng(i), [0x8a7a6a, 0xa4523a, 0x6a6a6a, 0x9b7148]));
-    staticBox(c.x, c.y + 0.6, c.z, 0.9, 0.6, 1.8, -c.th, { kind: 'wall', name: 'SKIP' }); }
+  // temporary lights
   for (const s of [220, 292]) { const R = roadAt(s, {}), d = -(R.w + 0.8), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d), L = sb(chunkOf(s), 'lam'), F = frame(x, y, z, -R.th + (s > 250 ? Math.PI : 0));
     cy(L, F, 0.05, 2.4, 0, 1.2, 0, 0x2a2a2e); bx(L, F, 0.3, 0.8, 0.25, 0, 2.6, 0, 0x2a2a2e); bx(L, F, 0.5, 0.15, 0.5, 0, 0.1, 0, 0xf2c81f);
     const red = new T.Mesh(new T.CircleGeometry(0.09, 10), new T.MeshBasicMaterial({ color: 0xff2a1f })); const rp = new T.Vector3(0, 2.85, -0.13).applyMatrix4(F); red.position.copy(rp); red.rotation.y = -R.th + (s > 250 ? 0 : Math.PI); scene.add(red);
     staticCyl(x, y + 1.3, z, 0.08, 1.3, { kind: 'pole', name: 'TRAFFIC LIGHTS' }); }
-  // the plank someone left as a ramp, on its own further down
-  addRamp(scene, P(334, 1.6), roadAt(334, {}).th, 1.25, 3.2, 0.62, 'wood', 'PLANK RAMP');
-
 }
-// static ramp (wedge collider), rising towards travel direction th
-// a curved kicker: flat at the start, curving up to the lip angle at the far end (heading th, centred on at)
-export function addRamp(scene, at, th, w, len, h, mat, name, lipDeg = 28) {
+
+const PLANK = { s: 334, d: 1.6, width: 1.4, length: 4.8, height: 0.9 };
+
+function plankAndSkip(scene) {
+  const centre = P(PLANK.s, PLANK.d);
+  const grade = (prof(PLANK.s + 1, PLANK.d) - prof(PLANK.s - 1, PLANK.d)) / 2;
+  addRamp(scene, centre, centre.th, PLANK.width, PLANK.length, PLANK.height, 'wood', 'PLANK RAMP', 28, grade);
+
+  const skipWidth = 1.8, skipHeight = 1, skipLength = 3.1;
+  const lip = PLANK.s + PLANK.length / 2;
+  const gap = 1.7; // From the lip to the near edge of the skip.
+  const skipS = lip + gap + skipLength / 2;
+  const c = P(skipS, PLANK.d), F = frame(c.x, c.y, c.z, -c.th);
+  const metal = sb(chunkOf(skipS), 'lam');
+  bx(metal, F, skipWidth, skipHeight, skipLength, 0, skipHeight / 2, 0, 0xf2c81f);
+  for (let i = 0; i < 6; i++) {
+    const rubble = FM(F, (i % 3 - 1) * 0.5, skipHeight + 0.02, (Math.floor(i / 3) - 0.5) * 0.95, i, i, 0, 0.35, 0.24, 0.4);
+    metal.add(GEO.ico, rubble, pick(rng(i), [0x8a7a6a, 0xa4523a, 0x6a6a6a, 0x9b7148]));
+  }
+  colBox(F, -c.th, skipWidth, skipHeight, skipLength, 0, skipHeight / 2, 0, { kind: 'wall', name: 'SKIP' });
+}
+
+// The mesh and collider share the ramp profile. The approach follows the grade before curving up to the lip.
+export function addRamp(scene, at, th, w, len, h, mat, name, lipDeg = 28, grade = 0) {
   const fx = Math.sin(th), fz = -Math.cos(th), rx = Math.cos(th), rz = Math.sin(th);
   const pw = Math.max(1.05, Math.tan(lipDeg * Math.PI / 180) * len / h), N = 14;
-  const P3 = (u, v, y) => [at.x + rx * u + fx * (v - len / 2), at.y + y, at.z + rz * u + fz * (v - len / 2)];
+  const P3 = (u, v, y) => {
+    const along = v - len / 2;
+    return [at.x + rx * u + fx * along, at.y + y + grade * along, at.z + rz * u + fz * along];
+  };
   const top = [], pos = [], uv = [], col = [], tri = [];
   const vtx = (q, U, V, c = 1) => { pos.push(...q); uv.push(U, V); col.push(c, c, c); return pos.length / 3 - 1; };
   for (let k = 0; k <= N; k++) { const v = len * k / N, y = h * Math.pow(k / N, pw); top.push([v, y]); }
@@ -383,7 +401,7 @@ function placePickups() {
   const add = (k, x, y, z) => W.pickups.push({ k, x, y, z });
   { const p = botToWorld(0, 37); add('milk', p.x, 4.8, p.z); } // over the duck pond
   { const p = P(136, 0, 1.7); add('loo', p.x, p.y, p.z); } // road hump on the hill
-  { const p = P(335.2, 1.6, 1.05); add('tampons', p.x, p.y, p.z); } // on the plank ramp itself
+  { const p = P(PLANK.s + PLANK.length / 2 - 0.4, PLANK.d, PLANK.height + 0.45); add('tampons', p.x, p.y, p.z); } // on the plank ramp itself
   // pineapple: on the roundabout island (placed with the island); gnome: off the car transporter (extras)
 }
 
@@ -399,6 +417,7 @@ export function buildScenery(scene) {
   street(scene);
   parkedCars(scene);
   roadworks(scene);
+  plankAndSkip(scene);
   roundabout(scene);
   greens(scene);
   bottomScenery(scene);

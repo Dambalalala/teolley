@@ -2,7 +2,7 @@ import RAPIER from './rapier.js';
 import { C } from './core.js';
 import { buildTextures } from './textures.js';
 import { buildWorldBase, flushStatics } from './world.js';
-import { buildScenery } from './scenery.js';
+import { buildScenery } from './scenery.js?v=plank-skip';
 import { buildExtras } from './extras.js';
 import { FX } from './fx.js';
 import { Props } from './props.js';
