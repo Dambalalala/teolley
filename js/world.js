@@ -9,7 +9,7 @@ export const S_END = 782;           // where the hill road meets the bottom junc
 const KERB = 0.13, PAVE = 2.2, CROWN = 0.07;
 export const W = {
   KERB, PAVE,
-  bumps: [72, 136, 226, 516, 592, 652],
+  bumps: [72, 136, 226, 516, 652],
   potholes: [], cctv: [], nearTargets: [], pickups: [], triggers: [], ramps: [],
   houses: { L: [[8, 372], [486, 738]], R: [[8, 296], [490, 738]] },
 };

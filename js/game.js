@@ -263,9 +263,6 @@ export class Game {
   }
   beginRun() {
     if (this.state !== 'push') return; this.state = 'run';
-    // the tannoy speaks up on the first run, then only now and again
-    this.runsThisSession = (this.runsThisSession || 0) + 1;
-    this.announce(QUIPS.start, this.runsThisSession === 1 || Math.random() < 0.3 ? 'Attention shoppers. A trolley has escaped.' : null);
   }
   pushTap() { if (this.state === 'push' || this.state === 'run') C.input.pushQ = true; }
   endRun(why) {

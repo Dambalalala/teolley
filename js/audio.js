@@ -159,13 +159,6 @@ export class Audio {
     else { const s = A.createBufferSource(); s.buffer = this.noise; const f = A.createBiquadFilter(); f.type = kind === 'hat' ? 'highpass' : 'bandpass'; f.frequency.value = kind === 'hat' ? 7000 : 1800; const g = A.createGain(); const d = kind === 'hat' ? 0.04 : 0.16; g.gain.setValueAtTime((kind === 'hat' ? 0.05 : 0.16) * k, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); s.connect(f); f.connect(g); g.connect(bus); s.start(t, Math.random()); s.stop(t + d + 0.02); }
   }
   // ---------- the announcer ----------
-  say(text) {
-    if (this.muted || !window.speechSynthesis) return;
-    try {
-      const u = new SpeechSynthesisUtterance(text);
-      if (!this.voice) { const vs = speechSynthesis.getVoices(); this.voice = vs.find(v => /en-GB/i.test(v.lang) && /male|daniel|arthur|george|oliver/i.test(v.name)) || vs.find(v => /en-GB/i.test(v.lang)) || null; }
-      if (this.voice) u.voice = this.voice; u.lang = 'en-GB'; u.rate = 0.92; u.pitch = 0.75; u.volume = 0.9;
-      speechSynthesis.cancel(); speechSynthesis.speak(u);
-    } catch (e) {}
-  }
+  say() {} // no spoken announcements
+
 }
