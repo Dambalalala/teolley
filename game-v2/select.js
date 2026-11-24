@@ -10,7 +10,6 @@ const T = C.T, $ = id => document.getElementById(id);
 const LIGHT = {
   neutral: { sun: 0.78, sunC: 0xfff0d8, hemi: 0.72, sky: 0xd8e6f4, gnd: 0x7a8a5a, fog: 0xd5dee6, near: 140, far: 900 },
   bright: { sun: 0.86, sunC: 0xfff3e0, hemi: 0.76, sky: 0xdce8f4, gnd: 0x7f8a60, fog: 0xd9e1e8, near: 150, far: 950 },
-  dusty: { sun: 0.82, sunC: 0xffe4c0, hemi: 0.66, sky: 0xe4dfd2, gnd: 0x8a7a5a, fog: 0xd8d2c4, near: 110, far: 720 },
   soft: { sun: 0.74, sunC: 0xfff4e2, hemi: 0.78, sky: 0xdae6ee, gnd: 0x7a9a5a, fog: 0xd2dde2, near: 120, far: 800 },
   damp: { sun: 0.6, sunC: 0xe6eefc, hemi: 0.8, sky: 0xd0dbe8, gnd: 0x66765a, fog: 0xc9d3dc, near: 80, far: 560 },
 };
@@ -20,8 +19,8 @@ function stops() {
   return [
     { key: 'dave', area: 'top', amb: 'muzak', light: 'neutral', at: top(-8.4, 27.2), yaw: 2.35, cam: top(-5.5, 24.3, 1.25), look: top(-9.2, 28.2, 0.42) },
     { key: 'demon', area: 'bot', amb: 'carpark', light: 'bright', at: B(-2, 92), yaw: 2.6, cam: B(1.4, 88.9, 1.2), look: B(-2.8, 93.0, 0.4) },
-    { key: 'tank', area: 'bot', amb: 'yard', light: 'dusty', at: B(52.6, 23.3), yaw: -2.3, cam: B(48.9, 19.7, 1.35), look: B(53.4, 24.2, 0.45) },
-    { key: 'green', area: 'bot', amb: 'garden', light: 'soft', at: B(-52.0, 29.6), yaw: -0.6, cam: B(-49.0, 25.0, 1.25), look: B(-52.6, 30.7, 0.45) },
+    { key: 'tank', area: 'bot', amb: 'carpark', light: 'neutral', at: B(24, 100), yaw: -2.3, cam: B(28, 96.5, 1.35), look: B(23, 101, 0.45) },
+    { key: 'green', area: 'bot', amb: 'pond', light: 'soft', at: B(-16.5, 45), yaw: 0.8, cam: B(-21, 40.5, 1.25), look: B(-15.6, 46, 0.45) },
     { key: 'pensioner', area: 'bot', amb: 'pond', light: 'damp', at: B(-12.6, 33.0), yaw: 1.2, cam: B(-16.7, 29.7, 1.2), look: B(-11.7, 34.0, 0.32) },
   ];
 }

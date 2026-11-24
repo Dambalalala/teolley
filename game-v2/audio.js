@@ -84,7 +84,7 @@ export class Audio {
   ambience(dt) {
     const A = this.ctx, t = A.currentTime, k = this.amb, on = this.muted ? 0 : 1;
     // wind, distant traffic, water
-    const lv = { muzak: [0.012, 0.035, 0], carpark: [0.018, 0.055, 0], yard: [0.034, 0.025, 0], pond: [0.04, 0.008, 0.035], garden: [0.022, 0.02, 0] }[k] || [0, 0, 0];
+    const lv = { muzak: [0.012, 0.035, 0], carpark: [0.018, 0.055, 0], pond: [0.04, 0.008, 0.035] }[k] || [0, 0, 0];
     this.wind.g.gain.setTargetAtTime(lv[0] * on, t, 0.6); this.wind.f.frequency.setTargetAtTime(k === 'pond' ? 560 : 360, t, 0.6);
     this.rumble.g.gain.setTargetAtTime(lv[1] * on, t, 0.6); this.rumble.f.frequency.setTargetAtTime(130, t, 0.6);
     this.water.g.gain.setTargetAtTime(lv[2] * on, t, 0.6);
@@ -94,12 +94,7 @@ export class Audio {
     this.intensity = 0; this.int += (0 - this.int) * Math.min(1, dt);
     this.ambT -= dt; if (this.ambT > 0 || this.muted) return;
     if (k === 'pond') { const n = 1 + Math.floor(Math.random() * 3), f = 560 + Math.random() * 160; for (let i = 0; i < n; i++) { this.tone(f, 0.11, 'sawtooth', 0.014, f * 0.62, i * 0.2); this.hiss(0.09, 0.012, 900, 3, 'bandpass', i * 0.2); } this.ambT = 1.5 + Math.random() * 4; }
-    else if (k === 'yard') { for (let i = 0; i < 4; i++) this.tone(1040, 0.3, 'square', 0.012, 0, i * 0.6); if (Math.random() < 0.4) this.clang(0.12, 2.6); this.ambT = 7 + Math.random() * 7; }
     else if (k === 'carpark') { if (Math.random() < 0.6) { this.tone(80, 0.2, 'sine', 0.06, 45); this.hiss(0.1, 0.03, 300, 0.7, 'lowpass'); } else for (let i = 0; i < 6; i++) this.clang(0.06, i * 0.05 + Math.random() * 0.03); this.ambT = 3 + Math.random() * 6; }
-    else if (k === 'garden') { // a blackbird somewhere, and the wind chimes on the display stand
-      if (Math.random() < 0.6) { const f0 = 1800 + Math.random() * 700; for (let i = 0; i < 4 + Math.floor(Math.random() * 4); i++) { const f = f0 * (0.8 + Math.random() * 0.5); this.tone(f, 0.1 + Math.random() * 0.12, 'sine', 0.012, f * (0.85 + Math.random() * 0.3), i * 0.13); } }
-      else { const notes = [1568, 1760, 2093, 2349, 2637]; for (let i = 0; i < 4; i++) this.tone(notes[Math.floor(Math.random() * 5)], 1.4, 'sine', 0.008, 0, i * (0.18 + Math.random() * 0.25)); }
-      this.ambT = 2.2 + Math.random() * 4; }
     else if (k === 'muzak') { if (Math.random() < 0.5) for (let i = 0; i < 5; i++) this.clang(0.05, i * 0.06 + Math.random() * 0.03); this.ambT = 5 + Math.random() * 7; }
     else this.ambT = 2;
   }

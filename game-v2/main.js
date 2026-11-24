@@ -51,7 +51,7 @@ async function boot() {
   buildTextures();
   buildWorldBase(scene);
   buildScenery(scene);
-  buildExtras(scene);
+  buildExtras();
   flushStatics(scene);
   // Static scenery owns these visibility flags. Pickups, props and menu models keep their own state.
   const staticBounds = [], box = new T.Box3();

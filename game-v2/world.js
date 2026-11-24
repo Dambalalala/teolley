@@ -106,7 +106,7 @@ export function mats() {
   Object.assign(MATS, {
     lam: L(), road: L({ map: TX.asphalt }), tarmac: L({ map: TX.tarmac }), pave: L({ map: TX.pavement }), kerb: L({ map: TX.kerb }), grass: L({ map: TX.grass }),
     brick: L({ map: TX.brick }), brickY: L({ map: TX.brickY }), brickB: L({ map: TX.brickB }), render: L({ map: TX.render }), roof: L({ map: TX.roof }), tile: L({ map: TX.roofTile }),
-    wood: L({ map: TX.wood }), hedge: L({ map: TX.hedge }), dirt: L({ map: TX.dirt }), gravel: L({ map: TX.gravel }),
+    wood: L({ map: TX.wood }), hedge: L({ map: TX.hedge }), dirt: L({ map: TX.dirt }),
     glass: L({ map: TX.glass }), mark: L({ polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
     decal: new T.MeshLambertMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
   });
@@ -121,7 +121,7 @@ export function flushStatics(scene) {
     if (B.empty) continue; const m = new T.Mesh(B.geometry(), MM[mat] || MM.lam);
     const background = chunk.startsWith('bg');
     m.userData.background = background;
-    m.receiveShadow = !background; m.castShadow = !background && !(mat === 'road' || mat === 'pave' || mat === 'grass' || mat === 'kerb' || mat === 'mark' || mat === 'tarmac' || mat === 'dirt' || mat === 'gravel' || mat === 'glass');
+    m.receiveShadow = !background; m.castShadow = !background && !(mat === 'road' || mat === 'pave' || mat === 'grass' || mat === 'kerb' || mat === 'mark' || mat === 'tarmac' || mat === 'dirt' || mat === 'glass');
     m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
   }
   SB.clear();
@@ -290,31 +290,14 @@ let BE = null;
 export function botToWorld(lx, lf) { if (!BE) BE = roadAt(780, {}); return { x: BE.x + lx, z: BE.z - lf }; }
 export function worldToBot(x, z) { if (!BE) BE = roadAt(780, {}); return { lx: x - BE.x, lf: BE.z - z }; }
 export const POND = { lx: 0, lf: 38, rx: 13.5, rz: 9.5, water: -0.38 };
-// earth mounds in the building site, and heaps of sand and gravel in the builders' merchant yard
-const MOUNDS = [[82, 72, 12, 4.2], [56, 92, 7, 1.8], [62, 34, 4.5, 1.1], [71, 38, 5.5, 1.6], [92, 52, 5, 0.8]];
 export function botH(lx, lf) {
   let h = 0;
   const pu = (lx - POND.lx) / POND.rx, pv = (lf - POND.lf) / POND.rz, pr = Math.sqrt(pu * pu + pv * pv);
   if (pr < 1.25) h -= 1.5 * (1 - sstep(0.55, 1.12, pr));
-  for (const [mx, mf, r, hh] of MOUNDS) { const d = Math.hypot(lx - mx, lf - mf) / r; if (d < 1) h += hh * (1 - d * d) * (1 - d * d); }
-  // dirt kicker in the building site, facing the car park
-  { const u = lx - 50, v = lf - 62; if (u > -9 && u < 0.5 && Math.abs(v) < 3.2) { const t = (u + 9) / 9; h += 2.3 * t * t * (1 - sstep(2.2, 3.2, Math.abs(v))); } }
   // gentle banks at the edges
   const e = Math.min(lx - BOT.lx0, BOT.lx1 - lx, BOT.lf1 - lf); h += 2.5 * (1 - sstep(0, 10, e));
   return h;
 }
-// the garden centre's own little car park, off Station Road
-export const GC_PARK = { lx0: -64, lx1: -44, lf0: 18, lf1: 38 };
-const inGC = (lx, lf) => lx >= GC_PARK.lx0 && lx <= GC_PARK.lx1 && lf >= GC_PARK.lf0 && lf <= GC_PARK.lf1;
-export const BOT_REGIONS = (lx, lf) => {
-  if (inGC(lx, lf)) return 'tarmac';
-  if (lf > 5 && lf < 15 && Math.abs(lx) < 112) return 'road';
-  if ((lf >= 2 && lf <= 5) || (lf >= 15 && lf <= 17.5)) return 'pave';
-  if (Math.abs(lx) <= 36 && lf >= 54 && lf <= 104) return 'tarmac';
-  if (lx >= 44 && lx <= 108 && lf >= 18 && lf <= 106) return 'dirt';
-  if (lx <= -44 && lx >= -108 && lf >= 18 && lf <= 106) return 'gravel';
-  return 'grass';
-};
 function buildBottom(scene) {
   const MM = mats(), R = C.RAPIER;
   const nx = Math.round((BOT.lx1 - BOT.lx0) / BOT.res), nf = Math.round((BOT.lf1 - BOT.lf0) / BOT.res);
@@ -328,19 +311,17 @@ function buildBottom(scene) {
   const hd = R.ColliderDesc.heightfield(nf, nx, heights, { x: BOT.lx1 - BOT.lx0, y: 1, z: BOT.lf1 - BOT.lf0 }).setTranslation(c0.x, 0, c0.z);
   finishCol(hd, { kind: 'ground' }, { friction: 0.8, rest: 0.05 });
   W.botHeights = { heights, nx, nf };
-  // render: grass base tinted by region, plus textured overlays for paved areas
+  // Grass and the pond bed share the base mesh. The pavement and car park sit just above it.
   const step = 2, gx = Math.round((BOT.lx1 - BOT.lx0) / step), gf = Math.round((BOT.lf1 - BOT.lf0) / step);
   const pos = [], uv = [], colr = [], idx = [];
   for (let i = 0; i <= gf; i++) for (let j = 0; j <= gx; j++) {
     const lx = BOT.lx0 + j * step, lf = BOT.lf0 + i * step, w = botToWorld(lx, lf), h = botH(lx, lf); pos.push(w.x, h, w.z); uv.push(lx / 5, lf / 5);
     const pu = (lx - POND.lx) / POND.rx, pv = (lf - POND.lf) / POND.rz, pr = Math.sqrt(pu * pu + pv * pv);
     let c = [1, 1, 1]; if (pr < 1.05) c = [0.55, 0.5, 0.36]; else if (pr < 1.2) c = [0.75, 0.68, 0.5];
-    const rg = BOT_REGIONS(lx, lf); if (rg === 'dirt') c = [1.15, 0.85, 0.62]; if (rg === 'gravel') c = [1.05, 1.0, 0.92];
     colr.push(...c);
   }
   for (let i = 0; i < gf; i++) for (let j = 0; j < gx; j++) { const a = i * (gx + 1) + j, b = a + 1, c = a + gx + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new T.Float32BufferAttribute(colr, 3)); g.setIndex(idx); g.computeVertexNormals();
-  // the grass under the dirt/gravel areas uses the grass texture tinted; overlays add the real surfaces
   const ground = new T.Mesh(g, MM.grass); ground.receiveShadow = true; scene.add(ground);
   // flat overlays
   const flat = (mat, lx0, lx1, lf0, lf1, uvs, lift = 0.02) => {
@@ -350,19 +331,11 @@ function buildBottom(scene) {
   flat('road', BOT.lx0 + 6, BOT.lx1 - 6, 5, 15, 4, 0.03);
   flat('pave', BOT.lx0 + 6, BOT.lx1 - 6, 2, 5, 1.8, 0.05); flat('pave', BOT.lx0 + 6, BOT.lx1 - 6, 15, 17.5, 1.8, 0.05);
   flat('tarmac', -36, 36, 54, 104, 4, 0.03); flat('pave', -36, 36, 104, 108, 1.8, 0.05);
-  flat('tarmac', GC_PARK.lx0, GC_PARK.lx1, GC_PARK.lf0, GC_PARK.lf1, 4, 0.03);
-  // dirt follows the mounds: a gridded overlay
-  // heaps in the builders' merchant yard: one of sand, one of gravel
-  const HEAPS = [[62, 34, 4.8, 'sand'], [71, 38, 5.8, 'gravel']];
-  const heapAt = (x, f) => { for (const [hx, hf, hr, k] of HEAPS) if (Math.hypot(x - hx, f - hf) < hr) return k; return null; };
-  const dirtGrid = (lx0, lx1, lf0, lf1, mat, st) => { for (let a = lx0; a < lx1; a += st) for (let b = lf0; b < lf1; b += st) { const p = (x, f) => { const w = botToWorld(x, f); return [w.x, botH(x, f) + 0.04, w.z]; }; const hp = mat === 'dirt' ? heapAt(a + st / 2, b + st / 2) : null; if (mat === 'gravel' && inGC(a + st / 2, b + st / 2)) continue; const B = sb('bot', hp === 'gravel' ? 'gravel' : mat); B.quad(p(a, b), p(a + st, b), p(a + st, b + st), p(a, b + st), hp === 'sand' ? 0xffe2a6 : 0xffffff, [a / 5, b / 5, (a + st) / 5, (b + st) / 5]); } };
-  dirtGrid(44, 108, 18, 106, 'dirt', 1); dirtGrid(-108, -44, 18, 106, 'gravel', 4);
   // markings
   const MB = sb('bot', 'mark'), WHITE = 0xf2f2ee, YEL = 0xf2c81f;
   const mq = (lx0, lx1, lf0, lf1, c, lift = 0.05) => { const a = botToWorld(lx0, lf0), b = botToWorld(lx1, lf0), cc = botToWorld(lx1, lf1), d = botToWorld(lx0, lf1); MB.quad([a.x, lift, a.z], [b.x, lift, b.z], [cc.x, lift, cc.z], [d.x, lift, d.z], c); };
   for (let x = BOT.lx0 + 8; x < BOT.lx1 - 8; x += 6) mq(x, x + 2.5, 9.95, 10.05, WHITE);
   mq(-30, -18, 5.6, 7.2, YEL); // bus stop box edge
-  for (let f = GC_PARK.lf0 + 2.5; f <= GC_PARK.lf1 - 3; f += 2.7) mq(GC_PARK.lx0 + 0.5, GC_PARK.lx0 + 5.5, f - 0.05, f + 0.05, WHITE);
   for (let f = 58; f < 100; f += 13) for (let x = -34; x <= 34; x += 2.6) { if (Math.abs(x) < 4) continue; mq(x - 0.05, x + 0.05, f, f + 5, WHITE); }
   // pond water
   const wg = new T.CircleGeometry(1, 40); wg.rotateX(-Math.PI / 2);

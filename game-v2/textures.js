@@ -67,7 +67,6 @@ export function buildTextures() {
   TX.wire = ctex(64, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#e8e8ea'; for (let i = 0; i < 64; i += 8) { g.fillRect(i, 0, 2, h); g.fillRect(0, i, w, 2); } }, { nearest: false });
   TX.mesh = ctex(64, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#d8dcd6'; for (let i = 0; i < 64; i += 16) { g.fillRect(i, 0, 2, h); g.fillRect(0, i, w, 2); } });
   TX.glass = ctex(32, 32, (g, w, h) => { fill(g, w, h, '#9fb9c4'); g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.moveTo(4, 30); g.lineTo(14, 2); g.lineTo(20, 2); g.lineTo(10, 30); g.fill(); });
-  TX.gravel = ctex(64, 64, (g, w, h) => { fill(g, w, h, '#9b968c'); speckle(g, w, h, 12, 900, ['#8a857b', '#aaa59b', '#7c776e', '#b9b4aa'], 2); });
   return TX;
 }
 export { TX };

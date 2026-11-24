@@ -370,32 +370,6 @@ function bottomScenery(scene) {
     W.pond = { x: pc.x, z: pc.z, rx: POND.rx, rz: POND.rz, water: POND.water };
     W.ducks = []; for (let k = 0; k < 9; k++) { const a = r() * TAU, rr = r() * 0.7; W.ducks.push({ lx: POND.lx + Math.cos(a) * POND.rx * rr, lf: POND.lf + Math.sin(a) * POND.rz * rr, drake: k % 3 !== 0 }); }
   }
-  // garden centre
-  { const sp = BW(-46, 16.5); signPost(scene, sp.x, 0, sp.z, Math.PI, fascia('PLANTASTIC', { bg: '#2f7a3a', fg: '#fff', w: 256, h: 96, size: 44, sub: 'GARDEN CENTRE · CAFE · GNOMES' }), 3.0, 1.1, 1.6, { name: 'GARDEN CENTRE SIGN', twin: true });
-    for (const [lx, lf] of [[-70, 40], [-70, 70]]) { // greenhouses with breakable panes
-      const F = bf(lx, lf, 0), w = 8, d = 16, h = 2.2;
-      for (let x = -w / 2; x <= w / 2; x += 2) for (const z of [-d / 2, d / 2]) bx(L, F, 0.06, h + 1.2, 0.06, x, (h + 1.2) / 2, z, 0xe8e8e2);
-      for (let z = -d / 2; z <= d / 2; z += 2) for (const x of [-w / 2, w / 2]) bx(L, F, 0.06, h, 0.06, x, h / 2, z, 0xe8e8e2);
-      sb('bot', 'glass').add(GEO.prism, FM(F, 0, h, 0, 0, Math.PI / 2, 0, w + 0.2, 1.2, d), 0xffffff);
-      for (let z = -d / 2 + 1; z < d / 2; z += 2) for (const sx of [-1, 1]) { const p = wp(F, sx * w / 2, h / 2, z); W.dyn.push({ type: 'pane', x: p.x, y: p.y, z: p.z, yaw: Math.PI / 2 }); }
-      for (const z of [-d / 2, d / 2]) for (let x = -w / 2 + 1; x < w / 2; x += 2) { if (Math.abs(x) < 1.2 && z < 0) continue; const p = wp(F, x, h / 2, z); W.dyn.push({ type: 'pane', x: p.x, y: p.y, z: p.z, yaw: 0 }); }
-      for (let k = 0; k < 6; k++) { const p = wp(F, (k % 2 - 0.5) * 3, 0.95, -6 + Math.floor(k / 2) * 5); bx(L, null, 1.2, 0.08, 3.6, p.x, 0.75, p.z, 0x9b7148); W.dyn.push({ type: 'pot', x: p.x, y: 0.98, z: p.z - 1, yaw: 0 }); W.dyn.push({ type: 'pot', x: p.x, y: 0.98, z: p.z + 1, yaw: 0 }); }
-    }
-    for (let k = 0; k < 9; k++) { const p = BW(-90 + (k % 3) * 0.6, 26 + Math.floor(k / 3) * 0.95); W.dyn.push({ type: 'compost', x: p.x, y: 0.1 + Math.floor(k / 3) * 0.17, z: p.z, yaw: 0 }); }
-    for (const [lx, lf] of [[-96, 56], [-96, 64], [-96, 80]]) { const F = bf(lx, lf, Math.PI / 2); bx(L, F, 2.4, 2.1, 1.9, 0, 1.05, 0, pick(r, [0x7a5a3a, 0x6a8a5a, 0x8a6a4a])); L.add(GEO.prism, FM(F, 0, 2.1, 0, 0, 0, 0, 2.6, 0.6, 2.1), 0x3a3a3e); const p = BW(lx, lf); staticBox(p.x, 1.05, p.z, 0.95, 1.05, 1.2, Math.PI / 2, { kind: 'wall', name: 'GARDEN SHED' }); }
-  }
-  // building site
-  { const sp = BW(55, 45.6); signPost(scene, sp.x, 0, sp.z, Math.PI, plainSign(['DANGER', 'HARD HAT AREA', ['Grumbleton Homes Ltd', 20]], { w: 192, h: 150, bg: '#ffd21f', fg: '#111', border: '#111' }), 1.0, 0.8, 1.4, { name: 'SITE SIGN' });
-    for (let lx = 45; lx < 106; lx += 3.4) { if (lx > 54 && lx < 64) continue; const p = BW(lx + 1.7, 46.2); W.dyn.push({ type: 'heras', x: p.x, y: 1.05, z: p.z, yaw: 0 }); }
-    const box = (lx, lf, w, h, d, c, name, yaw = 0) => { const F = bf(lx, lf, yaw); bx(L, F, w, h, d, 0, h / 2, 0, c); const p = BW(lx, lf); staticBox(p.x, botH(lx, lf) + h / 2, p.z, w / 2, h / 2, d / 2, yaw, { kind: 'wall', name }); return F; };
-    const pk = box(98, 50, 3, 2.6, 7.5, 0x2a5a9a, 'PORTAKABIN', 0.2); for (let k = -2; k <= 2; k += 2) bx(G, pk, 0.02, 0.8, 1.2, -1.51, 1.6, k, 0xffffff);
-    box(70, 100, 2.2, 1.4, 4.2, 0xf2c81f, 'SKIP', 1.2); box(102, 90, 1.2, 2.3, 1.2, 0x2a6ab8, 'PORTALOO');
-    { const F = box(100, 64, 2.4, 1.6, 4.2, 0xf2a21f, 'DIGGER', 2.2); bx(L, F, 2.0, 1.6, 1.8, 0, 2.4, 0.8, 0xf2a21f); bx(G, F, 1.6, 1.0, 0.02, 0, 2.6, -0.11, 0xffffff); seg(L, F, [0, 1.6, -2.0], [0, 3.6, -4.0], 0.18, 0xf2a21f); seg(L, F, [0, 3.6, -4.0], [0, 1.0, -5.5], 0.15, 0xf2a21f); bx(L, F, 1.2, 0.6, 0.8, 0, 0.7, -5.6, 0x3a3a3e); }
-    { const F = bf(60, 88, 0); cy(L, F, 0.5, 0.8, 0, 1.3, 0, 0xf26a1b, 10, 0.6, 0, 0); bx(L, F, 0.8, 0.9, 1.2, 0, 0.45, 0.2, 0x2a2a2e); const p = BW(60, 88); staticBox(p.x, botH(60, 88) + 0.8, p.z, 0.5, 0.8, 0.7, 0, { kind: 'wall', name: 'CEMENT MIXER' }); }
-    for (let k = 0; k < 6; k++) { const p = BW(70 + (k % 3) * 1.3, 52 + Math.floor(k / 3) * 1.4); W.dyn.push({ type: 'pallet', x: p.x, y: botH(70, 52) + 0.15, z: p.z, yaw: 0 }); }
-    // scaffold tower with a plank leaning as a ramp
-    { const F = bf(84, 58, 0); for (const sx of [-1.2, 1.2]) for (const sz of [-2, 2]) cy(L, F, 0.04, 6, sx, 3 + botH(84, 58) * 0, sz, 0x9a9da2, 6); for (const yy of [2, 4, 6]) { bx(sb('bot', 'wood'), F, 2.6, 0.06, 4.2, 0, yy, 0, 0xffffff); } const p = BW(84, 58); staticBox(p.x, botH(84, 58) + 3, p.z, 1.3, 3, 2.1, 0, { kind: 'pole', name: 'SCAFFOLD' }); }
-  }
   // boundary around the bottom
   const fence = (lx0, lf0, lx1, lf1) => { const a = BW(lx0, lf0), b = BW(lx1, lf1), len = Math.hypot(b.x - a.x, b.z - a.z), cx = (a.x + b.x) / 2, cz = (a.z + b.z) / 2, yaw = Math.atan2(b.x - a.x, b.z - a.z), F = frame(cx, 2.5, cz, yaw); tbox(sb('bot', 'hedge'), F, 1.4, 2.2, len, 0, 1.0, 0, 0xffffff, 1.2); staticBox(cx, 3.5, cz, 0.7, 3, len / 2, yaw, { kind: 'hedge', name: 'HEDGE' }); };
   fence(BOT.lx0 + 1, 1, BOT.lx0 + 1, BOT.lf1 - 1); fence(BOT.lx1 - 1, 1, BOT.lx1 - 1, BOT.lf1 - 1); fence(BOT.lx0 + 1, BOT.lf1 - 1, BOT.lx1 - 1, BOT.lf1 - 1);
