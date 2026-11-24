@@ -91,7 +91,6 @@ export class HUD {
     // damage diagram + basket count
     // (on touch screens the steering pads live bottom-left, so the panel moves up under the score)
     if (cardA > 0) this.listCard(R, pad, pad + (small ? 72 : 84), W, H, cardA);
-    if (tr && !(C.touch && cardA > 0)) this.damage(tr, pad, C.touch ? pad + 196 : H - pad - 96);
     // push-off meter
     if (st === 'push') {
       const pw = clamp(G.pushPower / 6, 0, 1), bw = Math.min(256, W * 0.5), bx = W / 2 - bw / 2, by = Math.round(H * 0.64);
@@ -133,18 +132,5 @@ export class HUD {
     g.fillStyle = '#16161a'; this.rect(X, Y, 16, p); this.rect(X, Y + 14, 16, p); this.rect(X, Y, p, 16); this.rect(X + 14, Y, p, 16);
     if (done) { g.fillStyle = '#1f8a3a'; for (const [cx, cy, w] of [[6, 2, 1], [5, 3, 2], [1, 4, 1], [4, 4, 2], [1, 5, 4], [2, 6, 2]]) this.rect(X + cx * p, Y + cy * p, w * p, p); }
   }
-  damage(tr, x, y) {
-    const g = this.g, col = h => h > 0.66 ? '#7ccf5a' : h > 0.33 ? '#ffd21f' : '#ff5a3d';
-    g.fillStyle = 'rgba(22,22,26,.45)'; this.rect(x, y, 160, 88);
-    const ox = x + 8, oy = y + 10;
-    // basket outline (top-down), handle at the bottom, in chunky pixels
-    g.fillStyle = 'rgba(246,242,231,.22)'; for (let i = 1; i < 5; i++) this.pxLine(ox + 6 + i * 8.5, oy + 2, ox + 5 + i * 9, oy + 48, 2);
-    g.fillStyle = col(tr.hp.basket); this.pxLine(ox + 8, oy, ox + 44, oy, 4); this.pxLine(ox + 44, oy, ox + 48, oy + 50, 4); this.pxLine(ox + 48, oy + 50, ox + 4, oy + 50, 4); this.pxLine(ox + 4, oy + 50, ox + 8, oy, 4);
-    g.fillStyle = col(tr.hp.handle); this.rect(ox, oy + 60, 52, 4);
-    const pos = [[ox + 12, oy + 2], [ox + 40, oy + 2], [ox + 6, oy + 50], [ox + 46, oy + 50]];
-    tr.wheels.forEach((w, i) => { const [px, py] = pos[i]; if (w.gone) { g.fillStyle = '#ff5a3d'; this.pxLine(px - 5, py - 5, px + 5, py + 5, 2); this.pxLine(px + 5, py - 5, px - 5, py + 5, 2); } else { g.fillStyle = col(w.hp); this.pxDisc(px, py, 6); } });
-    const n = C.shopping.inBasket().length, cap = tr.capacity();
-    this.text('BASKET', x + 72, y + 22, 'l', 16, PAPER, 'left', { shadow: false });
-    this.text(`${n}/${cap}`, x + 72, y + 52, 'd', 16, null, 'left', { metal: n >= cap ? HOT : GOLD });
-  }
+
 }

@@ -413,7 +413,7 @@ function placePickups() {
   const add = (k, x, y, z) => W.pickups.push({ k, x, y, z });
   add('milk', 0, TOP.y + 1.5, 12); // Spendwells car park speed bump
   { const p = P(136, 0, 1.7); add('loo', p.x, p.y, p.z); } // road hump on the hill
-  { const p = P(318 + 2 + 2 * 2.6, -1.4, 2.0); add('tampons', p.x, p.y, p.z); } // off the plank ramp
+  { const p = P(319.2, -1.4, 1.05); add('tampons', p.x, p.y, p.z); } // on the plank ramp itself
   // pineapple: on the roundabout island (placed with the island); gnome: off the car transporter (extras)
 }
 

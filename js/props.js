@@ -5,7 +5,7 @@ const T = C.T;
 
 const SPEC = {
   bin: { shape: ['cuboid', 0.3, 0.5, 0.37], mass: 11, name: 'WHEELIE BIN', pts: 150 },
-  cone: { shape: ['cylinder', 0.34, 0.13], mass: 0.8, name: 'TRAFFIC CONE', pts: 50 }, // straight-sided so a trolley can't ride up one
+  cone: { shape: ['cylinder', 0.34, 0.22], mass: 0.8, name: 'TRAFFIC CONE', pts: 50 }, // straight-sided so a trolley can't ride up one
   barrier: { shape: ['cuboid', 0.95, 0.42, 0.22], off: -0.09, far: 180,  mass: 8, name: 'ROADWORKS BARRIER', pts: 100 },
   picket: { shape: ['cuboid', 1.2, 0.45, 0.05], far: 160,  mass: 6, name: 'PICKET FENCE', pts: 150, fixed: true },
   heras: { shape: ['cuboid', 1.7, 1.0, 0.25], far: 220,  mass: 14, name: 'SITE FENCE', pts: 120 },
