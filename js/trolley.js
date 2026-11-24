@@ -65,7 +65,7 @@ export class Trolley {
   setYaw(yaw) { _q.setFromEuler(new T.Euler(0, yaw, 0)); this.body.setRotation({ x: _q.x, y: _q.y, z: _q.z, w: _q.w }, true); }
   reset(at) {
     const s = this.s; this.body.setTranslation({ x: at.x, y: at.y + 0.5 * s + 0.01, z: at.z }, true); this.setYaw(at.yaw || 0);
-    this.body.setLinvel({ x: 0, y: 0, z: 0 }, true); this.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    this.body.setLinvel({ x: 0, y: 0, z: 0 }, true); this.body.setAngvel({ x: 0, y: 0, z: 0 }, true); this.qpT = 0; this.qp = null;
     for (const w of this.wheels) Object.assign(w, { phi: 0, stick: 0, contact: false, wasContact: false, comp: 0, prevComp: 0, hitY: null, hp: 1, gone: false, blocked: 0 });
     this.hp.basket = 1; this.hp.handle = 1; this.airT = 0; this.air = null; this.submerged = false;
     this.safe = null; this.safeT = 0; this.landT = null; this.landOK = true; this.hopCD = 0; this.pushPh = 0; this.steerFlip = 0; this.steerFlipT = 2; this.heldAtTakeoff = null;
@@ -239,7 +239,7 @@ export class Trolley {
       if (this.heldAtTakeoff.push && !ctl.push) this.heldAtTakeoff.push = false;
       if (this.heldAtTakeoff.brake && !ctl.brake) this.heldAtTakeoff.brake = false;
       this.airT += dt;
-      if (this.airT > 0.08) {
+      if (this.airT > 0.08 && !(this.qpT > 0)) {
         const auth = clamp((this.airT - 0.12) / 0.3, 0, 1);
         // body-frame angular velocity
         const lx = w.x * rtx + w.y * rty + w.z * rtz, ly = w.x * upx + w.y * upy + w.z * upz, lz = w.x * -fwx + w.y * -fwy + w.z * -fwz;
@@ -264,6 +264,7 @@ export class Trolley {
     const wm = Math.hypot(w.x, w.y, w.z); if (wm > 25) { w.x *= 25 / wm; w.y *= 25 / wm; w.z *= 25 / wm; }
     if (!(isFinite(v.x) && isFinite(v.y) && isFinite(v.z) && isFinite(w.x) && isFinite(w.y) && isFinite(w.z))) { this.recover(); return; }
     b.setLinvel(v, true); b.setAngvel(w, true);
+    this.qpAssist(dt, airborne);
     if (this.up > 0.8 && n >= 3 && (!this.safeT || t - this.safeT > 0.5)) { this.safeT = t; const q = b.rotation(); this.safe = { p: { x: p.x, y: p.y, z: p.z }, q: { x: q.x, y: q.y, z: q.z, w: q.w } }; }
   }
   recover() {
@@ -321,6 +322,36 @@ export class Trolley {
   }
   // helpers for other modules
   pos() { return this.body.translation(); }
+  // quarter pipes: leave the lip going up and it goes straight up, turns 180 and drops back in nose first
+  qpAssist(dt, airborne) {
+    const b = this.body;
+    if (this.qp) { // scripted air: straight up, a clean 180 about the axis pointing into the car park, then back onto the face
+      const Q = this.qp; Q.t += dt; const k = Q.t / Q.dur, v = b.linvel();
+      if (k > 1.6 || (!airborne && v.y < 0 && k > 0.6)) { this.qp = null; this.qpT = 0; b.setAngvel({ x: 0, y: 0, z: 0 }, true); return; }
+      const T = C.T, kk = Math.min(1, k), q = new T.Quaternion().setFromAxisAngle(Q.n, Math.PI * kk).multiply(Q.q0);
+      b.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }, true);
+      const spin = kk < 1 ? Math.PI / Q.dur : 0; b.setAngvel({ x: Q.n.x * spin, y: 0, z: Q.n.z * spin }, true);
+      const vn = k < 0.5 ? 0.1 : -0.9; // drift back towards the face once it's over the top
+      b.setLinvel({ x: Q.n.x * vn + Q.ex * Q.along, y: v.y, z: Q.n.z * vn + Q.ez * Q.along }, true);
+      this.qpT = 1; return;
+    }
+    const pipes = C.world.pipes; if (!pipes) return;
+    const p = b.translation(), v = b.linvel(); if (v.y < 2.2) return;
+    for (const Q of pipes) {
+      const dx = p.x - Q.x, dz = p.z - Q.z, a = dx * Q.ex + dz * Q.ez, u = dx * Q.ox + dz * Q.oz;
+      if (a < 1.5 || a > Q.len - 1.5 || u < Q.u1 - 0.75 || u > Q.u1 + 0.9 || p.y < Q.y0 + Q.h * 0.72) continue;
+      const T = C.T, nx = -Q.ox, nz = -Q.oz, along = (v.x * Q.ex + v.z * Q.ez) * 0.5, up = Math.max(v.y, Math.hypot(v.x, v.y, v.z) * 0.92), dur = 2 * up / 9.81;
+      const hy = Math.min(Q.h, p.y - Q.y0), uf = Math.sqrt(Math.max(0, Q.r * Q.r - (Q.r - hy) * (Q.r - hy))), tu = uf - 0.75 - u; // clear of the face
+      b.setTranslation({ x: p.x + Q.ox * tu, y: p.y, z: p.z + Q.oz * tu }, true);
+      b.setLinvel({ x: nx * 0.1 + Q.ex * along, y: up, z: nz * 0.1 + Q.ez * along }, true);
+      const zAx = new T.Vector3(0, -1, 0), yAx = new T.Vector3(nx, 0, nz), xAx = new T.Vector3().crossVectors(yAx, zAx);
+      const q0 = new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(xAx, yAx, zAx));
+      b.setRotation({ x: q0.x, y: q0.y, z: q0.z, w: q0.w }, true);
+      this.qp = { t: 0, dur, q0, n: yAx, ex: Q.ex, ez: Q.ez, along }; this.qpT = 1;
+      if (C.game.state === 'run') C.game.addCombo(up > 7 ? 'BIG AIR 180' : 'FRONTSIDE 180', Math.round(150 + up * 40), { trick: true });
+      return;
+    }
+  }
   vel() { return this.body.linvel(); }
   speed() { const v = this.body.linvel(); return Math.hypot(v.x, v.y, v.z); }
   fwd() { this.updR(); return { x: -this.R[2], y: -this.R[5], z: -this.R[8] }; }

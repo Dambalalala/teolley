@@ -204,6 +204,8 @@ function parkedCars(scene) {
 // ---------------- roadworks ----------------
 function roadworks(scene) {
   // barriered-off right lane with a hole, sand pile and a plank someone left as a ramp
+  // cones along the works, after the plank
+  for (let s = 323; s <= 351; s += 2.6) { const R = roadAt(s, {}), d = 0.45, x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'cone', x, y: prof(s, d) + 0.36, z, yaw: 0 }); }
   // a slalom of cones further up the hill, away from the plank ramp, so both fit in one run
   for (let k = 0; k < 14; k++) { const sc = 238 + k * 3.2, R = roadAt(sc, {}), d = (k % 2 ? 1 : -1) * 1.6, x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'cone', x, y: prof(sc, d) + 0.36, z, yaw: 0 }); }
   for (const [s, d, turn] of [[324, 2.2, 0], [346, 2.2, 0], [335, 0.85, Math.PI / 2], [335, 3.3, Math.PI / 2]]) { const R = roadAt(s, {}), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'barrier', x, y: prof(s, d) + 0.55, z, yaw: -R.th + turn + (turn ? 0 : Math.PI / 2) }); }
@@ -354,10 +356,10 @@ function bottomScenery(scene) {
   // trolley shelters; the one by the door is the finish
   const tmpl = makeTrolley('dave').root;
   const shelter = (lx, lf, n, finish) => { const F = bf(lx, lf, 0); for (const sx of [-1.4, 1.4]) for (const sz of [-4, 4]) bx(L, F, 0.1, 2.4, 0.1, sx, 1.2, sz, 0x9a9da2); bx(L, F, 3.0, 0.08, 8.4, 0, 2.45, 0, 0x0c5a37); bx(L, F, 0.06, 0.5, 8.4, -1.4, 2.15, 0, 0xffd21f);
-    const p = BW(lx, lf); staticBox(p.x, 2.45, p.z, 1.5, 0.08, 4.2, 0, { kind: 'wall', name: 'TROLLEY SHELTER' }); staticBox(p.x - 1.45, 1.2, p.z, 0.08, 1.2, 4.2, 0, { kind: 'wall', name: 'TROLLEY SHELTER' });
+    const p = BW(lx, lf); staticBox(p.x, 2.45, p.z, 1.5, 0.08, 4.2, 0, { kind: 'wall', name: 'TROLLEY SHELTER' });
     for (let k = 0; k < n; k++) { const t = tmpl.clone(); const q = BW(lx, lf - 3 + k * 0.34); t.position.set(q.x, 0.5, q.z); t.rotation.y = Math.PI; DECOR.add(t); }
-    if (finish) { W.finish = { x: p.x, z: p.z + 0.5, hx: 1.6, hz: 4.2 }; const sp = BW(lx + 2.0, lf + 4.5); signPost(scene, sp.x, 0, sp.z, Math.PI, plainSign(['RETURN', 'TROLLEYS', 'HERE'], { w: 128, h: 128, bg: '#0c5a37', fg: '#ffd21f', border: '#ffd21f' }), 0.7, 0.7, 2.0, { name: 'TROLLEY SIGN' }); } };
-  shelter(-22, 70, 6, false); shelter(22, 70, 3, false); shelter(12, 96, 2, true);
+    if (finish) { (W.finishes = W.finishes || []).push({ x: p.x, z: p.z + 0.5, hx: 1.6, hz: 4.2 }); const sp = BW(lx + 2.0, lf + 4.5); signPost(scene, sp.x, 0, sp.z, Math.PI, plainSign(['RETURN', 'TROLLEYS', 'HERE'], { w: 128, h: 128, bg: '#0c5a37', fg: '#ffd21f', border: '#ffd21f' }), 0.7, 0.7, 2.0, { name: 'TROLLEY SIGN' }); } };
+  shelter(-22, 70, 6, true); shelter(22, 70, 3, true); shelter(12, 96, 2, true);
   // a few parked cars
   for (const [lx, lf, yaw] of [[-29.2, 60.5, 0], [-26.6, 60.5, Math.PI], [26.6, 60.5, 0], [-18.8, 86.5, 0], [29.2, 86.5, Math.PI], [-31.8, 86.5, 0], [21.2, 60.5, Math.PI]]) { const car = makeCar(pick(r, ['hatch', 'estate', 'van']), null, Math.floor(r() * 1e6)); const p = BW(lx, lf); car.group.position.set(p.x, 0.03, p.z); car.group.rotation.y = yaw; scene.add(car.group); const idx = W.cars.length; W.cars.push({ car, x: p.x, y: 0, z: p.z, yaw, alarm: 0, rock: 0 }); staticBox(p.x, 0.7, p.z, car.W / 2, 0.6, car.L / 2, yaw, { kind: 'car', name: 'PARKED CAR', car: idx }); W.nearTargets.push({ x: p.x, z: p.z, r: car.L / 2, kind: 'PARKED CAR', box: { hx: car.W / 2, hz: car.L / 2, yaw } }); }
   // car park lamps
@@ -411,7 +413,7 @@ function bottomScenery(scene) {
 function placePickups() {
   // one of each thing on the list, each sat over something you can jump off
   const add = (k, x, y, z) => W.pickups.push({ k, x, y, z });
-  add('milk', 0, TOP.y + 1.5, 12); // Spendwells car park speed bump
+  { const p = botToWorld(0, 37); add('milk', p.x, 4.8, p.z); } // over the duck pond
   { const p = P(136, 0, 1.7); add('loo', p.x, p.y, p.z); } // road hump on the hill
   { const p = P(319.2, -1.4, 1.05); add('tampons', p.x, p.y, p.z); } // on the plank ramp itself
   // pineapple: on the roundabout island (placed with the island); gnome: off the car transporter (extras)

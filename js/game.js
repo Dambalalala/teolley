@@ -17,8 +17,6 @@ export const TASKS = [
   { id: 'list', label: 'Get everything on the list', short: 'SHOPPING LIST', pts: 1000 },
   { id: 'cones', label: 'Knock over 10 traffic cones', short: '10 CONES', n: 10, pts: 500 },
   { id: 'camera', label: 'Get flashed by the speed camera', short: 'SPEED CAMERA', pts: 500 },
-  { id: 'lorry', label: 'Jump off the car transporter', short: 'TRANSPORTER JUMP', pts: 600 },
-  { id: 'pond', label: 'Jump the pond', short: 'POND JUMP', pts: 800 },
   { id: 'lollipop', label: 'Run over the lollipop lady', short: 'LOLLIPOP LADY', pts: 700 },
   { id: 'return', label: 'Return the trolley', short: 'RETURNED', pts: 0 },
 ];
@@ -39,7 +37,7 @@ export class Game {
     this.run = { got: {}, done: {}, cones: 0, score: 0, time: 0, dist: 0, maxSpeed: 0, maxMph: 0, items: {}, itemPts: 0, lost: 0, broken: 0, brokenBy: {}, peds: 0, nearMisses: 0, wheels: 0, bestCombo: 0, airMax: 0, tricks: 0, ducks: false, end: null, flags: {}, speedCam: false };
     this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} };
     this.collectTimes = []; this.chain = { n: 0, t: -9 }; this.lastHit = { t: -9, x: 0, z: 0 };
-    this.near = new Map(); this.stillT = 0; this.tiltT = 0; this.wetT = 0; this.wetN = 0; this.pondPend = null; this.overT = 0; this.trail = []; this.trailT = 0;
+    this.near = new Map(); this.stillT = 0; this.tiltT = 0; this.wetT = 0; this.wetN = 0; this.overT = 0; this.trail = []; this.trailT = 0;
     this.air = null; this.landed = 0; this.twoT = 0; this.scrapeT = 0; this.lastS = -30; this.lastPos = null; this.pushPower = 0; this.pushT = 0;
   }
   // ---------- messages ----------
@@ -178,7 +176,7 @@ export class Game {
     const air = tr.nWheels === 0 && !tr.touching;
     if (air) {
       if (!this.air && tr.airT > 0.22) { this.air = { t: 0, x0: p.x, z0: p.z, maxH: 0, pitch: 0, yaw: 0, roll: 0, wet0: this.wetN }; tr.air = this.air; }
-      if (this.air) { this.air.t += dt; const h = p.y - W.groundY(p.x, p.z) - 0.5 * tr.s; if (h > this.air.maxH) this.air.maxH = h; if (Math.abs(L.s - 420) < 8 && Math.abs(L.d) < 7 && !R.flags.roundabout) { R.flags.roundabout = true; this.addCombo('OVER THE ROUNDABOUT', 600, { trick: true }); } }
+      if (this.air) { this.air.t += dt; const h = p.y - W.groundY(p.x, p.z) - 0.5 * tr.s; if (h > this.air.maxH) this.air.maxH = h; }
     } else if (this.air && tr.nWheels > 0) { this.land(this.air, tr, v); this.air = null; tr.air = null; }
     // two wheels, scraping
     const nw = tr.nWheels; if (nw === 2 && !air && sp > 3) { this.twoT += dt; if (this.twoT > 0.35) this.liveCombo('two', 'TWO-WHEELER', 140, dt); } else { this.twoT = 0; this.endLive('two'); }
@@ -190,14 +188,13 @@ export class Game {
     if (this.combo.live.chain && t - this.chain.t > 1.5) this.endLive('chain');
     if (this.combo.live.spree && (!this.collectTimes.length || t - this.collectTimes[this.collectTimes.length - 1] > 4.5)) this.endLive('spree');
     // run endings
-    if (W.finish && Math.abs(p.x - W.finish.x) < W.finish.hx && Math.abs(p.z - W.finish.z) < W.finish.hz && p.y < 3) return this.endRun('returned');
-    if (this.pondPend) { if (this.wetN !== this.pondPend.wet0) this.pondPend = null; else if ((this.pondPend.t -= dt) <= 0) { this.pondPend = null; this.task('pond'); } }
+    if (W.finishes && p.y < 3 && W.finishes.some(f => Math.abs(p.x - f.x) < f.hx && Math.abs(p.z - f.z) < f.hz)) return this.endRun('returned');
     if (tr.submerged) { this.wetN++; this.wetT += dt; if (this.wetT === dt || this.wetT < dt * 1.5) { C.audio.sfx('splash'); C.fx.emit('splash', p.x, p.y + 0.3, p.z, v.x * 0.2, 4, v.z * 0.2, 40, 3); if (C.props.disturbDucks()) this.ev('ducks', {}); } if (this.wetT > 1.4) return this.endRun('pond'); } else this.wetT = 0;
     if (p.y < -25) return this.endRun('void');
     const up = tr.up;
     // on its side or upside down on the ground for a moment means it's over
     const lying = up < 0.3 && (tr.touching || nw > 0), flat = up < -0.4 && tr.touching;
-    if (!tr.submerged && (lying || up < 0.15)) { this.tiltT += dt * (flat ? 1.6 : 1); if (this.tiltT > (sp < 6 ? 1.3 : 2.2)) return this.endRun('crash'); } else this.tiltT = Math.max(0, this.tiltT - dt * 2);
+    if (!tr.submerged && !(tr.qpT > 0) && (lying || up < 0.15)) { this.tiltT += dt * (flat ? 1.6 : 1); if (this.tiltT > (sp < 6 ? 1.3 : 2.2)) return this.endRun('crash'); } else this.tiltT = Math.max(0, this.tiltT - dt * 2);
     const inputting = C.input && (C.input.ctl.push || C.input.ctl.brake);
     if (this.state === 'run' && sp < 0.35 && s > 2) { this.stillT += inputting ? dt * 0.45 : dt; if (this.stillT > 5.5) return this.endRun('stopped'); } else this.stillT = 0;
     // wedged against something and getting nowhere for a while
@@ -211,10 +208,6 @@ export class Game {
     const flips = Math.floor((Math.abs(a.pitch) + 0.9) / (Math.PI * 2)), halfSpins = Math.floor((Math.abs(a.yaw) + 0.5) / Math.PI), rolls = Math.floor((Math.abs(a.roll) + 0.9) / (Math.PI * 2));
     const upright = tr.up > 0.7;
     if (!upright) return; // a bad landing; the crash logic decides what happens next
-    // set-piece jumps for the task list
-    { const W = C.world, b0 = W.worldToBot(a.x0, a.z0), b1 = W.worldToBot(p.x, p.z), P = W.pond;
-      if (P && b0.lf > 12 && b0.lf < 31 && Math.abs(b0.lx) < 16 && b1.lf > 44.5 && Math.abs(b1.lx) < 34 && this.wetN === a.wet0) this.pondPend = { t: 0.7, wet0: a.wet0 };
-      const L0 = W.locate(a.x0, a.z0, {}), TRx = W.transporter; if (TRx && L0.s > TRx.s0 + TRx.len - 7 && L0.s < TRx.s0 + TRx.len + 5 && Math.abs(L0.d - TRx.dc) < 2 && a.t > 0.45) this.task('lorry'); }
     let tricks = 0;
     if (a.t > 0.45) this.addCombo(a.t > 1.2 ? 'BIG AIR' : 'AIR', Math.round(120 * a.t + 60 * a.t * a.t + (a.maxH > 4 ? a.maxH * 40 : 0)), { trick: a.t > 1.2 });
     if (halfSpins >= 1) { tricks++; this.addCombo(SPIN_NAMES[Math.min(halfSpins, 6)] || (halfSpins * 180 + ''), Math.round(260 * Math.pow(halfSpins, 1.5)), { trick: true }); }

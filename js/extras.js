@@ -81,7 +81,8 @@ function transporter(scene) {
 
 // ---------------- embankments round Harrison's car park ----------------
 // cross-section: a curved concrete face (like a low quarter pipe), a grass top, then a gentle grass slope down the back
-const BERM = { h: 0.7, lip: 45 * Math.PI / 180, deck: 1.0, back: 3.0 };
+// quarter pipes: a circular transition that goes almost vertical, a short deck, then a slope down the back
+const BERM = { h: 2.3, lip: 84 * Math.PI / 180, deck: 1.0, back: 2.6 };
 BERM.r = BERM.h / (1 - Math.cos(BERM.lip)); BERM.u1 = BERM.r * Math.sin(BERM.lip); BERM.w = BERM.u1 + BERM.deck + BERM.back;
 function bermProfile(u) {
   if (u <= 0) return 0;
@@ -89,6 +90,7 @@ function bermProfile(u) {
   if (u < BERM.u1 + BERM.deck) return BERM.h;
   const t = (u - BERM.u1 - BERM.deck) / BERM.back; return t >= 1 ? 0 : BERM.h * (1 - sstep(0, 1, t));
 }
+const NC = 14; // samples round the curve
 const BERMS = [];
 function berm(lx0, lf0, lx1, lf1, ox, of) {
   // edge from (lx0,lf0) to (lx1,lf1); (ox,of) points away from the car park
@@ -96,7 +98,7 @@ function berm(lx0, lf0, lx1, lf1, ox, of) {
   BERMS.push({ lx0, lf0, ex, ef, ox, of, len });
   const taper = a => sstep(0, 3, Math.min(a, len - a));
   const pt = (a, u) => { const lx = lx0 + ex * a + ox * u, lf = lf0 + ef * a + of * u, w = botToWorld(lx, lf); return [w.x, botH(lx, lf) + bermProfile(u) * taper(a), w.z]; };
-  const us = []; for (let k = 0; k <= 6; k++) us.push(BERM.u1 * k / 6); us.push(BERM.u1 + BERM.deck); for (let k = 1; k <= 5; k++) us.push(BERM.u1 + BERM.deck + BERM.back * k / 5);
+  const us = []; for (let k = 0; k <= NC; k++) us.push(BERM.u1 * (1 - Math.cos(k / NC * Math.PI / 2))); us.push(BERM.u1 + BERM.deck); for (let k = 1; k <= 5; k++) us.push(BERM.u1 + BERM.deck + BERM.back * k / 5);
   const face = sb('bot', 'kerb'), grass = sb('bot', 'grass'), CB = new Batch(), NA = Math.ceil(len);
   // make each quad face up whichever way the edge runs
   const flip = (ex * of - ef * ox) < 0;
@@ -105,11 +107,34 @@ function berm(lx0, lf0, lx1, lf1, ox, of) {
     for (let k = 0; k < us.length - 1; k++) {
       const u0 = us[k], u1 = us[k + 1], q = [pt(a0, u0), pt(a1, u0), pt(a1, u1), pt(a0, u1)];
       const quad = flip ? [q[0], q[3], q[2], q[1]] : q;
-      const B = k < 6 ? face : grass;
-      B.quad(...quad, k < 6 ? 0xe6e2d8 : 0xffffff, [a0 / 1.6, u0 / 1.6, a1 / 1.6, u1 / 1.6]); CB.quad(...quad);
+      const B = k < NC ? face : grass;
+      B.quad(...quad, k < NC ? 0xe6e2d8 : 0xffffff, [a0 / 1.6, u0 / 1.6, a1 / 1.6, u1 / 1.6]); CB.quad(...quad);
     }
   }
-  staticMeshCol(CB.geometry(), { kind: 'ground', name: 'EMBANKMENT' }, { friction: 0.75, rest: 0.02 });
+  staticMeshCol(CB.geometry(), { kind: 'ground', name: 'QUARTER PIPE' }, { friction: 0.75, rest: 0.02 });
+  const w0 = botToWorld(lx0, lf0); addPipe(w0.x, w0.z, ex, -ef, ox, -of, len, botH(lx0 + ex * len / 2, lf0 + ef * len / 2));
+}
+// every quarter pipe, in world space, for the air assist
+function addPipe(x, z, ex, ez, ox, oz, len, y0) { (W.pipes = W.pipes || []).push({ x, z, ex, ez, ox, oz, len, y0, u1: BERM.u1, h: BERM.h, r: BERM.r }); }
+// quarter pipes round the top car park, backed up against the walls
+function topPipe(x0, z0, x1, z1, ox, oz) {
+  const len = Math.hypot(x1 - x0, z1 - z0), ex = (x1 - x0) / len, ez = (z1 - z0) / len, y = TOP.y;
+  const taper = a => sstep(0, 3, Math.min(a, len - a)), U = BERM.u1 + BERM.deck;
+  // (x0,z0) is on the wall; the pipe's foot is U in from it
+  const sx = x0 - ox * U, sz = z0 - oz * U;
+  const pt = (a, u) => [sx + ex * a + ox * u, y + bermProfile(Math.min(u, U - 0.001)) * taper(a), sz + ez * a + oz * u];
+  const us = []; for (let k = 0; k <= NC; k++) us.push(BERM.u1 * (1 - Math.cos(k / NC * Math.PI / 2))); us.push(U);
+  const face = sb('top', 'kerb'), CB = new Batch(), NA = Math.ceil(len), flip = (ex * oz - ez * ox) > 0;
+  for (let i = 0; i < NA; i++) { const a0 = len * i / NA, a1 = len * (i + 1) / NA;
+    for (let k = 0; k < us.length - 1; k++) { const u0 = us[k], u1 = us[k + 1], q = [pt(a0, u0), pt(a1, u0), pt(a1, u1), pt(a0, u1)]; const quad = flip ? [q[0], q[3], q[2], q[1]] : q; face.quad(...quad, 0xe6e2d8, [a0 / 1.6, u0 / 1.6, a1 / 1.6, u1 / 1.6]); CB.quad(...quad); } }
+  staticMeshCol(CB.geometry(), { kind: 'ground', name: 'QUARTER PIPE' }, { friction: 0.75, rest: 0.02 });
+  addPipe(sx, sz, ex, ez, ox, oz, len, y);
+}
+function topPipes() {
+  topPipe(TOP.x0 + 0.2, 6, TOP.x0 + 0.2, 60, -1, 0);   // west wall
+  topPipe(TOP.x1 - 0.2, 60, TOP.x1 - 0.2, 6, 1, 0);    // east wall
+  topPipe(-42, 0.4, -9, 0.4, 0, -1);                    // front wall, either side of the exit
+  topPipe(9, 0.4, 42, 0.4, 0, -1);
 }
 // highest embankment surface at a plaza point (for the camera and in-air levelling)
 export function bermH(lx, lf) {
@@ -174,6 +199,7 @@ export function buildExtras(scene) {
   speedBump();
   transporter(scene);
   carParkBerms();
+  topPipes();
   gardenCentrePark(scene);
   buildersYard(scene);
   W.bermH = bermH;
