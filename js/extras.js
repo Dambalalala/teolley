@@ -82,7 +82,7 @@ function transporter(scene) {
 // ---------------- embankments round Harrison's car park ----------------
 // cross-section: a curved concrete face (like a low quarter pipe), a grass top, then a gentle grass slope down the back
 // quarter pipes: a circular transition that goes almost vertical, a short deck, then a slope down the back
-const BERM = { h: 2.3, lip: 84 * Math.PI / 180, deck: 1.0, back: 2.6 };
+const BERM = { h: 0.7, lip: 45 * Math.PI / 180, deck: 1.0, back: 3.0 }; // quarter pipes off for now (were h 2.3, lip 84°, back 2.6)
 BERM.r = BERM.h / (1 - Math.cos(BERM.lip)); BERM.u1 = BERM.r * Math.sin(BERM.lip); BERM.w = BERM.u1 + BERM.deck + BERM.back;
 function bermProfile(u) {
   if (u <= 0) return 0;
@@ -90,7 +90,8 @@ function bermProfile(u) {
   if (u < BERM.u1 + BERM.deck) return BERM.h;
   const t = (u - BERM.u1 - BERM.deck) / BERM.back; return t >= 1 ? 0 : BERM.h * (1 - sstep(0, 1, t));
 }
-const NC = 14; // samples round the curve
+const NC = 6; // samples round the curve
+const PIPES_ON = false; // quarter pipes: parked until they're sorted
 const BERMS = [];
 function berm(lx0, lf0, lx1, lf1, ox, of) {
   // edge from (lx0,lf0) to (lx1,lf1); (ox,of) points away from the car park
@@ -111,7 +112,8 @@ function berm(lx0, lf0, lx1, lf1, ox, of) {
       B.quad(...quad, k < NC ? 0xe6e2d8 : 0xffffff, [a0 / 1.6, u0 / 1.6, a1 / 1.6, u1 / 1.6]); CB.quad(...quad);
     }
   }
-  staticMeshCol(CB.geometry(), { kind: 'ground', name: 'QUARTER PIPE' }, { friction: 0.75, rest: 0.02 });
+  staticMeshCol(CB.geometry(), { kind: 'ground', name: 'EMBANKMENT' }, { friction: 0.75, rest: 0.02 });
+  if (!PIPES_ON) return;
   const w0 = botToWorld(lx0, lf0); addPipe(w0.x, w0.z, ex, -ef, ox, -of, len, botH(lx0 + ex * len / 2, lf0 + ef * len / 2));
 }
 // every quarter pipe, in world space, for the air assist
@@ -199,7 +201,7 @@ export function buildExtras(scene) {
   speedBump();
   transporter(scene);
   carParkBerms();
-  topPipes();
+  if (PIPES_ON) topPipes();
   gardenCentrePark(scene);
   buildersYard(scene);
   W.bermH = bermH;
