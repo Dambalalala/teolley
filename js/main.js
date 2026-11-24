@@ -59,13 +59,30 @@ async function boot() {
   const resize = () => { const w = Math.max(1, innerWidth), h = Math.max(1, innerHeight); renderer.setPixelRatio(prCur); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); C.hud.resize(w, h); C.fx.setScale(renderer.getDrawingBufferSize(new T.Vector2()).y / (2 * Math.tan(camera.fov * Math.PI / 360))); };
   resize(); addEventListener('resize', resize);
   // ---------- loop ----------
-  let last = performance.now(), acc = 0, slow = 0;
+  let last = performance.now(), acc = 0, slow = 0, cullT = 0;
+  // hide things well behind the camera or far off, so busy stretches of the hill stay light
+  const cBox = new T.Box3(), cV = new T.Vector3(), cS = new T.Vector3(), cF = new T.Vector3();
+  const cull = () => {
+    camera.getWorldDirection(cF);
+    for (const o of scene.children) {
+      if (o.isLight || o.isCamera || o.isPoints || o === sun.target || o.userData.noCull) continue;
+      let d = o.userData.cr;
+      if (!d) { cBox.setFromObject(o); if (cBox.isEmpty()) { o.userData.cr = { skip: true }; continue; } cBox.getCenter(cV); cBox.getSize(cS); d = o.userData.cr = { r: cS.length() / 2, off: cV.sub(o.position).clone() }; d.skip = d.r > 120; }
+      if (d.skip) continue;
+      cV.copy(o.position).add(d.off).sub(camera.position); const dist = cV.length() - d.r;
+      const vis = dist < 40 || (dist < 420 && cV.dot(cF) > -d.r);
+      if (!vis && !o.userData.hidden && o.visible) { o.userData.hidden = true; o.visible = false; }
+      else if (vis && o.userData.hidden) { o.userData.hidden = false; o.visible = true; }
+    }
+  };
   const loop = (now) => {
     const dtR = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
     step(dtR);
     if (!window.__noRender) render(dtR);
     // drop the render resolution a touch if frames run long
-    ftAvg += (dtR * 1000 - ftAvg) * 0.05; ftT += dtR; if (ftT > 2) { ftT = 0; let n = prCur; if (ftAvg > 24 && prCur > 0.6) n = prCur * 0.85; else if (ftAvg < 15 && prCur < prMax) n = Math.min(prMax, prCur * 1.1); if (Math.abs(n - prCur) > 0.01) { prCur = n; resize(); } }
+    // only on a sustained slowdown, never below 75%, and climb back once frames are normal again (60Hz = ~17ms)
+    ftAvg += (dtR * 1000 - ftAvg) * 0.05; ftT += dtR; if (ftT > 3) { ftT = 0; let n = prCur; if (ftAvg > 30 && prCur > prMax * 0.76) n = Math.max(prMax * 0.75, prCur * 0.9); else if (ftAvg < 21 && prCur < prMax) n = Math.min(prMax, prCur * 1.12); if (Math.abs(n - prCur) > 0.01) { prCur = n; resize(); } }
+    cullT += dtR; if (cullT > 0.25) { cullT = 0; cull(); }
     requestAnimationFrame(loop);
   };
   function step(dtR) {

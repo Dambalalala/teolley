@@ -31,7 +31,7 @@ export class Trolley {
     this.mass = P.mass;
     // inertia of a ~1m box-ish trolley (scaled); generous pitch/roll inertia keeps it from feeling twitchy
     const ik = P.inert || 1; this.I = { x: P.mass * 0.19 * s * s * ik, y: P.mass * 0.12 * s * s * ik, z: P.mass * 0.13 * s * s * ik };
-    this.vis = makeTrolley(vkey); C.scene.add(this.vis.root);
+    this.vis = makeTrolley(vkey); this.vis.root.userData.noCull = true; C.scene.add(this.vis.root);
     this.R = new Float64Array(9);
     this.wheels = TD.wheels.map((w, i) => ({ i, lx: w.x * s, lz: w.z * s, front: w.front, phi: 0, stick: 0, stickA: 0, contact: false, wasContact: false, comp: 0, prevComp: 0, hitY: null, load: 0, hp: 1, gone: false, roll: 0, px: 0, py: 0, pz: 0, nx: 0, ny: 1, nz: 0, slip: 0, blocked: 0, kerbT: 0 }));
     this.attachY = (TD.pivotH + TD.GY) * s; this.Ln = TD.pivotH * s + 0.010; this.k = P.mass * 9.81 / (4 * 0.010); this.cd = 2 * 0.7 * Math.sqrt(this.k * P.mass / 4);

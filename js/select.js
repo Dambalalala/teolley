@@ -48,7 +48,7 @@ export class Select {
       const m = makeTrolley(st.key), s = VARIANTS[st.key].scale; m.root.position.set(st.at.x, st.at.y + 0.5 * s + 0.01, st.at.z); m.root.rotation.y = st.yaw;
       if (st.key === 'pensioner') m.wheels[0].pivot.rotation.y = 0.6; // the wonky one
       else m.wheels.forEach((w, i) => { if (i < 2) w.pivot.rotation.y = (i ? -0.15 : 0.25); });
-      m.root.visible = false; C.scene.add(m.root); m.root.traverse(o => { if (o.isMesh) o.castShadow = true; }); this.models.push(m);
+      m.root.visible = false; m.root.userData.noCull = true; C.scene.add(m.root); m.root.traverse(o => { if (o.isMesh) o.castShadow = true; }); this.models.push(m);
     }
   }
   show() {
