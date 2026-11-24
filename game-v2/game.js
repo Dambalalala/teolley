@@ -4,12 +4,7 @@ import { ITEMS, VARIANTS } from './models.js';
 import { Trolley } from './trolley.js';
 
 const SAVE_KEY = 'trolley-save-v1';
-export const UNLOCKS = {
-  demon: { need: 'Hit 40 mph in one run', test: r => r.maxMph >= 40 },
-  tank: { need: 'Break 15 things in one run', test: r => r.broken >= 15 },
-  pensioner: { need: 'Disturb the ducks', test: r => r.ducks || r.end === 'pond' },
-  green: { need: 'Get everything on the shopping list in one run', test: r => !!(r.done && r.done.list) },
-};
+export const GRUMBLETON = { name: 'Grumbleton', unlock: 'demon' };
 // the list each run starts with
 export const SHOPPING_LIST = ['pineapple', 'gnome', 'milk', 'tampons', 'loo'];
 export const LIST_NAMES = { pineapple: 'Pineapple', gnome: 'Garden gnome', milk: 'Milk', tampons: 'Tampons', loo: 'Loo roll' };
@@ -32,7 +27,7 @@ export class Game {
       const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
       if (saved && typeof saved === 'object') {
         const unlocked = this.save.unlocked;
-        for (const key of Object.keys(UNLOCKS)) if (saved.unlocked?.[key] === true) unlocked[key] = true;
+        for (const key of Object.keys(VARIANTS)) if (saved.unlocked?.[key] === true) unlocked[key] = true;
         if (Object.hasOwn(unlocked, saved.sel)) this.save.sel = saved.sel;
         if (Number.isFinite(saved.best) && saved.best >= 0) this.save.best = saved.best;
         if (Number.isSafeInteger(saved.runs) && saved.runs >= 0) this.save.runs = saved.runs;
@@ -300,7 +295,11 @@ export class Game {
     const prevBest = this.save.best, newBest = total > prevBest;
     if (newBest) this.save.best = total;
     const unlocked = [];
-    for (const [k, U] of Object.entries(UNLOCKS)) if (!this.save.unlocked[k] && U.test(R)) { this.save.unlocked[k] = true; unlocked.push(VARIANTS[k].name); }
+    const reward = GRUMBLETON.unlock;
+    if (R.end === 'returned' && !this.save.unlocked[reward]) {
+      this.save.unlocked[reward] = true;
+      unlocked.push(VARIANTS[reward].name);
+    }
     this.save.runs++; this.persist();
     C.ui.receipt({ R, total, bonus, delivered, newBest, best: this.save.best, unlocked, trolley: VARIANTS[tr.key].name });
     C.ui.show('results');

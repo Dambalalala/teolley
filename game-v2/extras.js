@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, sstep, Batch, frame, bx, cy } from './util.js';
-import { W, roadAt, prof, sb, chunkOf, staticBox, staticMeshCol, TOP, botToWorld, botH } from './world.js';
+import { W, roadAt, prof, sb, chunkOf, staticBox, staticMeshCol, TOP, botToWorld, botH } from './world.js?v=car-park-exit';
 const T = C.T;
 
 // ---------------- speed bump in the Spendwells car park ----------------

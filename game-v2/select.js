@@ -2,7 +2,7 @@ import { C } from './core.js';
 import { clamp, lerp, sstep, fmt } from './util.js';
 import { makeTrolley, VARIANTS } from './models.js';
 import { trolleyStats } from './trolley.js';
-import { UNLOCKS } from './game.js?v=checkout-feedback';
+import { GRUMBLETON } from './game.js?v=level-unlocks';
 const T = C.T, $ = id => document.getElementById(id);
 
 // Trolley select: each trolley waits somewhere ordinary in the world and the camera goes to it.
@@ -140,7 +140,11 @@ export class Select {
     $('selName').textContent = V.name; $('selBlurb').textContent = V.blurb;
     $('selStats').innerHTML = [['Speed', S.speed], ['Stability', S.stability], ['Handling', S.handling]].map(([n, v]) =>
       `<div class="sst"><span>${n}</span><span class="segs" role="img" aria-label="${n} ${v} out of 10">${'<i class="on"></i>'.repeat(v)}${'<i></i>'.repeat(10 - v)}</span></div>`).join('');
-    const lock = $('selLock'); lock.classList.toggle('hidden', un); lock.textContent = un ? '' : 'Locked. ' + UNLOCKS[st.key].need + '.';
+    const lock = $('selLock');
+    lock.classList.toggle('hidden', un);
+    if (un) lock.textContent = '';
+    else if (st.key === GRUMBLETON.unlock) lock.textContent = `Return the trolley in ${GRUMBLETON.name} to unlock.`;
+    else lock.textContent = 'Unlocks in a later level.';
     $('bSelDone').disabled = !un;
     const best = C.game.save.best; $('bestLine').textContent = best ? `BEST ${fmt(best)}` : '';
     $('selIdx').textContent = `${this.idx + 1} / ${this.S.length}`;

@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, fmt } from './util.js';
-import { SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=checkout-feedback';
+import { SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=level-unlocks';
 
 // All three fonts are drawn on an 8-pixel grid, so sizes stay at multiples of 8 and every glyph is placed on a whole
 // device pixel; that keeps the letters as hard-edged as the rest of the game.

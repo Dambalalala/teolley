@@ -2,7 +2,7 @@ import { C } from './core.js';
 import { TAU, clamp, sstep, rng, pick, Batch, GEO, M, FM, frame, bx, cy, seg, Baker } from './util.js';
 const DECOR = new Baker();
 import { TX, signTex, plainSign, limitSign, warnSign, giveWay, chevron, fascia, textFit } from './textures.js';
-import { W, RA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js';
+import { W, RA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js?v=car-park-exit';
 import { makeTrolley, makeCar } from './models.js';
 const T = C.T;
 const _v = new T.Vector3();

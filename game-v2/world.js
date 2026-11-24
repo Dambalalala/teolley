@@ -145,8 +145,9 @@ export function staticMeshCol(geo, info = null, opts) {
 
 // ============ corridor mesh + collider ============
 function sampleList() {
-  const L = new Set();
-  for (let s = -3; s <= S_END + 0.01; s += 2) L.add(+s.toFixed(3));
+  // The first road row meets the car park at its edge without an overlapping surface.
+  const L = new Set([-TOP.z0]);
+  for (let s = 1; s <= S_END + 0.01; s += 2) L.add(+s.toFixed(3));
   for (const b of W.bumps) for (let u = -1.2; u <= 1.21; u += 0.15) L.add(+(b + u).toFixed(3));
   for (let s = 395; s <= 446; s += 1) L.add(s);
   for (let s = 752; s <= S_END; s += 1) L.add(s);
@@ -346,7 +347,7 @@ function buildBottom(scene) {
 }
 
 // ============ top car park ============
-export const TOP = { x0: -44, x1: 44, z0: -0.5, z1: 86, y: 60 };
+export const TOP = { x0: -44, x1: 44, z0: 0, z1: 86, y: 60 };
 function buildTop(scene) {
   const y = TOP.y;
   staticBox(0, y - 1, (TOP.z0 + TOP.z1) / 2, (TOP.x1 - TOP.x0) / 2, 1, (TOP.z1 - TOP.z0) / 2, 0, { kind: 'ground' }, 0, 0, { friction: 0.8, rest: 0.05 });
