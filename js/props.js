@@ -1,6 +1,6 @@
 import { C, G, ig, ALL } from './core.js';
 import { clamp, lerp, TAU, angDiff, rng } from './util.js';
-import { makeBin, makeCone, makeBarrier, makePicket, makeHeras, makePallet, makePot, makeCompost, makeGnomeProp, makePane, makePerson, makeDog, makeDuck, makeBus } from './models.js';
+import { makeBin, makeCone, makeBarrier, makePicket, makeHeras, makePallet, makePot, makeCompost, makeGnomeProp, makePane, makePerson, makeDuck, makeBus } from './models.js';
 const T = C.T;
 
 const SPEC = {
@@ -75,28 +75,25 @@ export class Props {
     const mesh = new T.Group(); const wm = vw.wheel.clone(); wm.position.set(0, 0, 0); mesh.add(wm); mesh.scale.setScalar(tr.s); C.scene.add(mesh);
     this.debris.push({ body, mesh });
   }
-  // ---------------- pedestrians ----------------
+  // ---------------- the lollipop lady ----------------
   makePed(spec) {
     const R = C.RAPIER, P = makePerson(spec.kind); C.scene.add(P.group);
     const body = C.phys.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(0, -50, 0));
     const col = C.phys.createCollider(R.ColliderDesc.capsule(0.55, 0.24).setTranslation(0, 0.82, 0).setMass(70).setFriction(0.7).setCollisionGroups(ig(G.PED, ALL)).setActiveEvents(R.ActiveEvents.COLLISION_EVENTS), body);
-    const pd = { spec, P, body, col, s: spec.s0 != null ? lerp(spec.s0, spec.s1, Math.random()) : (spec.s || 0), dir: Math.random() < 0.5 ? 1 : -1, state: 'walk', t: 0, ph: Math.random() * 6, x: 0, y: 0, z: 0, yaw: 0, dodge: null, near: null, downT: 0, oiT: 0 };
-    if (spec.dog) { pd.dog = makeDog(); C.scene.add(pd.dog); }
-    C.colInfo.set(col.handle, { kind: 'ped', ped: pd, name: 'PEDESTRIAN' });
+    const pd = { spec, P, body, col, s: spec.s || 0, state: 'still', t: 0, ph: Math.random() * 6, x: 0, y: 0, z: 0, yaw: 0, dodge: null, near: null, downT: 0, oiT: 0 };
+    C.colInfo.set(col.handle, { kind: 'ped', ped: pd, name: 'LOLLIPOP LADY' });
     this.resetPed(pd);
     return pd;
   }
   resetPed(pd) {
     const R = C.RAPIER, s = pd.spec;
     if (pd.body.bodyType() !== R.RigidBodyType.KinematicPositionBased) pd.body.setBodyType(R.RigidBodyType.KinematicPositionBased, true);
-    pd.state = s.still ? 'still' : 'walk'; pd.dodge = null; pd.near = null; pd.downT = 0; pd.oiT = 0; pd.hitOnce = false;
-    if (s.s0 != null) { pd.s = lerp(s.s0, s.s1, 0.2 + Math.random() * 0.6); this.placeOnPath(pd); }
-    else if (s.s != null) { const p = C.world.P(s.s, s.d); pd.x = p.x; pd.y = p.y; pd.z = p.z; pd.yaw = s.d < 0 ? -p.th - Math.PI / 2 : -p.th + Math.PI / 2; }
+    pd.state = 'still'; pd.dodge = null; pd.near = null; pd.downT = 0; pd.oiT = 0; pd.hitOnce = false;
+    if (s.s != null) { const p = C.world.P(s.s, s.d); pd.x = p.x; pd.y = p.y; pd.z = p.z; pd.yaw = s.d < 0 ? -p.th - Math.PI / 2 : -p.th + Math.PI / 2; }
     else { pd.x = s.x; pd.z = s.z; pd.y = C.world.groundY(s.x, s.z); pd.yaw = s.yaw || 0; }
     pd.body.setTranslation({ x: pd.x, y: pd.y, z: pd.z }, true); pd.body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
     pd.P.group.position.set(pd.x, pd.y, pd.z); pd.P.group.rotation.set(0, pd.yaw, 0); pd.P.body.rotation.set(0, 0, 0); pd.P.body.position.set(0, 0, 0);
   }
-  placeOnPath(pd) { const s = pd.spec, R = C.world.roadAt(pd.s, {}), d = s.side * (R.w + 1.3); const p = C.world.P(pd.s, d); pd.x = p.x; pd.y = p.y; pd.z = p.z; pd.yaw = -R.th + (pd.dir > 0 ? 0 : Math.PI); }
   hitPed(pd, rel, tv) {
     const R = C.RAPIER; if (pd.state === 'down') return false;
     pd.state = 'down'; pd.downT = 3.2; pd.body.setBodyType(R.RigidBodyType.Dynamic, true);
@@ -109,12 +106,10 @@ export class Props {
       const s = pd.spec, A = pd.P;
       if (pd.state === 'down') {
         pd.downT -= dt; const q = pd.body.translation(), r = pd.body.rotation(); A.group.position.set(q.x, q.y, q.z); A.group.quaternion.set(r.x, r.y, r.z, r.w);
-        if (pd.downT <= 0) { pd.body.setBodyType(R.RigidBodyType.KinematicPositionBased, true); pd.x = q.x; pd.z = q.z; pd.y = C.world.groundY(q.x, q.z); pd.body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true); pd.body.setTranslation({ x: pd.x, y: pd.y, z: pd.z }, true); A.group.quaternion.set(0, 0, 0, 1); pd.state = s.still ? 'still' : 'walk'; pd.oiT = 2.2; if (s.s0 != null) { const L = C.world.locate(pd.x, pd.z, {}); pd.s = clamp(L.s, s.s0, s.s1); } C.audio.sfx('oi'); }
+        if (pd.downT <= 0) { pd.body.setBodyType(R.RigidBodyType.KinematicPositionBased, true); pd.x = q.x; pd.z = q.z; pd.y = C.world.groundY(q.x, q.z); pd.body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true); pd.body.setTranslation({ x: pd.x, y: pd.y, z: pd.z }, true); A.group.quaternion.set(0, 0, 0, 1); pd.state = 'still'; pd.oiT = 2.2; C.audio.sfx('oi'); }
         continue;
       }
-      // walk the pavement
-      let moving = false;
-      if (pd.state === 'walk' && !pd.dodge) { const spd = s.kind === 'jogger' ? 2.6 : s.kind === 'granny' ? 0.7 : 1.25; pd.s += pd.dir * spd * dt; if (pd.s > s.s1) { pd.s = s.s1; pd.dir = -1; } if (pd.s < s.s0) { pd.s = s.s0; pd.dir = 1; } this.placeOnPath(pd); moving = true; pd.ph += dt * spd * 4.2; }
+      const moving = false;
       // dodge oncoming trolleys
       if (tr && !pd.dodge && tp) {
         const dx = pd.x - tp.x, dz = pd.z - tp.z, dist = Math.hypot(dx, dz), vh = Math.hypot(tv.x, tv.z);
@@ -122,16 +117,15 @@ export class Props {
           if (close > 3 && perp < 1.6 && Math.random() < dt * 9) { const side = (dx * tv.z - dz * tv.x) > 0 ? 1 : -1; const nx = tv.z / vh * side, nz = -tv.x / vh * side; pd.dodge = { t: 0, x0: pd.x, z0: pd.z, x1: pd.x + nx * 1.6, z1: pd.z + nz * 1.6 }; C.audio.sfx('gasp'); } }
         // near-miss bookkeeping
         if (dist < 4.5 && vh > 5 && !pd.hitOnce) { if (!pd.near) pd.near = { min: dist, t }; else pd.near.min = Math.min(pd.near.min, dist); }
-        else if (pd.near && dist > 5) { if (pd.near.min < 1.7 && !pd.hitOnce && t - pd.near.t < 3) C.game.ev('nearMiss', { name: s.kind === 'lollipop' ? 'LOLLIPOP LADY' : 'PEDESTRIAN', pts: 300 }); pd.near = null; }
+        else if (pd.near && dist > 5) { if (pd.near.min < 1.7 && !pd.hitOnce && t - pd.near.t < 3) C.game.ev('nearMiss', { name: 'LOLLIPOP LADY', pts: 300 }); pd.near = null; }
       }
-      if (pd.dodge) { const D = pd.dodge; D.t += dt / 0.45; const u = Math.min(1, D.t); pd.x = lerp(D.x0, D.x1, u); pd.z = lerp(D.z0, D.z1, u); pd.y = C.world.groundY(pd.x, pd.z) + Math.sin(u * Math.PI) * 0.45; if (D.t > 2.2) { pd.dodge = null; if (s.s0 != null) { this.placeOnPath(pd); } } }
+      if (pd.dodge) { const D = pd.dodge; D.t += dt / 0.45; const u = Math.min(1, D.t); pd.x = lerp(D.x0, D.x1, u); pd.z = lerp(D.z0, D.z1, u); pd.y = C.world.groundY(pd.x, pd.z) + Math.sin(u * Math.PI) * 0.45; if (D.t > 2.2) pd.dodge = null; }
       pd.body.setNextKinematicTranslation({ x: pd.x, y: pd.y, z: pd.z });
       A.group.position.set(pd.x, pd.y, pd.z); A.group.rotation.set(0, pd.yaw, 0);
       const sw = moving ? Math.sin(pd.ph) * 0.55 : (pd.dodge ? 0.9 : 0);
       A.legL.rotation.x = sw; A.legR.rotation.x = -sw; A.armL.rotation.x = -sw * 0.8 - (pd.dodge ? 1.2 : 0); A.armR.rotation.x = sw * 0.8 - (pd.dodge ? 1.2 : 0);
-      if (s.kind === 'lollipop') A.armR.rotation.x = -0.25;
+      A.armR.rotation.x = -0.25;
       A.body.rotation.z = pd.dodge ? Math.sin(Math.min(1, pd.dodge.t) * Math.PI) * 0.5 : 0;
-      if (pd.dog) { const back = pd.dir > 0 ? -1.2 : 1.2, R2 = C.world.roadAt(pd.s, {}); pd.dog.position.set(pd.x + R2.fx * back + R2.rx * 0.3 * s.side, pd.y, pd.z + R2.fz * back + R2.rz * 0.3 * s.side); pd.dog.rotation.y = pd.yaw; pd.dog.position.y += Math.abs(Math.sin(pd.ph * 1.6)) * 0.03; }
       if (pd.oiT > 0) pd.oiT -= dt;
     }
   }
@@ -188,7 +182,7 @@ export class Props {
     // small things far up the road aren't worth a draw call each
     const cp = C.camera.position;
     for (const p of this.list) { const mp = p.mesh.position, dx = mp.x - cp.x, dz = mp.z - cp.z; p.mesh.visible = !p.gone && dx * dx + dz * dz < (p.S.far || 135) ** 2; }
-    for (const pd of this.peds) { const g = pd.P.group.position, dx = g.x - cp.x, dz = g.z - cp.z; pd.P.group.visible = dx * dx + dz * dz < 170 * 170; if (pd.dog) pd.dog.visible = pd.P.group.visible; }
+    for (const pd of this.peds) { const g = pd.P.group.position, dx = g.x - cp.x, dz = g.z - cp.z; pd.P.group.visible = dx * dx + dz * dz < 170 * 170; }
     for (const p of this.list) { if (p.body.isFixed() || p.body.isSleeping()) continue; const q = p.body.translation(), r = p.body.rotation(); p.mesh.position.set(q.x, q.y, q.z); p.mesh.quaternion.set(r.x, r.y, r.z, r.w); if (p.lid && p.hit) { p.lidA = Math.min(2.2, p.lidA + 0.12); p.lid.rotation.x = -p.lidA; } }
     for (const d of this.debris) { const q = d.body.translation(), r = d.body.rotation(); d.mesh.position.set(q.x, q.y, q.z); d.mesh.quaternion.set(r.x, r.y, r.z, r.w); }
   }

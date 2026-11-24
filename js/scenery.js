@@ -228,7 +228,6 @@ function roadworks(scene) {
     cy(L, F, 0.05, 2.4, 0, 1.2, 0, 0x2a2a2e); bx(L, F, 0.3, 0.8, 0.25, 0, 2.6, 0, 0x2a2a2e); bx(L, F, 0.5, 0.15, 0.5, 0, 0.1, 0, 0xf2c81f);
     const red = new T.Mesh(new T.CircleGeometry(0.09, 10), new T.MeshBasicMaterial({ color: 0xff2a1f })); const rp = new T.Vector3(0, 2.85, -0.13).applyMatrix4(F); red.position.copy(rp); red.rotation.y = -R.th + (s > 330 ? 0 : Math.PI); scene.add(red);
     staticCyl(x, y + 1.3, z, 0.08, 1.3, { kind: 'pole', name: 'TRAFFIC LIGHTS' }); }
-  W.peds.push({ kind: 'worker', s: 340, d: 5.0, still: true });
   W.triggers.push({ s0: 300, s1: 372, id: 'roadworks' });
 }
 // static ramp (wedge collider), rising towards travel direction th
@@ -343,7 +342,6 @@ function topScenery(scene) {
   // perimeter: low wall with railings, open at the exit
   const wall = (x0, z0, x1, z1) => { const len = Math.hypot(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, yaw = Math.atan2(x1 - x0, z1 - z0), F = frame(cx, y, cz, yaw); tbox(sb('top', 'brick'), F, 0.3, 0.9, len, 0, 0.45, 0, 0xffffff); for (let k = -len / 2 + 0.2; k < len / 2; k += 0.25) cy(L, F, 0.012, 0.7, 0, 1.25, k, 0x1c1c1e, 6); bx(L, F, 0.04, 0.04, len, 0, 1.6, 0, 0x1c1c1e); staticBox(cx, y + 0.8, cz, 0.15, 0.8, len / 2, yaw, { kind: 'wall', name: 'CAR PARK WALL' }); };
   wall(TOP.x0, 0.2, -5.95, 0.2); wall(5.95, 0.2, TOP.x1, 0.2); wall(TOP.x0, 0.2, TOP.x0, 62); wall(TOP.x1, 0.2, TOP.x1, 62);
-  W.peds.push({ kind: 'flatcap', x: 14, z: 46, still: true, yaw: Math.PI });
   W.triggers.push({ s0: -1, s1: 3, id: 'exit' });
 }
 
@@ -371,10 +369,9 @@ function bottomScenery(scene) {
   // car park lamps
   for (const [lx, lf] of [[-14, 62], [14, 62], [-14, 88], [14, 88], [0, 75]]) { const p = BW(lx, lf); cy(L, null, 0.1, 7, p.x, 3.5, p.z, 0x8c9096); bx(L, null, 0.6, 0.15, 0.3, p.x, 7, p.z, 0x6a6e74); staticCyl(p.x, 3.5, p.z, 0.12, 3.5, { kind: 'pole', name: 'LAMP POST' }); W.nearTargets.push({ x: p.x, z: p.z, r: 0.25, kind: 'LAMP POST' }); }
   // bus stop on Station Road
-  { const p = BW(-24, 16.3); busShelter(scene, { x: p.x, y: 0.05, z: p.z }, Math.PI, 'bot'); W.busStop = { lx: -24 }; W.peds.push({ kind: 'gent', x: BW(-22.5, 16.5).x, z: BW(-22.5, 16.5).z, still: true, yaw: Math.PI / 2 }); W.peds.push({ kind: 'granny', x: BW(-26, 16.4).x, z: BW(-26, 16.4).z, still: true, yaw: Math.PI / 2 }); }
+  { const p = BW(-24, 16.3); busShelter(scene, { x: p.x, y: 0.05, z: p.z }, Math.PI, 'bot'); W.busStop = { lx: -24 }; }
   // the pond: ramp, railings, reeds, a sign about bread
   { const at = BW(0, 24.4); addRamp(scene, { x: at.x, y: 0.0, z: at.z }, 0, 5.2, 6.5, 2.2, 'wood', 'POND RAMP', 30);
-    W.peds.push({ kind: 'mum', x: BW(-14, 28).x, z: BW(-14, 28).z, still: true, yaw: -Math.PI / 2 });
     const pc = BW(POND.lx, POND.lf);
     for (let k = 0; k < 70; k++) { const a = r() * TAU, rr = 1.0 + r() * 0.12, lx = POND.lx + Math.cos(a) * POND.rx * rr, lf = POND.lf + Math.sin(a) * POND.rz * rr; if (Math.abs(lx) < 4 && lf < POND.lf) continue; const p = BW(lx, lf); for (let j = 0; j < 3; j++) L.add(GEO.cone8, M(p.x + (r() - 0.5) * 0.5, botH(lx, lf) + 0.5, p.z + (r() - 0.5) * 0.5, (r() - 0.5) * 0.3, 0, (r() - 0.5) * 0.3, 0.05, 1.1 + r() * 0.5, 0.05), pick(r, [0x5a7a35, 0x6a8a3e, 0x4c6a2e])); }
     for (let k = 0; k < 12; k++) { const a = r() * TAU, rr = 0.3 + r() * 0.5; const p = BW(POND.lx + Math.cos(a) * POND.rx * rr, POND.lf + Math.sin(a) * POND.rz * rr); L.add(GEO.cyl12, M(p.x, POND.water + 0.02, p.z, 0, 0, 0, 0.45, 0.02, 0.45), 0x4c8a3a); }
@@ -407,7 +404,6 @@ function bottomScenery(scene) {
     for (let k = 0; k < 6; k++) { const p = BW(70 + (k % 3) * 1.3, 52 + Math.floor(k / 3) * 1.4); W.dyn.push({ type: 'pallet', x: p.x, y: botH(70, 52) + 0.15, z: p.z, yaw: 0 }); }
     // scaffold tower with a plank leaning as a ramp
     { const F = bf(84, 58, 0); for (const sx of [-1.2, 1.2]) for (const sz of [-2, 2]) cy(L, F, 0.04, 6, sx, 3 + botH(84, 58) * 0, sz, 0x9a9da2, 6); for (const yy of [2, 4, 6]) { bx(sb('bot', 'wood'), F, 2.6, 0.06, 4.2, 0, yy, 0, 0xffffff); } const p = BW(84, 58); staticBox(p.x, botH(84, 58) + 3, p.z, 1.3, 3, 2.1, 0, { kind: 'pole', name: 'SCAFFOLD' }); }
-    W.peds.push({ kind: 'worker', x: BW(90, 33).x, z: BW(90, 33).z, still: true, yaw: -Math.PI / 2 });
   }
   // boundary around the bottom
   const fence = (lx0, lf0, lx1, lf1) => { const a = BW(lx0, lf0), b = BW(lx1, lf1), len = Math.hypot(b.x - a.x, b.z - a.z), cx = (a.x + b.x) / 2, cz = (a.z + b.z) / 2, yaw = Math.atan2(b.x - a.x, b.z - a.z), F = frame(cx, 2.5, cz, yaw); tbox(sb('bot', 'hedge'), F, 1.4, 2.2, len, 0, 1.0, 0, 0xffffff, 1.2); staticBox(cx, 3.5, cz, 0.7, 3, len / 2, yaw, { kind: 'hedge', name: 'HEDGE' }); };
@@ -448,10 +444,7 @@ function placePickups() {
 
 // ---------------- pedestrians ----------------
 function placePeds() {
-  const r = rng(12);
   W.peds.push({ kind: 'lollipop', s: 181, d: -4.6, still: true });
-  const walkers = [['granny', 70, 110, -1], ['postie', 130, 170, 1], ['hoodie', 230, 270, -1], ['jogger', 240, 300, 1], ['mum', 505, 545, 1], ['flatcap', 560, 600, -1], ['gent', 620, 660, 1], ['postie', 680, 720, -1], ['jogger', 150, 210, -1], ['hoodie', 700, 735, 1]];
-  for (const [kind, a, b, side] of walkers) W.peds.push({ kind, s0: a, s1: b, side, dog: kind === 'flatcap' });
 }
 
 export function buildScenery(scene) {

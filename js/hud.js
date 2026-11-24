@@ -105,13 +105,12 @@ export class HUD {
     if (G.flash > 0) { g.fillStyle = `rgba(255,255,255,${G.flash * 0.8})`; g.fillRect(0, 0, W, H); }
   }
   message(m, W, H, small) {
-    // one plain style: a dark label with light text; the tannoy gets a small header
+    // one plain style: a dark label with light text
     const g = this.g, a = m.t < 0.2 ? m.t / 0.2 : m.t > m.dur - 0.4 ? clamp((m.dur - m.t) / 0.4, 0, 1) : 1, y = Math.round(H * (small ? 0.3 : 0.25));
     g.globalAlpha = a;
     const size = this.fit(m.text, W * 0.84, small ? [16] : [24, 16], 'b'); g.font = `${size}px ${FACE.b}`;
     const tw = g.measureText(m.text).width, bw = Math.round(tw + 32), bh = size + 16, x = Math.round(W / 2 - bw / 2);
     g.fillStyle = 'rgba(22,22,26,.78)'; this.rect(x, y - bh / 2, bw, bh);
-    if (m.kind === 'tannoy') { g.fillStyle = '#f26a1b'; this.rect(x, y - bh / 2, bw, 4); this.text('ATTENTION SHOPPERS', W / 2, y - bh / 2 - 12, 'l', 16, PAPER, 'center', { bold: true }); }
     this.text(m.text, W / 2, y, 'b', size, m.kind === 'cheer' ? '#ffd21f' : PAPER, 'center', { shadow: false });
     g.globalAlpha = 1;
   }

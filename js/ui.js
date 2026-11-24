@@ -57,7 +57,6 @@ export class UI {
     const br = Object.entries(R.brokenBy).sort((a, b) => b[1] - a[1]).slice(0, 4); for (const [n, c] of br) ln(`  ${n} ×${c}`, 'incl.');
     for (const [n, v] of d.bonus) ln(n, fmt(v));
     { const nd = TASKS.filter(t => R.done[t.id]).length, ng = SHOPPING_LIST.filter(k => R.got[k]).length; ln(`TASKS ${nd}/${TASKS.length} · LIST ${ng}/${SHOPPING_LIST.length}`, ''); }
-    if (R.fines) ln(`LOCAL AUTHORITY FINE ×${R.peds}`, '-' + fmt(R.fines), 'neg');
     L.push('<hr>');
     ln('TOTAL', fmt(d.total), 'tot');
     ln('BEST', fmt(d.best));

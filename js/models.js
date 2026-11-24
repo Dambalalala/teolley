@@ -222,26 +222,15 @@ export function makeTrolleyProp(color = 0xf26a1b) { const t = makeTrolley('dave'
 
 // ======================= PEOPLE & ANIMALS =======================
 const PEOPLE = {
-  granny: { top: 0x6a3d7a, legs: 0x4a4a52, shoes: 0x2a2220, skin: 0xf0c8a8, hair: 0xd8d8d8, hat: 'bun', h: 0.92 },
-  flatcap: { top: 0x6b5a3a, legs: 0x3a3a3e, shoes: 0x2a1f18, skin: 0xe8b894, hair: 0x6a6a6a, hat: 'cap', h: 1.0 },
-  hoodie: { top: 0x7a7f86, legs: 0x2a2d36, shoes: 0xf2f2f2, skin: 0xc58c64, hair: 0x2a1f18, hat: 'hood', h: 1.0 },
-  jogger: { top: 0xd8f23a, legs: 0x1e1e24, shoes: 0xf05a3a, skin: 0x8a5a3c, hair: 0x1a1412, hat: 'none', h: 1.02 },
-  postie: { top: 0xc8202a, legs: 0x2f3a5a, shoes: 0x1a1a1a, skin: 0xf2d0b0, hair: 0x8a5a2a, hat: 'none', h: 1.0, bag: 0xc8202a },
   lollipop: { top: 0xf4f4f0, legs: 0x2a2a36, shoes: 0x1a1a1a, skin: 0xf0c8a8, hair: 0xb8b8b8, hat: 'peak', h: 0.98, hivis: true },
-  worker: { top: 0xff7a14, legs: 0x2f3440, shoes: 0x5a3a1a, skin: 0xe0a880, hair: 0x3a2a1a, hat: 'hard', h: 1.02 },
-  mum: { top: 0x2f62b8, legs: 0x26262e, shoes: 0x3a2a22, skin: 0xf2c8a0, hair: 0xb8782a, hat: 'none', h: 0.97 },
-  gent: { top: 0x2a2e3a, legs: 0x2a2e3a, shoes: 0x111111, skin: 0xe8c0a0, hair: 0x9a9a9a, hat: 'none', h: 1.0 },
 };
-export const PERSON_KINDS = Object.keys(PEOPLE);
 export function makePerson(kind) {
-  const P = PEOPLE[kind] || PEOPLE.flatcap, s = P.h, mat = lam();
+  const P = PEOPLE[kind] || PEOPLE.lollipop, s = P.h, mat = lam();
   const g = new T.Group(); const body = new T.Group(); body.scale.setScalar(s); g.add(body);
   const part = (fn) => { const B = new Batch(); fn(B); const m = new T.Mesh(B.geometry(), mat); m.castShadow = true; return m; };
   const torso = part(B => {
     B.add(GEO.box, M(0, 1.18, 0, 0, 0, 0, 0.44, 0.6, 0.25), P.top);
     if (P.hivis) { B.add(GEO.box, M(0, 1.18, 0, 0, 0, 0, 0.45, 0.6, 0.26), 0xe8f23a); B.add(GEO.box, M(0, 1.1, 0, 0, 0, 0, 0.46, 0.05, 0.27), 0xd8d8d8); }
-    if (kind === 'worker') { B.add(GEO.box, M(0, 1.05, 0, 0, 0, 0, 0.45, 0.05, 0.26), 0xd8d8d8); B.add(GEO.box, M(0, 1.25, 0, 0, 0, 0, 0.45, 0.05, 0.26), 0xd8d8d8); }
-    if (P.bag) B.add(GEO.box, M(0.26, 0.95, 0, 0, 0, 0.15, 0.12, 0.3, 0.28), 0xa8181f);
     B.add(GEO.box, M(0, 0.86, 0, 0, 0, 0, 0.42, 0.14, 0.24), P.legs);
     B.add(GEO.cyl8, M(0, 1.5, 0, 0, 0, 0, 0.06, 0.1, 0.06), P.skin);
   });
@@ -251,11 +240,7 @@ export function makePerson(kind) {
     B.add(GEO.ico1, M(0, 0, 0, 0, 0, 0, 0.12, 0.135, 0.12), P.skin);
     B.add(GEO.box, M(0, -0.01, -0.12, 0, 0, 0, 0.03, 0.04, 0.03), P.skin);
     B.add(GEO.box, M(-0.04, 0.03, -0.11, 0, 0, 0, 0.025, 0.018, 0.01), 0x1a1a1a); B.add(GEO.box, M(0.04, 0.03, -0.11, 0, 0, 0, 0.025, 0.018, 0.01), 0x1a1a1a);
-    if (P.hat === 'cap') { B.add(GEO.cyl12, M(0, 0.1, 0.0, -0.12, 0, 0, 0.13, 0.06, 0.13), 0x5a5040); B.add(GEO.box, M(0, 0.08, -0.12, -0.2, 0, 0, 0.2, 0.02, 0.1), 0x5a5040); }
-    else if (P.hat === 'bun') { B.add(GEO.ico1, M(0, 0.05, 0.02, 0, 0, 0, 0.125, 0.11, 0.12), P.hair); B.add(GEO.ico1, M(0, 0.13, 0.06, 0, 0, 0, 0.07, 0.06, 0.07), P.hair); }
-    else if (P.hat === 'hood') { B.add(GEO.ico1, M(0, 0.03, 0.03, 0, 0, 0, 0.145, 0.15, 0.14), P.top); }
-    else if (P.hat === 'hard') { B.add(GEO.sph, M(0, 0.09, 0, 0, 0, 0, 0.14, 0.09, 0.15), 0xffd21f); B.add(GEO.cyl12, M(0, 0.07, 0, 0, 0, 0, 0.16, 0.015, 0.17), 0xffd21f); }
-    else if (P.hat === 'peak') { B.add(GEO.cyl12, M(0, 0.1, 0, 0, 0, 0, 0.13, 0.07, 0.13), 0xf4f4f0); B.add(GEO.box, M(0, 0.08, -0.13, -0.2, 0, 0, 0.2, 0.02, 0.1), 0x1a1a1a); }
+    if (P.hat === 'peak') { B.add(GEO.cyl12, M(0, 0.1, 0, 0, 0, 0, 0.13, 0.07, 0.13), 0xf4f4f0); B.add(GEO.box, M(0, 0.08, -0.13, -0.2, 0, 0, 0.2, 0.02, 0.1), 0x1a1a1a); }
     else B.add(GEO.ico1, M(0, 0.05, 0.02, 0, 0, 0, 0.125, 0.1, 0.12), P.hair);
   }));
   const limb = (x, y, len, w, colTop, colEnd, endH) => { const grp = new T.Group(); grp.position.set(x, y, 0); body.add(grp); grp.add(part(B => { B.add(GEO.box, M(0, -len / 2, 0, 0, 0, 0, w, len, w * 1.1), colTop); B.add(GEO.box, M(0, -len - endH / 2, -0.03, 0, 0, 0, w * 1.05, endH, w * 1.6), colEnd); })); return grp; };
@@ -263,16 +248,7 @@ export function makePerson(kind) {
   const armL = limb(-0.29, 1.44, 0.56, 0.11, P.hivis ? 0xe8f23a : P.top, P.skin, 0.09), armR = limb(0.29, 1.44, 0.56, 0.11, P.hivis ? 0xe8f23a : P.top, P.skin, 0.09);
   let extra = null;
   if (kind === 'lollipop') { extra = part(B => { B.add(GEO.cyl8, M(0, 0.9, 0, 0, 0, 0, 0.02, 1.8, 0.02), 0xf2f2f2); B.add(GEO.cyl16, M(0, 1.9, 0, Math.PI / 2, 0, 0, 0.3, 0.02, 0.3), 0xd0202a); B.add(GEO.cyl16, M(0, 1.9, -0.012, Math.PI / 2, 0, 0, 0.25, 0.01, 0.25), 0xffffff); }); extra.position.set(0.36, 0, -0.05); body.add(extra); const sgn = new T.Mesh(new T.PlaneGeometry(0.4, 0.2), new T.MeshBasicMaterial({ map: signTex(128, 64, (g2, w, h) => { g2.fillStyle = '#fff'; g2.fillRect(0, 0, w, h); g2.fillStyle = '#111'; g2.textAlign = 'center'; g2.font = '700 46px "Barlow Condensed",Arial'; g2.fillText('STOP', 64, 48); }), transparent: true })); sgn.position.set(0.36, 1.9, -0.075); sgn.rotation.y = Math.PI; body.add(sgn); }
-  if (kind === 'granny') { extra = part(B => { B.add(GEO.box, M(0, 0.45, 0, 0, 0, 0, 0.3, 0.45, 0.22), 0x3f6a3a); for (let i = 0; i < 4; i++) B.add(GEO.box, M(0, 0.28 + i * 0.11, 0, 0, 0, 0, 0.305, 0.02, 0.225), 0xc23a2a); B.add(GEO.cyl8, M(0, 0.85, 0, 0, 0, 0, 0.012, 0.5, 0.012), 0x2a2a2a); cy(B, null, 0.07, 0.04, 0, 0.12, 0, 0x1a1a1a, 10, 0, 0, Math.PI / 2); }); extra.position.set(0.45, 0, 0.1); body.add(extra); }
-  if (kind === 'gent') { extra = part(B => { B.add(GEO.cyl8, M(0, 0.45, 0, 0, 0, 0, 0.012, 0.9, 0.012), 0x1a1a1a); B.add(GEO.cone8, M(0, 0.55, 0, 0, 0, 0, 0.05, 0.5, 0.05), 0x1a1a1a); }); extra.position.set(0.34, 0.1, 0); body.add(extra); }
   return { group: g, body, head, legL, legR, armL, armR, torso, kind };
-}
-export function makeDog() {
-  const B = new Batch(); const c = 0xd8b07a;
-  B.add(GEO.box, M(0, 0.28, 0, 0, 0, 0, 0.18, 0.18, 0.45), c); B.add(GEO.box, M(0, 0.4, -0.27, 0, 0, 0, 0.14, 0.14, 0.18), c); B.add(GEO.box, M(0, 0.37, -0.38, 0, 0, 0, 0.08, 0.07, 0.08), 0x3a2a1a);
-  for (const [x, z] of [[-0.06, -0.16], [0.06, -0.16], [-0.06, 0.16], [0.06, 0.16]]) B.add(GEO.box, M(x, 0.1, z, 0, 0, 0, 0.05, 0.2, 0.05), c);
-  B.add(GEO.box, M(0, 0.38, 0.25, 0.6, 0, 0, 0.03, 0.16, 0.03), c); B.add(GEO.box, M(-0.05, 0.5, -0.25, 0, 0, 0, 0.04, 0.08, 0.03), 0x8a6a40); B.add(GEO.box, M(0.05, 0.5, -0.25, 0, 0, 0, 0.04, 0.08, 0.03), 0x8a6a40);
-  const m = new T.Mesh(B.geometry(), lam()); m.castShadow = true; return m;
 }
 export function makeDuck(drake) {
   const B = new Batch();

@@ -19,11 +19,12 @@ export const TASKS = [
   { id: 'camera', label: 'Get flashed by the speed camera', short: 'SPEED CAMERA', pts: 500 },
   { id: 'lorry', label: 'Jump off the car transporter', short: 'TRANSPORTER JUMP', pts: 600 },
   { id: 'pond', label: 'Jump the pond', short: 'POND JUMP', pts: 800 },
+  { id: 'lollipop', label: 'Run over the lollipop lady', short: 'LOLLIPOP LADY', pts: 700 },
   { id: 'return', label: 'Return the trolley', short: 'RETURNED', pts: 0 },
 ];
 const SPIN_NAMES = ['', '180', '360', '540', '720', '900', '1080'];
 // the only messages the game prints, each at most once a run
-const QUIPS = { damage: 'YOUR TROLLEY INSURANCE HAS EXPIRED', speed: 'EXCESSIVE SPEED DETECTED', ducks: 'YOU HAVE DISTURBED THE DUCKS', council: 'LOCAL AUTHORITY NOTIFIED', lost: 'UNEXPECTED ITEM IN BAGGING AREA', start: 'UNAUTHORISED TROLLEY MOVEMENT' };
+const QUIPS = { damage: 'YOUR TROLLEY INSURANCE HAS EXPIRED', speed: 'EXCESSIVE SPEED DETECTED', ducks: 'YOU HAVE DISTURBED THE DUCKS', lost: 'UNEXPECTED ITEM IN BAGGING AREA' };
 
 export class Game {
   constructor() {
@@ -35,7 +36,7 @@ export class Game {
   }
   persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.save)); } catch (e) {} }
   resetRun() {
-    this.run = { got: {}, done: {}, cones: 0, score: 0, time: 0, dist: 0, maxSpeed: 0, maxMph: 0, items: {}, itemPts: 0, lost: 0, broken: 0, brokenBy: {}, peds: 0, nearMisses: 0, wheels: 0, bestCombo: 0, airMax: 0, tricks: 0, ducks: false, end: null, fines: 0, flags: {}, speedCam: false };
+    this.run = { got: {}, done: {}, cones: 0, score: 0, time: 0, dist: 0, maxSpeed: 0, maxMph: 0, items: {}, itemPts: 0, lost: 0, broken: 0, brokenBy: {}, peds: 0, nearMisses: 0, wheels: 0, bestCombo: 0, airMax: 0, tricks: 0, ducks: false, end: null, flags: {}, speedCam: false };
     this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} };
     this.collectTimes = []; this.chain = { n: 0, t: -9 }; this.lastHit = { t: -9, x: 0, z: 0 };
     this.near = new Map(); this.stillT = 0; this.tiltT = 0; this.wetT = 0; this.wetN = 0; this.pondPend = null; this.overT = 0; this.trail = []; this.trailT = 0;
@@ -44,7 +45,6 @@ export class Game {
   // ---------- messages ----------
   say(text, o = {}) { const m = { text, t: 0, dur: o.dur || 2.4, kind: o.kind || 'notice', big: o.big }; if (o.now) this.msgs.unshift(m); else this.msgs.push(m); if (this.msgs.length > 4) this.msgs.splice(1, 1); }
   quip(key, o) { const t = QUIPS[key] || key; if (this.run.flags['q_' + key] && !o?.again) return; this.run.flags['q_' + key] = true; this.say(t, o); }
-  announce(text, speech) { this.say(text, { kind: 'tannoy', dur: 3.2 }); C.audio.sfx('chime'); if (speech) { clearTimeout(this.sayT); this.sayT = setTimeout(() => { if (this.state === 'run' || this.state === 'push') C.audio.say(speech); }, 900); } }
   pop(text, o = {}) { this.pops.push({ text, t: 0, col: o.col || null, s: o.s || 1 }); if (this.pops.length > 2) this.pops.shift(); }
   // ---------- tasks ----------
   task(id) {
@@ -87,7 +87,7 @@ export class Game {
         if (this.collectTimes.length >= 3) this.countCombo('spree', 'SHOPPING ×' + this.collectTimes.length, 150);
         break;
       }
-      case 'lost': R.lost++; if (active) this.quip('lost', { kind: 'tannoy' }); C.audio.sfx('item'); break;
+      case 'lost': R.lost++; if (active) this.quip('lost'); C.audio.sfx('item'); break;
       case 'recollect': this.addCombo(ITEMS[d.k].name + ' AGAIN', 40); C.audio.sfx('beep'); break;
       case 'kerb': C.audio.sfx('kerb', clamp(d.v / 8, 0.3, 1.2)); if (d.v > 5.5 && active) this.addCombo('KERB', 80); this.shake = Math.max(this.shake, Math.min(0.5, d.v * 0.04)); break;
       case 'hop': C.audio.sfx('hop'); break;
@@ -95,7 +95,7 @@ export class Game {
       case 'damage': if (active && d.amt > 0.12) this.quip('damage'); break;
       case 'wheelLost': R.wheels++; C.audio.sfx('wheel'); this.addCombo('LOST A WHEEL', 300); break;
       case 'nearMiss': R.nearMisses++; this.addCombo('NEAR MISS', d.pts || 200); break;
-      case 'ducks': R.ducks = true; if (active && !R.flags.q_ducks) { this.quip('ducks', { kind: 'tannoy', dur: 3.2 }); C.audio.say('You have disturbed the ducks.'); } this.addCombo('DUCKS', 500); break;
+      case 'ducks': R.ducks = true; if (active && !R.flags.q_ducks) { this.quip('ducks', { dur: 3.2 }); } this.addCombo('DUCKS', 500); break;
     }
   }
   // Rapier contact events (called after each physics step)
@@ -116,7 +116,7 @@ export class Game {
       const pair = (a, b) => (i1.kind === a && i2.kind === b) ? [i1, i2] : (i2.kind === a && i1.kind === b) ? [i2, i1] : null;
       let pp;
       if ((pp = pair('trolley', 'prop'))) { const p = pp[1].prop; if (ts > 1.2 && C.props.knock(p, 'trolley', ts)) this.broke(p, ts); else if (ts > 1.2) this.sfxFor(p.type, ts); }
-      else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, ts, tv)) { this.run.peds++; this.run.fines += 250; this.quip('council'); C.audio.sfx('thud'); this.loseComboSoft(); } }
+      else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, ts, tv)) { this.run.peds++; C.audio.sfx('thud'); this.addCombo('LOLLIPOP LADY', 700); this.task('lollipop'); } }
       else if ((pp = pair('prop', 'prop'))) { const a = pp[0].prop, b = pp[1].prop; const moving = p => !p.body.isFixed() && !p.body.isSleeping() && (C.time - p.hitT < 3); const src = moving(a) ? a : moving(b) ? b : null, dst = src === a ? b : a; if (src && dst && !dst.hit) { const v = src.body.linvel(), rs = Math.hypot(v.x, v.y, v.z); if (rs > 1.5 && C.props.knock(dst, 'prop', rs)) { this.broke(dst, rs, true); } } }
     });
   }
@@ -248,7 +248,7 @@ export class Game {
   }
   // the front screen is trolley select; choosing one starts a run
   toSelect() {
-    this.state = 'select'; this.paused = false; this.slowmo = 0; clearTimeout(this.sayT); this.msgs = []; this.pops = []; this.ensureTrolley(); this.resetWorld();
+    this.state = 'select'; this.paused = false; this.slowmo = 0; this.msgs = []; this.pops = []; this.ensureTrolley(); this.resetWorld();
     C.ui.show('select');
   }
   resetWorld() {
@@ -258,7 +258,7 @@ export class Game {
   startRun() {
     C.audio.init(); this.ensureTrolley(); this.resetWorld(); this.resetRun();
     this.msgs = []; this.pops = []; this.bankPop = null; this.lostPop = null;
-    this.state = 'push'; this.pushT = 2.4; this.paused = false; this.slowmo = 0; clearTimeout(this.sayT);
+    this.state = 'push'; this.pushT = 2.4; this.paused = false; this.slowmo = 0;
     C.ui.show('hud');
   }
   beginRun() {
@@ -272,7 +272,7 @@ export class Game {
     this.msgs = [];
     if (why === 'crash' || why === 'void') { this.loseCombo(); C.audio.sfx('crash'); this.slowmo = 1.4; }
     else { this.bank(); }
-    if (why === 'returned') { this.task('return'); C.audio.sfx('fanfare'); this.say('TROLLEY RETURNED', { kind: 'cheer', dur: 3 }); C.audio.say('Thank you for returning your trolley.'); }
+    if (why === 'returned') { this.task('return'); C.audio.sfx('fanfare'); this.say('TROLLEY RETURNED', { kind: 'cheer', dur: 3 }); }
   }
   showResults() {
     const R = this.run, tr = C.trolley; this.state = 'results';
@@ -286,7 +286,6 @@ export class Game {
     for (const t of TASKS) if (R.done[t.id] && t.pts) bonus.push([t.short, t.pts]);
     if (R.maxMph > 30) bonus.push(['SPEEDING (' + Math.round(R.maxMph) + ' MPH)', Math.round((R.maxMph - 30) * 40)]);
     for (const b of bonus) total += b[1];
-    if (R.fines) total -= R.fines;
     total = Math.max(0, Math.round(total));
     const prevBest = this.save.best, newBest = total > prevBest;
     if (newBest) this.save.best = total;

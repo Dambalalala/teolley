@@ -29,7 +29,7 @@ export class Audio {
       this.ok = true; this.startMusic();
     } catch (e) { this.ok = false; }
   }
-  setMuted(m) { this.muted = m; if (this.ok) this.master.gain.setTargetAtTime(m ? 0 : 0.55, this.ctx.currentTime, 0.03); if (m && window.speechSynthesis) try { speechSynthesis.cancel(); } catch (e) {} }
+  setMuted(m) { this.muted = m; if (this.ok) this.master.gain.setTargetAtTime(m ? 0 : 0.55, this.ctx.currentTime, 0.03); }
   // ---------- one-shots ----------
   tone(f, dur, type = 'sine', vol = 0.1, f2 = 0, when = 0, bus) { const A = this.ctx, t = A.currentTime + when, o = A.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur); const g = A.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(bus || this.sfxBus); o.start(t); o.stop(t + dur + 0.05); }
   hiss(dur, vol, f, q = 0.8, type = 'bandpass', when = 0, f2 = 0) { const A = this.ctx, t = A.currentTime + when, s = A.createBufferSource(); s.buffer = this.noise; const fl = A.createBiquadFilter(); fl.type = type; fl.frequency.setValueAtTime(f, t); if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q; const g = A.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(fl); fl.connect(g); g.connect(this.sfxBus); s.start(t, Math.random()); s.stop(t + dur + 0.05); }
@@ -59,7 +59,6 @@ export class Audio {
       case 'flash': this.hiss(0.04, 0.12, 6000, 0.8, 'highpass'); this.tone(5200, 0.4, 'sine', 0.02, 9000, 0.03); break;
       case 'task': this.tone(988, 0.22, 'sine', 0.07); this.tone(1319, 0.4, 'sine', 0.06, 0, 0.1); this.tone(1976, 0.3, 'sine', 0.02, 0, 0.1); break;
       case 'tick': this.tone(1568, 0.12, 'sine', 0.045); break;
-      case 'chime': this.tone(659, 0.9, 'sine', 0.09); this.tone(1318, 0.6, 'sine', 0.02); this.tone(523, 1.2, 'sine', 0.09, 0, 0.55); this.tone(1046, 0.8, 'sine', 0.02, 0, 0.55); break;
       case 'wheel': this.tone(1500, 0.3, 'sine', 0.05, 900); this.sfx('clatter'); break;
       case 'trick': this.tone(880, 0.08, 'triangle', 0.04); this.tone(1320, 0.12, 'triangle', 0.035, 0, 0.06); break;
       case 'click': this.tone(1400, 0.04, 'square', 0.03); break;
@@ -158,7 +157,5 @@ export class Audio {
     if (kind === 'kick') { const o = A.createOscillator(), g = A.createGain(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22); o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.25); }
     else { const s = A.createBufferSource(); s.buffer = this.noise; const f = A.createBiquadFilter(); f.type = kind === 'hat' ? 'highpass' : 'bandpass'; f.frequency.value = kind === 'hat' ? 7000 : 1800; const g = A.createGain(); const d = kind === 'hat' ? 0.04 : 0.16; g.gain.setValueAtTime((kind === 'hat' ? 0.05 : 0.16) * k, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); s.connect(f); f.connect(g); g.connect(bus); s.start(t, Math.random()); s.stop(t + d + 0.02); }
   }
-  // ---------- the announcer ----------
-  say() {} // no spoken announcements
 
 }

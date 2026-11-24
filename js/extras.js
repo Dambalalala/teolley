@@ -74,7 +74,6 @@ function transporter(scene) {
   const box = (v0, v1, h0, h1, hw, name) => { const vm = (v0 + v1) / 2, c = new T.Vector3(0, (h0 + h1) / 2, -vm).applyMatrix4(F); staticBox(c.x, c.y, c.z, hw, (h1 - h0) / 2, (v1 - v0) / 2, -Rm.th, { kind: 'wall', name }, pitch); };
   box(Lt - 3.1, Lt - 0.15, 0, 2.42, 1.18, 'LORRY CAB'); box(8.0, Lt - 3.1, 0, 1.05, 1.15, 'LORRY');
   // the driver, waiting on the pavement
-  W.peds.push({ kind: 'worker', s: S0 + 9, d: TR.side * (Rm.w + 1.3), still: true });
   W.nearTargets.push({ x: (pr[0] + pf[0]) / 2, z: (pr[2] + pf[2]) / 2, r: 9, kind: 'LORRY', box: { hx: 1.25, hz: Lt / 2, yaw: -Rm.th } });
   // a couple of things to collect on the way off the end
   for (const [dv, hh, k] of [[5, 3.0, 'cereal'], [10, 2.4, 'milk']]) { const p = at(Lt + dv, dc, hAt(Lt) + hh - 2.75); W.pickups.push({ k, x: p[0], y: p[1] + 0.5, z: p[2] }); }
