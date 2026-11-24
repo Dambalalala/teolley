@@ -122,12 +122,6 @@ export class HUD {
     this.text(String(mph), mid, H - bottom - pad - (small ? 36 : 48), 'd', speedSize, null, 'center', { metal: mph > 30 ? HOT : STEEL });
     this.text('MPH', mid, H - bottom - pad - 8, 'l', 16, PAPER, 'center');
     if (cardA > 0) this.listCard(R, xPad, yPad + (small ? 72 : 84), W, H, cardA);
-    // push-off meter
-    if (st === 'push') {
-      const pw = clamp(G.pushPower / 6, 0, 1), bw = Math.min(256, W * 0.44), bx = mid - bw / 2, by = Math.round(H * (C.touch ? 0.56 : 0.64));
-      g.fillStyle = 'rgba(22,22,26,.55)'; this.rect(bx - 4, by - 4, bw + 8, 16); g.fillStyle = '#f26a1b'; this.rect(bx, by, bw * pw, 8);
-      this.text(C.touch ? 'TAP PUSH' : 'TAP W TO GET GOING', mid, by - 20, 'l', 16, PAPER, 'center', { bold: true });
-    }
     if (G.flash > 0 && !this.motion.matches) { g.fillStyle = `rgba(255,255,255,${G.flash * 0.5})`; g.fillRect(0, 0, W, H); }
   }
   message(m, W, H, small) {

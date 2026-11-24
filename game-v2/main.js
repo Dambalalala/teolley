@@ -9,9 +9,9 @@ import { Props } from './props.js';
 import { Shopping } from './shopping.js';
 import { Audio } from './audio.js';
 import { Game } from './game.js';
-import { Input } from './input.js';
+import { Input } from './input.js?v=start-controls';
 import { Cam } from './camera.js';
-import { HUD } from './hud.js';
+import { HUD } from './hud.js?v=start-controls';
 import { UI } from './ui.js';
 import { Select } from './select.js';
 

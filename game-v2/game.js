@@ -48,7 +48,7 @@ export class Game {
     this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} };
     this.collectTimes = []; this.chain = { n: 0, t: -9 }; this.lastHit = { t: -9, x: 0, z: 0 };
     this.near = new Map(); this.stillT = 0; this.tiltT = 0; this.wetT = 0; this.wetN = 0; this.overT = 0; this.trail = []; this.trailT = 0;
-    this.air = null; this.twoT = 0; this.scrapeT = 0; this.lastPos = null; this.pushPower = 0; this.pushT = 0;
+    this.air = null; this.twoT = 0; this.scrapeT = 0; this.lastPos = null; this.pushT = 0;
   }
   // ---------- messages ----------
   say(text, o = {}) { const m = { text, t: 0, dur: o.dur || 2.4, kind: o.kind || 'notice', big: o.big }; if (o.now) this.msgs.unshift(m); else this.msgs.push(m); if (this.msgs.length > 4) this.msgs.splice(1, 1); }
@@ -99,7 +99,7 @@ export class Game {
       case 'recollect': this.addCombo(ITEMS[d.k].name + ' AGAIN', 40); C.audio.sfx('beep'); break;
       case 'kerb': C.audio.sfx('kerb', clamp(d.v / 8, 0.3, 1.2)); if (d.v > 5.5 && active) this.addCombo('KERB', 80); this.shake = Math.max(this.shake, Math.min(0.5, d.v * 0.04)); break;
       case 'hop': C.audio.sfx('hop'); break;
-      case 'push': this.pushPower += d.dv; C.audio.sfx('push'); break;
+      case 'push': C.audio.sfx('push'); break;
       case 'wheelLost': R.wheels++; C.audio.sfx('wheel'); this.addCombo('LOST A WHEEL', 300); break;
       case 'nearMiss': R.nearMisses++; this.addCombo('NEAR MISS', d.pts || 200); break;
       case 'ducks': R.ducks = true; this.addCombo('DUCKS', 500); break;

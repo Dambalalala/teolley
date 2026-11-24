@@ -33,7 +33,10 @@ export class Input {
         if (!e.repeat && map[e.code] === 'push') this.pushQ = true;
         this.keys.add(e.code); this.k[map[e.code]] = true;
       }
-      if (e.code === 'Space' && !e.target?.matches('#hudBtns button')) { e.preventDefault(); if (!e.repeat) { if (G.state === 'push') this.pushQ = true; else this.hopQ = true; } }
+      if (e.code === 'Space' && !e.target?.matches('#hudBtns button')) {
+        e.preventDefault();
+        if (!e.repeat) this.hopQ = true;
+      }
       if (e.repeat) return;
       if (e.code === 'KeyR') G.startRun();
       else if (e.code === 'KeyP' || e.code === 'Escape') C.ui.pause();
@@ -69,7 +72,7 @@ export class Input {
     };
     pad('tL', 'left'); pad('tR', 'right'); pad('tB', 'brake');
     pad('tG', 'push', () => { this.pushQ = true; });
-    pad('tH', null, () => { if (C.game.state === 'push') this.pushQ = true; else this.hopQ = true; });
+    pad('tH', null, () => { this.hopQ = true; });
     addEventListener('touchstart', () => { if (!C.touch) { C.touch = true; document.body.classList.add('touch'); C.ui && C.ui.refreshTouch(); } }, { passive: true });
   }
   release() {
