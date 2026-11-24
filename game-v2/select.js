@@ -2,7 +2,7 @@ import { C } from './core.js';
 import { clamp, lerp, sstep, fmt } from './util.js';
 import { makeTrolley, VARIANTS } from './models.js';
 import { trolleyStats } from './trolley.js';
-import { UNLOCKS } from './game.js';
+import { UNLOCKS } from './game.js?v=checkout-feedback';
 const T = C.T, $ = id => document.getElementById(id);
 
 // Trolley select: each trolley waits somewhere ordinary in the world and the camera goes to it.

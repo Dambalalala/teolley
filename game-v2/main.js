@@ -8,12 +8,12 @@ import { FX } from './fx.js';
 import { Props } from './props.js';
 import { Shopping } from './shopping.js';
 import { Audio } from './audio.js';
-import { Game } from './game.js';
+import { Game } from './game.js?v=checkout-feedback';
 import { Input } from './input.js?v=start-controls';
 import { Cam } from './camera.js';
-import { HUD } from './hud.js?v=start-controls';
-import { UI } from './ui.js';
-import { Select } from './select.js';
+import { HUD } from './hud.js?v=checkout-feedback';
+import { UI } from './ui.js?v=checkout-feedback';
+import { Select } from './select.js?v=checkout-feedback';
 
 const T = C.T, $ = id => document.getElementById(id);
 function fail(msg) { $('loading').classList.add('hidden'); const e = $('err'); e.textContent = msg; e.classList.remove('hidden'); }

@@ -18,7 +18,7 @@ export const TASKS = [
   { id: 'cones', label: 'Knock over 10 traffic cones', short: '10 CONES', n: 10, pts: 500 },
   { id: 'camera', label: 'Get flashed by the speed camera', short: 'SPEED CAMERA', pts: 500 },
   { id: 'lollipop', label: 'Run over the lollipop lady', short: 'LOLLIPOP LADY', pts: 700 },
-  { id: 'return', label: 'Return the trolley', short: 'RETURNED', pts: 0 },
+  { id: 'return', label: 'Return the trolley', short: 'TROLLEY RETURNED', pts: 0 },
 ];
 const SPIN_NAMES = ['', '180', '360', '540', '720', '900', '1080'];
 // the only messages the game prints, each at most once a run
@@ -57,8 +57,10 @@ export class Game {
   // ---------- tasks ----------
   task(id) {
     const R = this.run; if (R.done[id] || !(this.state === 'run' || this.state === 'push' || (id === 'return' && this.state === 'over'))) return;
-    R.done[id] = true; const T2 = TASKS.find(t => t.id === id);
-    C.audio.sfx('task'); if (id !== 'return') this.say(T2.short + '  ·  DONE', { kind: 'cheer', dur: 2 });
+    const task = TASKS.find(t => t.id === id);
+    R.done[id] = true;
+    C.audio.sfx('kaching');
+    this.say(task.short, { kind: 'cheer', dur: id === 'return' ? 3 : 2 });
   }
   listTick(k) {
     const R = this.run; if (!SHOPPING_LIST.includes(k) || R.got[k]) return; R.got[k] = true;
@@ -75,11 +77,11 @@ export class Game {
   countCombo(key, name, pts) { const C2 = this.combo; let e = C2.live[key]; if (!e) { e = C2.live[key] = { name, pts: 0 }; C2.list.push(e); C2.mult += 1; } e.name = name; e.pts += pts; C2.base += pts; C2.timer = Math.max(C2.timer, 3.0); }
   liveCombo(key, name, rate, dt) { const C2 = this.combo; let e = C2.live[key]; if (!e) { e = C2.live[key] = { name, pts: 0 }; C2.list.push(e); C2.mult += 1; } e.pts += rate * dt; C2.base += rate * dt; C2.timer = Math.max(C2.timer, 1.4); }
   endLive(key) { delete this.combo.live[key]; }
-  bank() {
+  bank(playSound = true) {
     const C2 = this.combo; if (!C2.list.length) return; const tot = Math.round(C2.base * C2.mult);
     this.run.score += tot; this.run.bestCombo = Math.max(this.run.bestCombo, tot); this.run.tricks += C2.list.length;
     this.bankPop = { v: tot, mult: C2.mult, t: 0 };
-    C.audio.sfx('kaching');
+    if (playSound) C.audio.sfx('kaching');
     this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} };
   }
   loseCombo() { const C2 = this.combo; if (C2.list.length) { this.lostPop = { v: Math.round(C2.base * C2.mult), t: 0 }; C.audio.sfx('sting'); } this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} }; }
@@ -180,10 +182,6 @@ export class Game {
     if (this.state !== 'over') { R.maxSpeed = Math.max(R.maxSpeed, sp); R.maxMph = Math.max(R.maxMph, mph); }
     if (this.state === 'over') {
       this.overT -= dt;
-      if (this.refund && this.overT <= 1.1) {
-        this.refund = false; C.audio.sfx('coin');
-        this.say('YOUR QUID POPS OUT', { kind: 'cheer', now: true });
-      }
       if (this.overT <= 0) this.showResults();
       return;
     }
@@ -264,7 +262,7 @@ export class Game {
   }
   resetWorld() {
     C.input.release(); C.props.reset(); C.shopping.reset(); C.fx.clear();
-    this.shake = 0; this.flash = 0; this.refund = false;
+    this.shake = 0; this.flash = 0;
     C.trolley.reset(C.world.start); C.camera.userData.snap = true;
   }
   startRun() {
@@ -283,8 +281,8 @@ export class Game {
     this.endLive('speed'); this.endLive('two'); this.endLive('scrape');
     this.msgs = [];
     if (why === 'crash' || why === 'void') { this.loseCombo(); C.audio.sfx('crash'); this.slowmo = 1.4; this.say(QUIPS.lost, { dur: 2.6, now: true }); }
-    else { this.bank(); }
-    if (why === 'returned') { this.task('return'); C.audio.sfx('fanfare'); this.say('TROLLEY RETURNED', { kind: 'cheer', dur: 3 }); this.refund = true; }
+    else { this.bank(why !== 'returned'); }
+    if (why === 'returned') this.task('return');
   }
   showResults() {
     const R = this.run, tr = C.trolley; this.state = 'results'; C.audio.alarm(false);

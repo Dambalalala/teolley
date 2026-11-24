@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, fmt } from './util.js';
-import { SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js';
+import { SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=checkout-feedback';
 
 // All three fonts are drawn on an 8-pixel grid, so sizes stay at multiples of 8 and every glyph is placed on a whole
 // device pixel; that keeps the letters as hard-edged as the rest of the game.
@@ -75,8 +75,7 @@ export class HUD {
     this.text('SCORE', xPad, yPad + 6, 'l', 16, PAPER);
     this.text(fmt(R.score), xPad, yPad + (small ? 30 : 34), 'd', small ? 24 : 32, null, 'left', { metal: GOLD });
     this.text('BEST ' + fmt(G.save.best), xPad, yPad + (small ? 58 : 66), 'l', 16, PAPER);
-    // the task list: in full at the start, then just a count
-    const nd = TASKS.filter(t => R.done[t.id]).length;
+    // Full checklist at the start, then highlight the shopping items as they are collected.
     const cardA = C.touch ? 0 : st === 'push' ? 1 : st === 'run' ? clamp((4.5 - R.time) / 0.8, 0, 1) : 0;
     let listBottom = yPad + 70;
     if (cardA < 1) { // the list lights up as you get things, like S-K-A-T-E
@@ -88,8 +87,7 @@ export class HUD {
         this.text(lab, x + 7, y + 10, 'l', 16, on ? '#16161a' : 'rgba(246,242,231,.6)', 'left', { shadow: false });
         x += w + 6;
       }
-      this.text(`TASKS ${nd}/${TASKS.length}`, xPad, y + 32, 'l', 16, PAPER);
-      listBottom = y + 44;
+      listBottom = y + 36;
     }
     // time: top centre, or under the buttons on a narrow screen
     const ticks = Math.floor(R.time * 10), mm = Math.floor(ticks / 600), ss = (ticks % 600 / 10).toFixed(1).padStart(4, '0');
