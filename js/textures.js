@@ -1,0 +1,142 @@
+import { C } from './core.js';
+import { rng } from './util.js';
+const T = C.T;
+
+// Small canvas textures: low resolution and bilinear filtered, the way a PS2 game would have done it.
+export function ctex(w, h, draw, o = {}) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); draw(g, w, h);
+  const t = new T.CanvasTexture(c);
+  t.wrapS = t.wrapT = o.clamp ? T.ClampToEdgeWrapping : T.RepeatWrapping;
+  t.anisotropy = o.aniso || 4;
+  if (o.nearest) { t.magFilter = T.NearestFilter; t.minFilter = T.NearestMipMapLinearFilter; }
+  t.userData = { canvas: c };
+  return t;
+}
+function speckle(g, w, h, seed, n, cols, size = 1) {
+  const r = rng(seed);
+  for (let i = 0; i < n; i++) { g.fillStyle = cols[Math.floor(r() * cols.length)]; const s = size * (0.5 + r()); g.fillRect(r() * w, r() * h, s, s); }
+}
+function fill(g, w, h, c) { g.fillStyle = c; g.fillRect(0, 0, w, h); }
+
+const TX = {};
+export function buildTextures() {
+  TX.asphalt = ctex(128, 128, (g, w, h) => {
+    fill(g, w, h, '#5b5e63');
+    speckle(g, w, h, 1, 2600, ['#4c4f54', '#666a70', '#55585c', '#70737a', '#47494d'], 1.2);
+    const r = rng(7); g.strokeStyle = 'rgba(30,30,34,.55)'; g.lineWidth = 1;
+    for (let i = 0; i < 5; i++) { g.beginPath(); let x = r() * w, y = r() * h; g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (r() - 0.5) * 24; y += (r() - 0.3) * 18; g.lineTo(x, y); } g.stroke(); }
+  });
+  TX.tarmac = ctex(128, 128, (g, w, h) => { fill(g, w, h, '#4a4d52'); speckle(g, w, h, 2, 2200, ['#43464a', '#53565b', '#3e4044', '#5a5d62'], 1.1); });
+  TX.pavement = ctex(128, 128, (g, w, h) => {
+    fill(g, w, h, '#aeaca5'); speckle(g, w, h, 3, 1600, ['#a3a19a', '#b8b6af', '#9c9a93', '#c0beb8'], 1.3);
+    const r = rng(9);
+    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${r() * 0.07})`; g.fillRect(i * 42.7, j * 42.7, 42.7, 42.7); }
+    g.strokeStyle = '#85837c'; g.lineWidth = 1.5; for (let k = 0; k <= 3; k++) { g.beginPath(); g.moveTo(k * 42.7, 0); g.lineTo(k * 42.7, h); g.stroke(); g.beginPath(); g.moveTo(0, k * 42.7); g.lineTo(w, k * 42.7); g.stroke(); }
+    g.fillStyle = 'rgba(40,40,40,.35)'; g.beginPath(); g.arc(30, 96, 3, 0, 7); g.fill(); g.beginPath(); g.arc(101, 52, 2, 0, 7); g.fill(); // chewing gum
+  });
+  TX.kerb = ctex(64, 32, (g, w, h) => { fill(g, w, h, '#c6c2b7'); speckle(g, w, h, 4, 300, ['#b5b1a6', '#d2cec4'], 1); g.fillStyle = '#8f8b82'; for (let x = 0; x < w; x += 32) g.fillRect(x, 0, 1, h); });
+  const brick = (base, seed) => ctex(128, 128, (g, w, h) => {
+    fill(g, w, h, '#b9b0a0'); const r = rng(seed);
+    for (let y = 0; y < 16; y++) for (let x = -1; x < 5; x++) {
+      const ox = (y % 2) * 16, c = base[Math.floor(r() * base.length)]; g.fillStyle = c; g.fillRect(x * 32 + ox + 1, y * 8 + 1, 30, 6);
+      g.fillStyle = `rgba(0,0,0,${r() * 0.12})`; g.fillRect(x * 32 + ox + 1, y * 8 + 1, 30, 6);
+    }
+    speckle(g, w, h, seed + 1, 500, ['rgba(0,0,0,.15)', 'rgba(255,255,255,.12)'], 1);
+  });
+  TX.brick = brick(['#8f4632', '#9c5039', '#a65b41', '#83402e', '#94503a', '#7c3a2a'], 11);
+  TX.brickY = brick(['#c7a26c', '#b99563', '#d2b07a', '#bf9a66', '#a8885a'], 12);
+  TX.brickB = brick(['#6b3a2e', '#7a4433', '#5c3228', '#8a5038'], 13);
+  TX.render = ctex(64, 64, (g, w, h) => { fill(g, w, h, '#efe9dc'); speckle(g, w, h, 5, 700, ['#e4ddcf', '#f6f1e6', '#ddd5c6'], 1.5); });
+  TX.roof = ctex(128, 128, (g, w, h) => {
+    fill(g, w, h, '#3c4048'); const r = rng(21);
+    for (let y = 0; y < 16; y++) for (let x = -1; x < 9; x++) { const v = 52 + Math.floor(r() * 22); g.fillStyle = `rgb(${v},${v + 4},${v + 12})`; g.fillRect(x * 16 + (y % 2) * 8 + 1, y * 8 + 1, 14, 7); }
+  });
+  TX.roofTile = ctex(128, 128, (g, w, h) => {
+    fill(g, w, h, '#6b2e22'); const r = rng(22);
+    for (let y = 0; y < 16; y++) for (let x = -1; x < 9; x++) { const v = Math.floor(r() * 30); g.fillStyle = `rgb(${130 + v},${58 + v / 2},${40 + v / 3})`; g.fillRect(x * 16 + (y % 2) * 8 + 1, y * 8 + 1, 14, 7); }
+  });
+  TX.grass = ctex(128, 128, (g, w, h) => { fill(g, w, h, '#6f9b48'); speckle(g, w, h, 6, 3000, ['#628c3e', '#7aa853', '#5a8238', '#86b25d', '#6a9444'], 1.4); });
+  TX.dirt = ctex(128, 128, (g, w, h) => { fill(g, w, h, '#8a6d4b'); speckle(g, w, h, 7, 2400, ['#7a5f40', '#9a7b56', '#6e5438', '#a3896a', '#8f8f86'], 1.6); });
+  TX.wood = ctex(64, 64, (g, w, h) => { fill(g, w, h, '#9b7148'); for (let y = 0; y < h; y += 8) { g.fillStyle = y % 16 ? '#8c6540' : '#a57a4e'; g.fillRect(0, y, w, 7); } speckle(g, w, h, 8, 200, ['rgba(60,35,15,.3)'], 1); });
+  TX.hedge = ctex(64, 64, (g, w, h) => { fill(g, w, h, '#3d6b2f'); speckle(g, w, h, 9, 1400, ['#335c27', '#4a7d38', '#2c5222', '#5a8c44'], 2.2); });
+  TX.water = ctex(128, 128, (g, w, h) => {
+    fill(g, w, h, '#4f7f86'); const r = rng(10);
+    for (let i = 0; i < 60; i++) { g.strokeStyle = `rgba(220,240,240,${0.08 + r() * 0.15})`; g.lineWidth = 1; g.beginPath(); const x = r() * w, y = r() * h; g.moveTo(x, y); g.quadraticCurveTo(x + 8, y - 3, x + 16, y); g.stroke(); }
+  });
+  TX.wire = ctex(64, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#e8e8ea'; for (let i = 0; i < 64; i += 8) { g.fillRect(i, 0, 2, h); g.fillRect(0, i, w, 2); } }, { nearest: false });
+  TX.mesh = ctex(64, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#d8dcd6'; for (let i = 0; i < 64; i += 16) { g.fillRect(i, 0, 2, h); g.fillRect(0, i, w, 2); } });
+  TX.glass = ctex(32, 32, (g, w, h) => { fill(g, w, h, '#9fb9c4'); g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.moveTo(4, 30); g.lineTo(14, 2); g.lineTo(20, 2); g.lineTo(10, 30); g.fill(); });
+  TX.gravel = ctex(64, 64, (g, w, h) => { fill(g, w, h, '#9b968c'); speckle(g, w, h, 12, 900, ['#8a857b', '#aaa59b', '#7c776e', '#b9b4aa'], 2); });
+  return TX;
+}
+export { TX };
+
+// ---------- signs & labels ----------
+export function signTex(w, h, draw) { return ctex(w, h, draw, { clamp: true, aniso: 8 }); }
+const FONT = '"Barlow Condensed","Arial Narrow",Arial,sans-serif';
+const DISP = '"Bungee","Arial Black",Impact,sans-serif';
+export function textFit(g, text, x, y, maxW, size, font = FONT, weight = '700') {
+  let s = size; g.font = `${weight} ${s}px ${font}`; while (g.measureText(text).width > maxW && s > 6) { s -= 1; g.font = `${weight} ${s}px ${font}`; } g.fillText(text, x, y);
+}
+export function plainSign(lines, o = {}) {
+  const w = o.w || 256, h = o.h || 128;
+  return signTex(w, h, (g) => {
+    g.fillStyle = o.border || '#ffffff'; g.fillRect(0, 0, w, h);
+    g.fillStyle = o.bg || '#ffffff'; g.fillRect(6, 6, w - 12, h - 12);
+    g.fillStyle = o.fg || '#111111'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const n = lines.length, lh = (h - 20) / n;
+    lines.forEach((ln, i) => { const big = Array.isArray(ln) ? ln[1] : (i === 0 ? (o.size || lh * 0.8) : lh * 0.62); const t = Array.isArray(ln) ? ln[0] : ln; textFit(g, t, w / 2, 10 + lh * (i + 0.55), w - 24, big, o.font || FONT); });
+  });
+}
+export function limitSign(n) {
+  return signTex(128, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#d0202a'; g.beginPath(); g.arc(64, 64, 62, 0, 7); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(64, 64, 47, 0, 7); g.fill(); g.fillStyle = '#111'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 58px ${FONT}`; g.fillText(String(n), 64, 68); });
+}
+export function warnSign(kind) {
+  return signTex(128, 116, (g, w, h) => {
+    g.clearRect(0, 0, w, h); const tri = (inset, c) => { g.fillStyle = c; g.beginPath(); g.moveTo(64, 4 + inset * 1.6); g.lineTo(124 - inset * 1.4, 112 - inset * 0.8); g.lineTo(4 + inset * 1.4, 112 - inset * 0.8); g.closePath(); g.fill(); };
+    tri(0, '#d0202a'); tri(12, '#ffffff'); g.fillStyle = '#111'; g.strokeStyle = '#111'; g.lineWidth = 5; g.lineCap = 'round';
+    if (kind === 'works') { g.beginPath(); g.arc(56, 50, 5, 0, 7); g.fill(); g.beginPath(); g.moveTo(56, 56); g.lineTo(60, 76); g.lineTo(52, 92); g.moveTo(60, 76); g.lineTo(68, 92); g.moveTo(57, 62); g.lineTo(74, 70); g.stroke(); g.beginPath(); g.moveTo(74, 70); g.lineTo(82, 92); g.stroke(); g.fillRect(76, 90, 18, 4); g.beginPath(); g.moveTo(40, 92); g.lineTo(48, 82); g.lineTo(52, 92); g.fill(); }
+    else if (kind === 'humps') { g.beginPath(); g.moveTo(34, 88); g.lineTo(46, 88); g.quadraticCurveTo(64, 54, 82, 88); g.lineTo(94, 88); g.stroke(); }
+    else if (kind === 'children') { for (const [x, s] of [[52, 1], [76, 0.85]]) { g.beginPath(); g.arc(x, 52 + (1 - s) * 10, 6 * s, 0, 7); g.fill(); g.beginPath(); g.moveTo(x, 60); g.lineTo(x, 80); g.lineTo(x - 7 * s, 94); g.moveTo(x, 80); g.lineTo(x + 7 * s, 94); g.moveTo(x - 8 * s, 66); g.lineTo(x + 8 * s, 70); g.stroke(); } }
+    else if (kind === 'roundabout') { g.lineWidth = 6; for (let i = 0; i < 3; i++) { const a = i * 2.094 - 1.2; g.beginPath(); g.arc(64, 72, 18, a, a + 1.4); g.stroke(); const ex = 64 + Math.cos(a + 1.4) * 18, ey = 72 + Math.sin(a + 1.4) * 18; g.beginPath(); g.arc(ex, ey, 5, 0, 7); g.fill(); } }
+    else if (kind === 'ducks') { g.beginPath(); g.ellipse(64, 78, 22, 11, 0, 0, 7); g.fill(); g.beginPath(); g.arc(82, 60, 8, 0, 7); g.fill(); g.fillRect(88, 58, 12, 4); }
+  });
+}
+export function giveWay() {
+  return signTex(128, 116, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#d0202a'; g.beginPath(); g.moveTo(4, 6); g.lineTo(124, 6); g.lineTo(64, 112); g.closePath(); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(22, 16); g.lineTo(106, 16); g.lineTo(64, 90); g.closePath(); g.fill(); g.fillStyle = '#111'; g.textAlign = 'center'; g.font = `700 17px ${FONT}`; g.fillText('GIVE', 64, 36); g.fillText('WAY', 64, 54); });
+}
+export function chevron() {
+  return signTex(128, 64, (g, w, h) => { fill(g, w, h, '#111'); g.strokeStyle = '#fff'; g.lineWidth = 9; for (let x = 18; x < 128; x += 36) { g.beginPath(); g.moveTo(x, 10); g.lineTo(x + 18, 32); g.lineTo(x, 54); g.stroke(); } });
+}
+export function fascia(text, o = {}) {
+  const w = o.w || 512, h = o.h || 96;
+  return signTex(w, h, (g) => {
+    fill(g, w, h, o.bg || '#f26a1b');
+    if (o.stripe) { g.fillStyle = o.stripe; g.fillRect(0, h - 14, w, 14); }
+    g.fillStyle = o.fg || '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    textFit(g, text, w / 2, h / 2 - (o.stripe ? 5 : 0) + 3, w - 30, o.size || h * 0.62, o.font || DISP, o.weight || '400');
+    if (o.sub) { g.font = `700 ${h * 0.18}px ${FONT}`; g.fillText(o.sub, w / 2, h - 22); }
+  });
+}
+export function bannerTex(text, bg, fg) { return fascia(text, { w: 256, h: 64, bg, fg, size: 34 }); }
+
+// shopping labels
+export function labelTex(kind) {
+  return signTex(128, 64, (g, w, h) => {
+    if (kind === 'beans') { fill(g, w, h, '#1aa39a'); g.fillStyle = '#f07a1c'; g.beginPath(); g.ellipse(64, 34, 40, 20, 0, 0, 7); g.fill(); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 20px ${FONT}`; g.fillText('BEANS', 64, 40); g.fillStyle = '#c0442a'; for (let i = 0; i < 9; i++) { g.beginPath(); g.ellipse(18 + (i % 3) * 7, 46 + Math.floor(i / 3) * 4, 3, 2, 0.4, 0, 7); g.fill(); } }
+    else if (kind === 'crisps') { fill(g, w, h, '#2f5fd0'); g.fillStyle = '#ffd21f'; g.beginPath(); g.arc(64, 30, 18, 0, 7); g.fill(); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 18px ${FONT}`; g.fillText('READY SALTED', 64, 58); }
+    else if (kind === 'milk') { fill(g, w, h, '#f4f4f0'); g.fillStyle = '#2f9a4a'; g.fillRect(0, 22, w, 18); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 15px ${FONT}`; g.fillText('SEMI-SKIMMED  4 PINTS', 64, 36); }
+    else if (kind === 'bread') { fill(g, w, h, '#f2ead8'); g.fillStyle = '#d8402f'; g.fillRect(0, 0, w, 14); g.fillStyle = '#1d3d8f'; g.textAlign = 'center'; g.font = `700 20px ${FONT}`; g.fillText('THICK WHITE', 64, 42); }
+    else if (kind === 'loo') { fill(g, w, h, '#ffffff'); g.fillStyle = '#7cc0e8'; for (let i = 0; i < 8; i++) { g.beginPath(); g.arc(8 + i * 16, 50, 5, 0, 7); g.fill(); } g.fillStyle = '#1b4f9c'; g.textAlign = 'center'; g.font = `700 16px ${FONT}`; g.fillText('9 ROLLS  SOFT', 64, 24); }
+    else if (kind === 'spuds') { fill(g, w, h, '#c8a46a'); g.fillStyle = '#2d7a2a'; g.fillRect(0, 0, w, 18); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 15px ${FONT}`; g.fillText('BAKING POTATOES 2.5kg', 64, 13); }
+    else if (kind === 'reduced') { g.clearRect(0, 0, w, h); g.fillStyle = '#ffd21f'; g.beginPath(); g.ellipse(64, 32, 62, 30, 0, 0, 7); g.fill(); g.fillStyle = '#c4161c'; g.textAlign = 'center'; g.font = `700 22px ${FONT}`; g.fillText('REDUCED', 64, 30); g.font = `700 14px ${FONT}`; g.fillText('TO CLEAR', 64, 48); }
+    else if (kind === 'plate') { fill(g, w, h, '#f26a1b'); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'SPENDWELLS', 64, 34, 116, 28, DISP, '400'); }
+    else if (kind === 'plateR') { fill(g, w, h, '#c81e1e'); g.fillStyle = '#ffd21f'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'SPEED DEMON', 64, 34, 118, 26, DISP, '400'); }
+    else if (kind === 'plateT') { fill(g, w, h, '#2f4d34'); g.fillStyle = '#e8e2c8'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'TRADE ONLY', 64, 34, 118, 26, DISP, '400'); }
+    else if (kind === 'cereal') { fill(g, w, h, '#f2c81f'); g.fillStyle = '#d8402f'; g.fillRect(0, 0, w, 16); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = `700 13px ${FONT}`; g.fillText('BREAKFAST', 64, 12); g.fillStyle = '#d8402f'; g.font = `700 22px ${FONT}`; g.fillText('FLAKES', 64, 44); g.fillStyle = '#c98d2a'; for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(18 + i * 23, 58, 8, 4, 0.4, 0, 7); g.fill(); } }
+    else if (kind === 'tampons') { fill(g, w, h, '#f4f6f8'); g.fillStyle = '#2aa3a0'; g.fillRect(0, 40, w, 24); g.fillStyle = '#1d3d6f'; g.textAlign = 'center'; g.font = `700 19px ${FONT}`; g.fillText('TAMPONS', 64, 28); g.fillStyle = '#fff'; g.font = `700 13px ${FONT}`; g.fillText('REGULAR · 20', 64, 56); }
+    else if (kind === 'plateG') { fill(g, w, h, '#2f7a3a'); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'PLANTASTIC', 64, 34, 118, 26, DISP, '400'); }
+    else if (kind === 'plateP') { fill(g, w, h, '#7a2f24'); g.fillStyle = '#efe2c2'; g.textAlign = 'center'; g.textBaseline = 'middle'; textFit(g, 'EST. 1987', 64, 34, 118, 26, DISP, '400'); }
+  });
+}
