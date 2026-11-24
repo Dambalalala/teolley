@@ -1,6 +1,6 @@
 import { C, G, ig, ALL } from './core.js';
 import { clamp, lerp, TAU, angDiff, rng } from './util.js';
-import { makeBin, makeCone, makeBarrier, makePicket, makeHeras, makePallet, makePot, makeCompost, makeGnomeProp, makePane, makePerson, makeDuck, makeBus } from './models.js';
+import { makeBin, makeCone, makeBarrier, makePicket, makeHeras, makePallet, makePot, makeCompost, makePane, makePerson, makeDuck, makeBus } from './models.js';
 const T = C.T;
 
 const SPEC = {
@@ -28,7 +28,7 @@ export class Props {
     if (d.type === 'bin') { const b = makeBin(d.lid); mesh = b.group; lid = b.lid; }
     else if (d.type === 'cone') mesh = makeCone(); else if (d.type === 'barrier') mesh = makeBarrier(); else if (d.type === 'picket') mesh = makePicket(d.w || 2.4, 0.9);
     else if (d.type === 'heras') mesh = makeHeras(); else if (d.type === 'pallet') mesh = makePallet(); else if (d.type === 'pot') mesh = makePot(); else if (d.type === 'compost') mesh = makeCompost();
-    else if (d.type === 'gnome') mesh = makeGnomeProp(); else if (d.type === 'pane') mesh = makePane(1.9, 2.15);
+    else if (d.type === 'pane') mesh = makePane(1.9, 2.15);
     C.scene.add(mesh);
     const q = new T.Quaternion().setFromEuler(new T.Euler(0, d.yaw || 0, 0));
     const bd = (S.fixed ? R.RigidBodyDesc.fixed() : R.RigidBodyDesc.dynamic().setSleeping(true).setCcdEnabled(false)).setTranslation(d.x, d.y, d.z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }).setAngularDamping(0.3).setLinearDamping(0.1);

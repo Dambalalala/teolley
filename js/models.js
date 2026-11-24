@@ -213,7 +213,6 @@ export function makePot(color = 0xb5603a) {
   const m = new T.Mesh(B.geometry(), lam()); m.castShadow = true; return m;
 }
 export function makeCompost() { const B = new Batch(); B.add(GEO.box, M(0, 0, 0, 0, 0, 0, 0.55, 0.16, 0.85), 0x2f6b32); B.add(GEO.box, M(0, 0.081, 0.1, 0, 0, 0, 0.3, 0.005, 0.3), 0xf2e6c8); const m = new T.Mesh(B.geometry(), lam()); m.castShadow = true; return m; }
-export function makeGnomeProp() { const g = makeItemMesh('gnome'); g.scale.setScalar(2.6); return g; }
 export function makeCrate(c = 0xc69b5e) { const B = new Batch(); B.add(GEO.box, M(0, 0, 0, 0, 0, 0, 0.6, 0.45, 0.4), c); for (const y of [-0.12, 0.12]) B.add(GEO.box, M(0, y, 0.205, 0, 0, 0, 0.6, 0.06, 0.01), 0x8a6a40); const m = new T.Mesh(B.geometry(), lam()); m.castShadow = true; return m; }
 export function makePane(w = 1.0, h = 1.6) { const m = new T.Mesh(new T.BoxGeometry(w, h, 0.02), new T.MeshLambertMaterial({ color: 0xbfe0e8, transparent: true, opacity: 0.45 })); return m; }
 export function makeTrolleyProp(color = 0xf26a1b) { const t = makeTrolley('dave'); t.root.traverse(o => { if (o.material && o.material.color && o.isMesh && o.material.map === TX.wire) { } }); return t.root; }

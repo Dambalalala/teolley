@@ -134,9 +134,8 @@ function gardenCentrePark(scene) {
     staticBox(p.x, 0.7, p.z, car.W / 2, 0.6, car.L / 2, yaw, { kind: 'car', name: 'PARKED CAR', car: idx });
     W.nearTargets.push({ x: p.x, z: p.z, r: car.L / 2, kind: 'PARKED CAR', box: { hx: car.W / 2, hz: car.L / 2, yaw } });
   }
-  // gnomes for sale along the top of the bank, and the usual sign behind
+  // the usual sign behind the bank
   const deck = GC_PARK.lf1 + BERM.u1 + BERM.deck / 2;
-  for (let k = 0; k < 12; k++) { const lx = -59 + k, p = botToWorld(lx, deck); W.dyn.push({ type: 'gnome', x: p.x, y: botH(lx, deck) + BERM.h + 0.4, z: p.z, yaw: Math.PI + (r() - 0.5) * 0.7 }); }
   const sp = botToWorld(-53.5, GC_PARK.lf1 + 5); signPost(scene, sp.x, 0, sp.z, Math.PI, fascia('PLANTASTIC', { bg: '#2f7a3a', fg: '#fff', w: 256, h: 96, size: 44, sub: 'CUSTOMER PARKING ONLY' }), 3.0, 1.1, 1.45, { name: 'GARDEN CENTRE SIGN', twin: true });
 }
 

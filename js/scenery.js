@@ -94,7 +94,7 @@ function frontGarden(F, yaw, r, chunk, s, side) {
   };
   seg2(-wd / 2, 0.9); seg2(2.0, wd / 2);
   if (r() < 0.45) { const c = wp(F, -1.6 + r() * 0.8, 0.55, gz - 0.9); W.dyn.push({ type: 'bin', x: c.x, y: c.y, z: c.z, yaw: yaw + (r() - 0.5) * 0.4, lid: pick(r, [0x2a2a2c, 0x2a6a3a, 0x2a4aa0, 0x6a4a2a]) }); }
-  if (r() < 0.2) { const c = wp(F, -0.4, 0.25, 1.5); W.dyn.push({ type: 'gnome', x: c.x, y: c.y, z: c.z, yaw: yaw + Math.PI }); }
+  r(); // (was a garden gnome; kept the draw so the rest of the street stays the same)
   if (r() < 0.08) { const c = wp(F, 2.3, 0, gz - 0.6); signPost(C.scene, c.x, c.y, c.z, yaw + Math.PI, plainSign(['FOR SALE', 'GRIMLEY & SONS'], { bg: '#f2f2ee', fg: '#c81e1e', border: '#1d3d8f', w: 192, h: 128 }), 0.8, 0.55, 1.5, { name: 'ESTATE AGENT SIGN' }); }
 }
 function terraces(scene) {
@@ -203,8 +203,9 @@ function parkedCars(scene) {
 
 // ---------------- roadworks ----------------
 function roadworks(scene) {
-  // coned-off right lane with a hole, sand pile and a plank someone left as a ramp
-  for (let s = 304; s <= 366; s += 2.6) { const taper = Math.min(1, (s - 304) / 8, (366 - s) / 8); const R = roadAt(s, {}), d = 0.4 + (1 - taper) * 2.6, x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'cone', x, y: prof(s, d) + 0.36, z, yaw: 0 }); }
+  // barriered-off right lane with a hole, sand pile and a plank someone left as a ramp
+  // a slalom of cones further up the hill, away from the plank ramp, so both fit in one run
+  for (let k = 0; k < 14; k++) { const sc = 238 + k * 3.2, R = roadAt(sc, {}), d = (k % 2 ? 1 : -1) * 1.6, x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'cone', x, y: prof(sc, d) + 0.36, z, yaw: 0 }); }
   for (const [s, d, turn] of [[324, 2.2, 0], [346, 2.2, 0], [335, 0.85, Math.PI / 2], [335, 3.3, Math.PI / 2]]) { const R = roadAt(s, {}), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'barrier', x, y: prof(s, d) + 0.55, z, yaw: -R.th + turn + (turn ? 0 : Math.PI / 2) }); }
   const hole = new T.Mesh(new T.PlaneGeometry(2.0, 18), new T.MeshLambertMaterial({ color: 0x3a2c22, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
   const hp = P(335, 2.1, 0.02); hole.position.set(hp.x, hp.y, hp.z); hole.rotation.order = 'YXZ'; hole.rotation.set(-Math.PI / 2, -hp.th, 0); scene.add(hole);
