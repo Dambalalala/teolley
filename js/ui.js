@@ -65,9 +65,8 @@ export class UI {
     if (R.wheels) ln('WHEELS LOST', String(R.wheels), 'neg');
     L.push('<hr>');
     ln('LOYALTY POINTS EARNED', fmt(Math.floor(d.total / 100)));
-    L.push(`<div class="c">SERVED BY: DAVE<br>${now.toLocaleDateString('en-GB')} ${now.toTimeString().slice(0, 5)}<br>Thank you for shopping with us (badly)</div>`);
+    L.push(`<div class="c">SERVED BY: DAVE<br>${now.toLocaleDateString('en-GB')} ${now.toTimeString().slice(0, 5)}<br>Thank you for shopping with us</div>`);
     for (const u of d.unlocked) L.push(`<div class="stamp">UNLOCKED: ${esc(u)}</div>`);
-    if (R.end === 'crash') L.push(`<div class="stamp">DAVE IS DISAPPOINTED</div>`);
     $('receipt').innerHTML = L.join('');
     $('receipt').scrollTop = 0;
   }
