@@ -93,7 +93,7 @@ async function boot() {
     if (G.slowmo > 0) G.slowmo -= dtR;
     const ts = G.slowmo > 0 ? 0.35 : 1, dt = dtR * ts;
     acc += dt; let n = 0;
-    while (acc >= DT && n < 4) {
+    while (acc >= DT && n < 8) {
       const ctl = C.input.sample();
       C.trolley.step(DT, ctl, C.time);
       C.phys.step(C.events);
@@ -101,7 +101,7 @@ async function boot() {
       G.processEvents();
       C.time += DT; acc -= DT; n++;
     }
-    if (acc > DT) acc = DT; // a slow frame: drop the backlog rather than spiral into catch-up
+    if (n >= 8) acc = 0;
     const active = G.state === 'run' || G.state === 'push';
     C.shopping.update(dt, C.time, active); C.props.update(dt, C.time); G.update(dt, C.time); C.fx.update(dt);
     emitTrolleyFx(dt);
