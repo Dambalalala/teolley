@@ -24,7 +24,7 @@ export const TASKS = [
 ];
 const SPIN_NAMES = ['', '180', '360', '540', '720', '900', '1080'];
 // the only messages the game prints, each at most once a run
-const QUIPS = { damage: 'YOUR TROLLEY INSURANCE HAS EXPIRED', speed: 'EXCESSIVE SPEED DETECTED', ducks: 'YOU HAVE DISTURBED THE DUCKS', lost: 'UNEXPECTED ITEM IN BAGGING AREA' };
+const QUIPS = { lost: 'UNEXPECTED ITEM IN BAGGING AREA' };
 
 export class Game {
   constructor() {
@@ -92,10 +92,9 @@ export class Game {
       case 'kerb': C.audio.sfx('kerb', clamp(d.v / 8, 0.3, 1.2)); if (d.v > 5.5 && active) this.addCombo('KERB', 80); this.shake = Math.max(this.shake, Math.min(0.5, d.v * 0.04)); break;
       case 'hop': C.audio.sfx('hop'); break;
       case 'push': this.pushPower += d.dv; C.audio.sfx('push'); break;
-      case 'damage': if (active && d.amt > 0.12) this.quip('damage'); break;
       case 'wheelLost': R.wheels++; C.audio.sfx('wheel'); this.addCombo('LOST A WHEEL', 300); break;
       case 'nearMiss': R.nearMisses++; this.addCombo('NEAR MISS', d.pts || 200); break;
-      case 'ducks': R.ducks = true; if (active && !R.flags.q_ducks) { this.quip('ducks', { dur: 3.2 }); } this.addCombo('DUCKS', 500); break;
+      case 'ducks': R.ducks = true; this.addCombo('DUCKS', 500); break;
     }
   }
   // Rapier contact events (called after each physics step)
@@ -174,7 +173,7 @@ export class Game {
     for (const tg of W.triggers) { if (this.lastS < tg.s0 && s >= tg.s0 && s <= tg.s1) this.trigger(tg.id); } this.lastS = s;
     // speed
     if (mph > 30 && tr.nWheels > 0) this.liveCombo('speed', 'SPEEDING', 55, dt); else this.endLive('speed');
-    if (W.speedCam && !R.speedCam && Math.abs(s - W.speedCam.s) < 2.5 && mph > 30) { R.speedCam = true; this.flash = 1; C.audio.sfx('flash'); this.addCombo(`SPEED CAMERA ${Math.round(mph)} MPH`, 400); this.quip('speed', { now: true }); this.task('camera'); }
+    if (W.speedCam && !R.speedCam && Math.abs(s - W.speedCam.s) < 2.5 && mph > 30) { R.speedCam = true; this.flash = 1; C.audio.sfx('flash'); this.addCombo(`SPEED CAMERA ${Math.round(mph)} MPH`, 400); this.task('camera'); }
     // air and landing
     const air = tr.nWheels === 0 && !tr.touching;
     if (air) {

@@ -437,7 +437,7 @@ function placePickups() {
 
 // ---------------- pedestrians ----------------
 function placePeds() {
-  W.peds.push({ kind: 'lollipop', s: 181, d: -4.6, still: true });
+  W.peds.push({ kind: 'lollipop', s: 181, d: -1.8, still: true });
 }
 
 export function buildScenery(scene) {

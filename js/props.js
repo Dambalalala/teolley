@@ -110,11 +110,9 @@ export class Props {
         continue;
       }
       const moving = false;
-      // dodge oncoming trolleys
+      // near misses
       if (tr && !pd.dodge && tp) {
         const dx = pd.x - tp.x, dz = pd.z - tp.z, dist = Math.hypot(dx, dz), vh = Math.hypot(tv.x, tv.z);
-        if (dist < 9 && vh > 4) { const close = (dx * tv.x + dz * tv.z) / (dist || 1); const perp = Math.abs(dx * tv.z - dz * tv.x) / (vh || 1);
-          if (close > 3 && perp < 1.6 && Math.random() < dt * 9) { const side = (dx * tv.z - dz * tv.x) > 0 ? 1 : -1; const nx = tv.z / vh * side, nz = -tv.x / vh * side; pd.dodge = { t: 0, x0: pd.x, z0: pd.z, x1: pd.x + nx * 1.6, z1: pd.z + nz * 1.6 }; C.audio.sfx('gasp'); } }
         // near-miss bookkeeping
         if (dist < 4.5 && vh > 5 && !pd.hitOnce) { if (!pd.near) pd.near = { min: dist, t }; else pd.near.min = Math.min(pd.near.min, dist); }
         else if (pd.near && dist > 5) { if (pd.near.min < 1.7 && !pd.hitOnce && t - pd.near.t < 3) C.game.ev('nearMiss', { name: 'LOLLIPOP LADY', pts: 300 }); pd.near = null; }
