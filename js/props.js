@@ -151,10 +151,10 @@ export class Props {
       if (dk.state === 'swim') { dk.t += dt * 0.3; const lx = dk.lx + Math.cos(dk.t + dk.lf) * 1.5, lf = dk.lf + Math.sin(dk.t * 0.8 + dk.lx) * 1.2; const p = W.botToWorld(lx, lf); dk.mesh.position.set(p.x, pond.water - 0.02 + Math.sin(t * 2 + dk.lx) * 0.015, p.z); dk.mesh.rotation.y = -dk.t - Math.PI / 2; }
       else if (dk.state === 'fly') { dk.t += dt; dk.vy += (2.4 - dk.vy) * dt; const p = dk.mesh.position; p.x += dk.vx * dt; p.y += dk.vy * dt; p.z += dk.vz * dt; dk.mesh.rotation.y = Math.atan2(-dk.vx, -dk.vz); dk.mesh.scale.set(1 + Math.sin(t * 30) * 0.4, 1, 1); if (dk.t > 7) { dk.state = 'gone'; dk.mesh.visible = false; } }
     }
-    // disturbing them: the trolley in or over the pond
+    // disturbing them: the trolley on the ground near the pond (not flying over it)
     const tr = C.trolley; if (!tr || this.ducksGone) return;
-    const p = tr.pos(), u = (p.x - pond.x) / (pond.rx * 1.25), v = (p.z - pond.z) / (pond.rz * 1.25);
-    if (u * u + v * v < 1 && p.y < 6) { if (this.disturbDucks()) C.game.ev('ducks', {}); }
+    const p = tr.pos(), u = (p.x - pond.x) / (pond.rx * 1.6), v = (p.z - pond.z) / (pond.rz * 1.6);
+    if (u * u + v * v < 1 && (tr.nWheels > 0 || tr.submerged)) { if (this.disturbDucks()) C.game.ev('ducks', {}); }
   }
   // ---------------- the number 37 bus ----------------
   makeBusLine() {

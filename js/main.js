@@ -78,10 +78,10 @@ async function boot() {
   const loop = (now) => {
     const dtR = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
     step(dtR);
-    if (!window.__noRender) render(dtR);
-    // drop the render resolution a touch if frames run long
     // only on a sustained slowdown, never below 75%, and climb back once frames are normal again (60Hz = ~17ms)
     ftAvg += (dtR * 1000 - ftAvg) * 0.05; ftT += dtR; if (ftT > 3) { ftT = 0; let n = prCur; if (ftAvg > 30 && prCur > prMax * 0.76) n = Math.max(prMax * 0.75, prCur * 0.9); else if (ftAvg < 21 && prCur < prMax) n = Math.min(prMax, prCur * 1.12); if (Math.abs(n - prCur) > 0.01) { prCur = n; resize(); } }
+    if (!window.__noRender) render(dtR);
+    // drop the render resolution a touch if frames run long
     cullT += dtR; if (cullT > 0.25) { cullT = 0; cull(); }
     requestAnimationFrame(loop);
   };
