@@ -1,5 +1,5 @@
 import { C, G, ig } from './core.js';
-import { angDiff } from './util.js';
+import { angDiff, clamp } from './util.js';
 const T = C.T;
 
 // One chase camera.
@@ -19,7 +19,9 @@ export class Cam {
     if (sp > 2) want = Math.atan2(-v.x, -v.z);
     const airK = tr.nWheels === 0 ? 1.2 : 3.4;
     this.yaw = snap ? want : this.yaw + angDiff(want, this.yaw) * (1 - Math.exp(-dt * airK));
-    const over = G2.state === 'over', dist = over ? 6.5 : 4.4 + Math.min(sp, 22) * 0.06, ht = over ? 3.2 : 1.85 + Math.min(sp, 22) * 0.025;
+    // Show both sides of the car park exit on narrow phones, then ease into the hill camera.
+    const carPark = C.touch && cam.aspect < 0.7 ? clamp((p.z + 4) / 21, 0, 1) : 0;
+    const over = G2.state === 'over', dist = over ? 6.5 : 4.4 + Math.min(sp, 22) * 0.06 + carPark * 1.6, ht = over ? 3.2 : 1.85 + Math.min(sp, 22) * 0.025;
     const tx = p.x + Math.sin(this.yaw) * dist, tz = p.z + Math.cos(this.yaw) * dist;
     const want3 = this._w.set(tx, p.y + ht, tz);
     // keep the camera out of walls and above the ground
@@ -32,7 +34,8 @@ export class Cam {
     const la = this._l.set(p.x - Math.sin(this.yaw) * 2.5, p.y + 0.5, p.z - Math.cos(this.yaw) * 2.5);
     if (snap) this.look.copy(la); else this.look.lerp(la, 1 - Math.exp(-dt * 9));
     cam.lookAt(this.look);
-    this.setFov(64 + Math.min(sp, 25) * 0.7, dt * 2.5);
+    const fov = 64 + Math.min(sp, 25) * 0.7;
+    this.setFov(fov + (83 - fov) * carPark, snap && carPark > 0 ? 1 : dt * 2.5);
     if (dt > 0) this.applyShake();
   }
   applyShake() { const s = C.game.shake; if (s > 0.01 && !this.motion.matches) { const c = this.c; c.position.x += (Math.random() - 0.5) * s * 0.25; c.position.y += (Math.random() - 0.5) * s * 0.25; } }

@@ -78,7 +78,6 @@ function house(F, yaw, r, chunk, kind) {
   colBox(F, yaw, 2.2, 2.9, 0.75, -1.15, 1.2, 0.375, { kind: 'house', name: 'BAY WINDOW' });
 }
 const GARDEN_FRONT = ['wall', 'hedge', 'wall', 'wall', 'hedge', 'picket'];
-const KILROY_HEIGHT = 1.16;
 function graffitiMaterial() {
   const map = signTex(256, 256, g => {
     g.lineJoin = g.lineCap = 'round';
@@ -88,35 +87,37 @@ function graffitiMaterial() {
     g.lineWidth = 3; g.stroke(new Path2D('M104 93 Q160 100 220 89 M34 91 L33 103 M203 76 L202 94'));
 
     g.translate(0, 128);
-    g.save();
-    g.scale(1, 0.84 / KILROY_HEIGHT);
+    const ledge = new Path2D('M13 80 L97 80 M129 80 L243 80');
+    g.strokeStyle = '#252828'; g.lineWidth = 10; g.stroke(ledge);
+    g.strokeStyle = '#ded4bb'; g.lineWidth = 6; g.stroke(ledge);
     const face = new Path2D('M53 72 C55 38 82 18 122 19 C162 18 192 39 195 72 M95 71 C108 68 121 70 130 83 C133 90 135 102 124 108 C114 114 105 107 109 98 L110 89 M37 79 Q29 65 23 72 L27 83 M47 79 Q40 63 35 70 L40 83 M207 79 Q212 64 218 70 L213 83 M219 79 Q224 65 231 72 L227 83');
+    g.strokeStyle = '#252828'; g.lineWidth = 15; g.stroke(face);
     g.strokeStyle = '#ded4bb'; g.lineWidth = 9; g.stroke(face);
-    g.strokeStyle = '#252828'; g.lineWidth = 5.5; g.stroke(face);
+    g.strokeStyle = '#252828'; g.lineWidth = 5.5;
     for (const x of [100, 149]) {
       g.beginPath(); g.ellipse(x, 55, 13, 15, 0, 0, TAU);
       g.fillStyle = '#f0e7cf'; g.fill(); g.stroke();
       g.beginPath(); g.ellipse(x + 3, 58, 4.3, 6.8, 0, 0, TAU);
       g.fillStyle = '#252828'; g.fill();
     }
-    g.restore();
-    g.font = 'bold 22px sans-serif';
-    g.textAlign = 'center';
-    g.strokeStyle = '#252828'; g.lineWidth = 4;
-    g.strokeText('KILROY WAS HERE', 128, 114);
-    g.fillStyle = '#ded4bb'; g.fillText('KILROY WAS HERE', 128, 114);
   });
   return new T.MeshLambertMaterial({ map, alphaTest: 0.24, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 }
-function paintGardenWall(scene, F, yaw, material, face) {
-  const geometry = new T.PlaneGeometry(face ? 2.3 : 3.12, face ? KILROY_HEIGHT : 0.51);
-  const uv = geometry.attributes.uv;
-  for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * 0.5 + (face ? 0 : 0.5));
-  const paint = new T.Mesh(geometry, material);
-  paint.name = face ? 'Kilroy was here graffiti' : '10 FOOT graffiti';
-  paint.position.copy(wp(F, -0.85, face ? 1.116 - KILROY_HEIGHT / 2 : 0.28, face ? 4.041 : 4.012));
-  paint.rotation.y = yaw; paint.receiveShadow = true;
-  scene.add(paint);
+function carParkGraffiti(scene, y, frontZ) {
+  const material = graffitiMaterial();
+  for (const [name, x, width, height, uvOffset] of [
+    ['10 FOOT graffiti', -8.1, 4.2, 0.96, 0.5],
+    ['Kilroy graffiti', 7.95, 3.9, 1.13, 0],
+  ]) {
+    const geometry = new T.PlaneGeometry(width, height);
+    const uv = geometry.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * 0.5 + uvOffset);
+    const paint = new T.Mesh(geometry, material);
+    paint.name = name;
+    paint.position.set(x, y + 0.43, frontZ + 0.006);
+    paint.receiveShadow = true;
+    scene.add(paint);
+  }
 }
 function frontGarden(F, yaw, chunk, style) {
   const wd = 5.2, gz = 4.0, L = sb(chunk, 'lam');
@@ -131,7 +132,7 @@ function frontGarden(F, yaw, chunk, style) {
   seg2(-wd / 2, 0.9); seg2(2.0, wd / 2);
 }
 function terraces(scene) {
-  const r = rng(42), paint = graffitiMaterial();
+  const r = rng(42);
   for (const side of [-1, 1]) for (const [a, b] of W.houses[side < 0 ? 'L' : 'R']) {
     for (let s = a + 2.6, n = side < 0 ? 0 : 3; s < b - 2.5; s += 5.2, n++) {
       if (side < 0 && s > 473 && s < 482) { shopFront(scene, s, side); continue; }
@@ -139,8 +140,6 @@ function terraces(scene) {
       const R = roadAt(s, {}), d = side * (R.w + 6.2), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d) - 0.01;
       const yaw = yawTo(-side * R.rx, -side * R.rz), F = frame(x, y, z, yaw), chunk = chunkOf(s);
       house(F, yaw, r, chunk); frontGarden(F, yaw, chunk, GARDEN_FRONT[n % GARDEN_FRONT.length]);
-      if (side === 1 && a === 8 && n === 15) paintGardenWall(scene, F, yaw, paint, true);
-      if (side === -1 && a === 8 && n === 42) paintGardenWall(scene, F, yaw, paint, false);
     }
   }
 }
@@ -241,7 +240,10 @@ function roadworks(scene) {
   // barriered-off right lane with a hole and a sand pile, well up the hill from the plank
   // Keep the cone line on the open side of the road, clear of the barriers and sand pile.
   for (let s = 243; s <= 271; s += 2.6) { const p = P(s, -0.35, 0.36); W.dyn.push({ type: 'cone', x: p.x, y: p.y, z: p.z, yaw: 0 }); }
-  for (const [s, d, turn] of [[244, 2.2, 0], [266, 2.2, 0], [255, 1.65, Math.PI / 2], [255, 3.3, Math.PI / 2]]) { const R = roadAt(s, {}), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'barrier', x, y: prof(s, d) + 0.55, z, yaw: -R.th + turn + (turn ? 0 : Math.PI / 2) }); }
+  for (const [s, d] of [[244, 2.3], [247, 3], [263, 3.15], [266, 2.9]]) {
+    const p = P(s, d, 0.55);
+    W.dyn.push({ type: 'barrier', x: p.x, y: p.y, z: p.z, yaw: -p.th });
+  }
   const hole = new T.Mesh(new T.PlaneGeometry(2.0, 18), new T.MeshLambertMaterial({ color: 0x3a2c22, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
   const hp = P(255, 2.1, 0.02); hole.position.set(hp.x, hp.y, hp.z); hole.rotation.order = 'YXZ'; hole.rotation.set(-Math.PI / 2, -hp.th, 0); scene.add(hole);
   // sand pile (static, rideable)
@@ -273,7 +275,6 @@ function plankAndSkip(scene) {
     metal.add(GEO.ico, rubble, pick(rng(i), [0x8a7a6a, 0xa4523a, 0x6a6a6a, 0x9b7148]));
   }
   colBox(F, -c.th, skipWidth, skipHeight, skipLength, 0, skipHeight / 2, 0, { kind: 'wall', name: 'SKIP' });
-  W.skip = { x: c.x, y: c.y + skipHeight, z: c.z, yaw: -c.th };
 }
 
 // The mesh and collider share the ramp profile. The approach follows the grade before curving up to the lip.
@@ -389,6 +390,7 @@ function topScenery(scene) {
   // perimeter: low wall with railings, open at the exit
   const wall = (x0, z0, x1, z1) => { const len = Math.hypot(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, yaw = Math.atan2(x1 - x0, z1 - z0), F = frame(cx, y, cz, yaw); tbox(sb('top', 'brick'), F, 0.3, 0.9, len, 0, 0.45, 0, 0xffffff); for (let k = -len / 2 + 0.2; k < len / 2; k += 0.52) bx(L, F, 0.027, 0.7, 0.027, 0, 1.25, k, 0x1c1c1e); bx(L, F, 0.04, 0.04, len, 0, 1.6, 0, 0x1c1c1e); staticBox(cx, y + 0.8, cz, 0.15, 0.8, len / 2, yaw, { kind: 'wall', name: 'CAR PARK WALL' }); };
   wall(TOP.x0, 0.2, -5.95, 0.2); wall(5.95, 0.2, TOP.x1, 0.2); wall(TOP.x0, 0.2, TOP.x0, 62); wall(TOP.x1, 0.2, TOP.x1, 62);
+  carParkGraffiti(scene, y, 0.35);
 }
 
 // ---------------- the bottom ----------------

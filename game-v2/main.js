@@ -2,15 +2,15 @@ import RAPIER from './rapier.js';
 import { C } from './core.js';
 import { buildTextures } from './textures.js?v=grumbleton-polish';
 import { buildWorldBase, flushStatics } from './world.js?v=stop-sign-splash';
-import { buildScenery } from './scenery.js?v=pond-pickup';
+import { buildScenery } from './scenery.js?v=carpark-graffiti';
 import { buildExtras } from './extras.js?v=stop-sign-splash';
 import { FX } from './fx.js?v=stop-sign-splash';
-import { Props } from './props.js?v=roadworks-graffiti';
+import { Props } from './props.js?v=carpark-graffiti';
 import { Shopping } from './shopping.js?v=pond-pickup';
 import { Audio } from './audio.js?v=stop-sign-splash';
 import { Game } from './game.js?v=roadworks-graffiti';
 import { Input } from './input.js?v=grumbleton-receipt';
-import { Cam } from './camera.js';
+import { Cam } from './camera.js?v=carpark-graffiti';
 import { HUD } from './hud.js?v=roadworks-graffiti';
 import { UI } from './ui.js?v=roadworks-graffiti';
 import { Select } from './select.js?v=stop-sign-splash';
@@ -201,7 +201,7 @@ async function boot() {
     C.select.update(drawDt);
     C.cam.update(drawDt);
     updateVisibility(drawDt, snap || skipRender);
-    C.props.sync(drawDt, C.time - (1 - blend) * DT);
+    C.props.sync(drawDt);
     C.shopping.sync();
     const selecting = game.state === 'select';
     if (contactShadow) {
