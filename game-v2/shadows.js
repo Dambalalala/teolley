@@ -1,6 +1,6 @@
 import { C, G, ig } from './core.js';
 import { clamp } from './util.js';
-import { ctex } from './textures.js?v=grumbleton-audit';
+import { ctex } from './textures.js?v=green-fingers';
 
 const T = C.T;
 

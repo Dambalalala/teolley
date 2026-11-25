@@ -90,7 +90,7 @@ export class Audio {
   ambience(dt) {
     const A = this.ctx, t = A.currentTime, k = this.amb, on = this.muted ? 0 : 1;
     // wind, distant traffic, water
-    const lv = { muzak: [0.012, 0.035, 0], carpark: [0.018, 0.055, 0], pond: [0.04, 0.008, 0.035] }[k] || [0, 0, 0];
+    const lv = { muzak: [0.012, 0.035, 0], carpark: [0.018, 0.055, 0], pond: [0.04, 0.008, 0.035], garden: [0.025, 0.008, 0.016] }[k] || [0, 0, 0];
     this.wind.g.gain.setTargetAtTime(lv[0] * on, t, 0.6); this.wind.f.frequency.setTargetAtTime(k === 'pond' ? 560 : 360, t, 0.6);
     this.rumble.g.gain.setTargetAtTime(lv[1] * on, t, 0.6); this.rumble.f.frequency.setTargetAtTime(130, t, 0.6);
     this.water.g.gain.setTargetAtTime(lv[2] * on, t, 0.6);
@@ -115,7 +115,7 @@ export class Audio {
     this.rumble.g.gain.setTargetAtTime(on ? ground * Math.min(0.12, sp * 0.007) * (st.surface === 'pave' ? 1.4 : 1) : 0, t, 0.06); this.rumble.f.frequency.setTargetAtTime(180 + sp * 14, t, 0.1);
     const rat = on ? ground * Math.min(0.07, sp * 0.003 + st.bump * 0.05) * (0.6 + 0.8 * Math.random()) : 0; this.rattle.g.gain.setTargetAtTime(rat, t, 0.02);
     const sq = on ? (st.squeak || 0) : 0; this.squeak.g.gain.setTargetAtTime(sq * 0.02, t, 0.05); this.squeak.o.frequency.setTargetAtTime(1900 + Math.sin(t * 3) * 300, t, 0.1);
-    this.water.g.gain.setTargetAtTime(on && st.wet ? 0.09 : 0, t, 0.1);
+    this.water.g.gain.setTargetAtTime(on ? (st.wet ? 0.09 : (st.fountain || 0) * 0.045) : 0, t, 0.1);
     this.intensity = st.active ? clamp((sp - 2.5) / 15, 0, 1) : 0.05; this.int += (this.intensity - this.int) * Math.min(1, dt * 1.2);
   }
   // ---------- music ----------

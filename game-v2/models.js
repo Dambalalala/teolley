@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { Batch, GEO, M, FM, bx, cy, seg, lam, rng, pick, TAU, clamp } from './util.js';
-import { TX, labelTex, signTex } from './textures.js?v=grumbleton-audit';
+import { TX, labelTex, signTex } from './textures.js?v=green-fingers';
 const T = C.T;
 
 // ======================= THE TROLLEY =======================
@@ -14,6 +14,7 @@ export const TD = {
 };
 
 export const VARIANTS = {
+  flatbed: { name: 'Garden Flatbed', blurb: 'Low deck and shallow rails. Mind your shopping on the bends.', flatbed: true, scale: 1, metal: 0xa0a89b, plastic: 0x397a47, plate: 'plateG' },
   dave: { name: 'Standard Dave', blurb: 'The one from the bay. Does everything all right.', scale: 1, metal: 0xc5c9cf, plastic: 0xf26a1b, plate: 'plate' },
   demon: { name: 'Speed Demon', blurb: 'Light frame. Fastest down the hill, first to fall over.', scale: 0.8, metal: 0xd9dade, plastic: 0xc81e1e, plate: 'plateR' },
   tank: { name: 'The Tank', blurb: 'Heavy duty. Slow to get going, then nothing stops it.', scale: 1.22, metal: 0x58705a, plastic: 0x2a2f2b, plate: 'plateT' },
@@ -36,31 +37,40 @@ export function makeTrolley(vkey) {
   const t = TD.top, b = TD.bot;
   // ---- basket (its own group so it can be crushed) ----
   const basket = new T.Group(); root.add(basket);
-  const P = {
-    tfl: [-t.x, H(t.y), t.zf], tfr: [t.x, H(t.y), t.zf], tbl: [-t.x, H(t.y), t.zb], tbr: [t.x, H(t.y), t.zb],
-    bfl: [-b.x, H(b.y), b.zf], bfr: [b.x, H(b.y), b.zf], bbl: [-b.x, H(b.y), b.zb], bbr: [b.x, H(b.y), b.zb],
-  };
-  const W = new Batch();
-  const rep = 2.6; // wire cells per metre / 8
-  const wq = (a, b2, c, d, lu, lv) => W.quad(a, b2, c, d, metal, [0, 0, lu * rep, lv * rep]);
-  wq(P.bfl, P.bbl, P.tbl, P.tfl, 0.9, 0.42); // left
-  wq(P.bbr, P.bfr, P.tfr, P.tbr, 0.9, 0.42); // right
-  wq(P.bfr, P.bfl, P.tfl, P.tfr, 0.56, 0.44); // front (sloped)
-  wq(P.bbl, P.bbr, P.tbr, P.tbl, 0.56, 0.42); // back gate
-  wq(P.bfl, P.bfr, P.bbr, P.bbl, 0.5, 0.74); // floor
-  const wires = new T.Mesh(W.geometry(), wireMat(metal)); wires.castShadow = true; wires.receiveShadow = true; basket.add(wires);
-  const F = new Batch(), tube = 0.009;
-  const edges = [['tfl', 'tfr'], ['tfr', 'tbr'], ['tbr', 'tbl'], ['tbl', 'tfl'], ['bfl', 'bfr'], ['bfr', 'bbr'], ['bbr', 'bbl'], ['bbl', 'bfl'], ['tfl', 'bfl'], ['tfr', 'bfr'], ['tbl', 'bbl'], ['tbr', 'bbr']];
-  for (const [a, c] of edges) seg(F, null, P[a], P[c], tube * 1.3, metal);
-  const mid = (a, c, k) => [a[0] + (c[0] - a[0]) * k, a[1] + (c[1] - a[1]) * k, a[2] + (c[2] - a[2]) * k];
-  for (const k of [0.5]) { seg(F, null, mid(P.bfl, P.tfl, k), mid(P.bbl, P.tbl, k), tube, metal); seg(F, null, mid(P.bfr, P.tfr, k), mid(P.bbr, P.tbr, k), tube, metal); }
-  // child seat flap + advert plate
-  bx(F, null, 0.5, 0.012, 0.16, 0, H(t.y) - 0.02, t.zb - 0.09, plastic, 0.35);
-  bx(F, null, 0.08, 0.03, 0.03, -t.x + 0.02, H(t.y) + 0.01, t.zf + 0.02, 0x333338);
-  bx(F, null, 0.08, 0.03, 0.03, t.x - 0.02, H(t.y) + 0.01, t.zf + 0.02, 0x333338);
-  const frame = new T.Mesh(F.geometry(), matV); frame.castShadow = true; basket.add(frame);
+  if (V.flatbed) {
+    const deck = new Batch();
+    bx(deck, null, 0.55, 0.045, 0.98, 0, H(0.273), -0.03, 0x397a47);
+    for (const x of [-0.26, 0.26]) bx(deck, null, 0.03, 0.11, 0.98, x, H(0.35), -0.03, 0x6e8d72);
+    for (const z of [-0.51, 0.44]) bx(deck, null, 0.55, 0.11, 0.035, 0, H(0.35), z, 0x6e8d72);
+    const cargo = new T.Mesh(deck.geometry(), matV); cargo.castShadow = true; basket.add(cargo);
+  } else {
+    const P = {
+      tfl: [-t.x, H(t.y), t.zf], tfr: [t.x, H(t.y), t.zf], tbl: [-t.x, H(t.y), t.zb], tbr: [t.x, H(t.y), t.zb],
+      bfl: [-b.x, H(b.y), b.zf], bfr: [b.x, H(b.y), b.zf], bbl: [-b.x, H(b.y), b.zb], bbr: [b.x, H(b.y), b.zb],
+    };
+    const W = new Batch();
+    const rep = 2.6; // wire cells per metre / 8
+    const wq = (a, b2, c, d, lu, lv) => W.quad(a, b2, c, d, metal, [0, 0, lu * rep, lv * rep]);
+    wq(P.bfl, P.bbl, P.tbl, P.tfl, 0.9, 0.42); // left
+    wq(P.bbr, P.bfr, P.tfr, P.tbr, 0.9, 0.42); // right
+    wq(P.bfr, P.bfl, P.tfl, P.tfr, 0.56, 0.44); // front (sloped)
+    wq(P.bbl, P.bbr, P.tbr, P.tbl, 0.56, 0.42); // back gate
+    wq(P.bfl, P.bfr, P.bbr, P.bbl, 0.5, 0.74); // floor
+    const wires = new T.Mesh(W.geometry(), wireMat(metal)); wires.castShadow = true; wires.receiveShadow = true; basket.add(wires);
+    const F = new Batch(), tube = 0.009;
+    const edges = [['tfl', 'tfr'], ['tfr', 'tbr'], ['tbr', 'tbl'], ['tbl', 'tfl'], ['bfl', 'bfr'], ['bfr', 'bbr'], ['bbr', 'bbl'], ['bbl', 'bfl'], ['tfl', 'bfl'], ['tfr', 'bfr'], ['tbl', 'bbl'], ['tbr', 'bbr']];
+    for (const [a, c] of edges) seg(F, null, P[a], P[c], tube * 1.3, metal);
+    const mid = (a, c, k) => [a[0] + (c[0] - a[0]) * k, a[1] + (c[1] - a[1]) * k, a[2] + (c[2] - a[2]) * k];
+    for (const k of [0.5]) { seg(F, null, mid(P.bfl, P.tfl, k), mid(P.bbl, P.tbl, k), tube, metal); seg(F, null, mid(P.bfr, P.tfr, k), mid(P.bbr, P.tbr, k), tube, metal); }
+    // child seat flap + advert plate
+    bx(F, null, 0.5, 0.012, 0.16, 0, H(t.y) - 0.02, t.zb - 0.09, plastic, 0.35);
+    bx(F, null, 0.08, 0.03, 0.03, -t.x + 0.02, H(t.y) + 0.01, t.zf + 0.02, 0x333338);
+    bx(F, null, 0.08, 0.03, 0.03, t.x - 0.02, H(t.y) + 0.01, t.zf + 0.02, 0x333338);
+    const frame = new T.Mesh(F.geometry(), matV); frame.castShadow = true; basket.add(frame);
+  }
   const plate = new T.Mesh(new T.PlaneGeometry(0.34, 0.12), lblMat(V.plate));
   const ph = t.y - 0.12, fz = b.zf + (t.zf - b.zf) * (ph - b.y) / (t.y - b.y) - 0.012; plate.position.set(0, H(ph), fz); plate.rotation.set(-Math.atan2(b.zf - t.zf, t.y - b.y), Math.PI, 0); basket.add(plate);
+  if (V.flatbed) { plate.scale.set(1, 0.75, 1); plate.position.set(0, H(0.35), -0.532); plate.rotation.set(0, Math.PI, 0); }
   // ---- chassis ----
   const Ch = new Batch();
   const rail = H(0.19);
@@ -68,11 +78,12 @@ export function makeTrolley(vkey) {
   seg(Ch, null, [-0.17, rail, -0.44], [0.17, rail, -0.44], 0.013, metal); seg(Ch, null, [-0.25, rail, 0.38], [0.25, rail, 0.38], 0.013, metal);
   // lower tray wires
   const Tw = new Batch(); Tw.quad([-0.19, H(0.235), -0.32], [0.19, H(0.235), -0.32], [0.23, H(0.235), 0.3], [-0.23, H(0.235), 0.3], metal, [0, 0, 1, 1.6]);
-  const tray = new T.Mesh(Tw.geometry(), wireMat(metal)); tray.castShadow = true; root.add(tray);
+  if (!V.flatbed) { const tray = new T.Mesh(Tw.geometry(), wireMat(metal)); tray.castShadow = true; root.add(tray); }
   for (const sx of [-1, 1]) {
     seg(Ch, null, [sx * 0.25, rail, 0.38], [sx * 0.27, H(0.97), 0.5], 0.014, metal); // rear upright to handle
-    seg(Ch, null, [sx * 0.21, rail, 0.0], [sx * 0.24, H(b.y), 0.1], 0.011, metal);   // basket support
-    seg(Ch, null, [sx * 0.19, rail, -0.3], [sx * 0.24, H(b.y), -0.3], 0.011, metal);
+    const deckHeight = V.flatbed ? 0.29 : b.y;
+    seg(Ch, null, [sx * 0.21, rail, 0.0], [sx * 0.24, H(deckHeight), 0.1], 0.011, metal);
+    seg(Ch, null, [sx * 0.19, rail, -0.3], [sx * 0.24, H(deckHeight), -0.3], 0.011, metal);
     seg(Ch, null, [sx * 0.23, H(0.235), 0.3], [sx * 0.25, rail, 0.38], 0.009, metal);
     bx(Ch, null, 0.05, 0.04, 0.06, sx * 0.17, rail - 0.01, -0.46, 0x3a3a40); // corner bumpers
   }
@@ -116,6 +127,11 @@ export const ITEMS = {
   loo: { name: 'TOILET ROLL', pts: 200, mass: 0.7, shape: ['cuboid', 0.11, 0.075, 0.11] },
   tampons: { name: 'TAMPONS', pts: 110, mass: 0.15, shape: ['cuboid', 0.05, 0.06, 0.035] },
   pineapple: { name: 'PINEAPPLE', pts: 500, mass: 1.2, shape: ['cuboid', 0.07, 0.15, 0.07], bargain: true },
+  sausage: { name: 'EMERGENCY SAUSAGE ROLL', pts: 750, mass: 0.4, shape: ['cuboid', 0.115, 0.045, 0.055], bargain: true },
+  seed: { name: 'BARGAIN SEEDS', pts: 160, mass: 0.15, shape: ['cuboid', 0.06, 0.09, 0.032] },
+  potPlant: { name: 'BEDDING PLANT', pts: 250, mass: 0.7, shape: ['cuboid', 0.07, 0.10, 0.07] },
+  fishFood: { name: 'KOI FOOD', pts: 300, mass: 0.4, shape: ['cuboid', 0.07, 0.10, 0.05] },
+  mincePie: { name: 'MINCE PIE', pts: 350, mass: 0.3, shape: ['cylinder', 0.045, 0.08] },
   gnome: { name: 'CLEARANCE GNOME', pts: 750, mass: 1.5, shape: ['cuboid', 0.07, 0.14, 0.07], bargain: true },
 };
 
@@ -131,6 +147,30 @@ export function makeItemMesh(k) {
   else if (k === 'loo') { for (let i = 0; i < 4; i++) B.add(GEO.cyl12, M((i % 2 - 0.5) * 0.105, 0, (Math.floor(i / 2) - 0.5) * 0.105, 0, 0, 0, 0.052, 0.14, 0.052), 0xf8f8f8); const w = new T.Mesh(GEO.box, new T.MeshLambertMaterial({ map: labelTex('loo'), transparent: true, opacity: 0.55 })); w.scale.set(0.22, 0.12, 0.222); g.add(w); }
   else if (k === 'tampons') { const m = new T.Mesh(GEO.box, lblMat('tampons')); m.scale.set(0.1, 0.12, 0.07); g.add(m); }
   else if (k === 'pineapple') { B.add(GEO.ico1, M(0, -0.03, 0, 0, 0, 0, 0.07, 0.11, 0.07), 0xc98d2a); for (let i = 0; i < 6; i++) B.add(GEO.cone8, M(Math.cos(i) * 0.02, 0.12, Math.sin(i) * 0.02, Math.cos(i) * 0.4, 0, Math.sin(i) * 0.4, 0.02, 0.12, 0.012), 0x3f8a32); }
+  else if (k === 'sausage') {
+    B.add(GEO.cyl8, M(0, 0.005, 0, 0, 0, Math.PI / 2, 0.054, 0.23, 0.045), 0xd78e36);
+    for (const x of [-0.063, 0, 0.063]) B.add(GEO.box, M(x, 0.05, 0, -0.1, -0.3, 0, 0.013, 0.009, 0.063), 0x9b521a);
+    for (const x of [-0.114, 0.114]) B.add(GEO.cyl8, M(x, 0.006, 0, 0, 0, Math.PI / 2, 0.03, 0.006, 0.029), 0x975335);
+  }
+  else if (k === 'seed' || k === 'fishFood') {
+    const seed = k === 'seed';
+    B.add(GEO.box, M(0, 0, 0, 0, 0, 0, 0.12, 0.18, 0.065), seed ? 0xf0cd53 : 0x356e89);
+    B.add(GEO.box, M(0, 0.013, -0.035, 0, 0, 0, 0.095, 0.09, 0.01), 0xf1ecd4);
+    B.add(GEO.ico, M(0, 0.01, -0.045, 0, 0, 0, 0.039, 0.023, 0.012), seed ? 0x508847 : 0xe98d4b);
+    B.add(GEO.box, M(0, -0.075, 0, 0, 0, 0, 0.124, 0.014, 0.068), seed ? 0x63964b : 0xe89c43);
+  }
+  else if (k === 'potPlant') {
+    B.add(GEO.cyl8, M(0, -0.04, 0, 0, 0, 0, 0.068, 0.105, 0.068), 0xb66034);
+    for (const [x, z] of [[0, 0], [-0.039, 0.017], [0.034, -0.02]]) {
+      B.add(GEO.ico, M(x, 0.058, z, 0, 0, 0, 0.038, 0.07, 0.038), 0x43833c);
+      B.add(GEO.ico, M(x, 0.105, z, 0, 0, 0, 0.027, 0.02, 0.027), 0xde6792);
+    }
+  }
+  else if (k === 'mincePie') {
+    B.add(GEO.cyl12, M(0, -0.012, 0, 0, 0, 0, 0.081, 0.06, 0.081), 0xbcb9ac);
+    B.add(GEO.cyl12, M(0, 0.026, 0, 0, 0, 0, 0.077, 0.024, 0.077), 0xd19a55);
+    for (let j = 0; j < 4; j++) B.add(GEO.box, M(0, 0.041, 0, 0, j * Math.PI / 4, 0, 0.018, 0.012, 0.09), 0xf3dcab);
+  }
   else if (k === 'gnome') { B.add(GEO.cyl8, M(0, -0.06, 0, 0, 0, 0, 0.055, 0.08, 0.05), 0x2f62b8); B.add(GEO.cyl8, M(0, 0.02, 0, 0, 0, 0, 0.05, 0.08, 0.045), 0xc8402f); B.add(GEO.sph, M(0, 0.08, 0, 0, 0, 0, 0.04, 0.04, 0.04), 0xf0c8a0); B.add(GEO.cone8, M(0, 0.06, 0.015, 0, 0, 0, 0.04, 0.05, 0.03), 0xf4f4f4); B.add(GEO.cone8, M(0, 0.15, 0, 0, 0, 0, 0.042, 0.1, 0.042), 0xd21f26); }
   if (!B.empty) { const m = new T.Mesh(B.geometry(), mv); g.add(m); }
   if (ITEMS[k].bargain) { const st = new T.Mesh(new T.PlaneGeometry(0.12, 0.06), new T.MeshBasicMaterial({ map: labelTex('reduced'), transparent: true, alphaTest: 0.3, side: T.DoubleSide })); st.position.set(0, 0.02, 0.08); g.add(st); }

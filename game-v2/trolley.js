@@ -1,6 +1,6 @@
 import { C, G, ig, ALL } from './core.js';
 import { clamp, lerp, angDiff, TAU, sstep } from './util.js';
-import { makeTrolley, TD, VARIANTS } from './models.js?v=grumbleton-audit';
+import { makeTrolley, TD, VARIANTS } from './models.js?v=green-fingers';
 const T = C.T;
 
 // Per-trolley handling. Push is self-propulsion (m/s^2) up to pushV; crr is rolling resistance, drag is air drag.
@@ -15,7 +15,7 @@ export const VPARAM = {
 };
 // Stat bars (1-10) worked out from the numbers above, so what the select screen says is what the physics does.
 export function trolleyStats(key) {
-  const P = VPARAM[key], c = (v) => Math.max(1, Math.min(10, Math.round(v)));
+  const P = key === 'flatbed' ? VPARAM.dave : VPARAM[key], c = (v) => Math.max(1, Math.min(10, Math.round(v)));
   const vt = Math.sqrt(9.81 * (0.09 - P.crr) / P.drag); // free-rolling speed on a typical stretch of the hill
   const speed = 1 + 9 * (0.8 * (vt - 18) / 10 + 0.2 * (P.push - 2.0) / 2.4);
   const stab = 1 + 9 * (0.45 * (P.level - 1) / 3.6 + 0.3 * (P.gripH - 0.1) / 0.22 + 0.25 * Math.log(P.mass / 15) / Math.log(75 / 15) + 0.05);
@@ -26,7 +26,10 @@ export function trolleyStats(key) {
 const _q = new T.Quaternion(), _a = new T.Vector3();
 export class Trolley {
   constructor(vkey) {
-    this.key = vkey; this.V = VARIANTS[vkey]; this.P = VPARAM[vkey]; this.s = this.V.scale;
+    this.key = vkey; this.V = VARIANTS[vkey]; this.P = this.V.flatbed ? VPARAM.dave : VPARAM[vkey]; this.s = this.V.scale;
+    this.cargoFloor = this.V.flatbed ? 0.295 : 0.56;
+    this.cargoTop = this.V.flatbed ? 0.405 : 0.98;
+    this.cargoMount = this.V.flatbed ? -0.025 : 0.32;
     const s = this.s, P = this.P;
     this.mass = P.mass;
     // inertia of a ~1m box-ish trolley (scaled); generous pitch/roll inertia keeps it from feeling twitchy
@@ -65,10 +68,17 @@ export class Trolley {
         .setFriction(fr).setRestitution(0.04).setCollisionGroups(ig(G.TROLLEY, ALL)).setActiveEvents(R.ActiveEvents.CONTACT_FORCE_EVENTS | R.ActiveEvents.COLLISION_EVENTS).setContactForceEventThreshold(250 * P.mass / 28);
       const c = C.phys.createCollider(d, this.body); this.colliders.set(c.handle, c); C.colInfo.set(c.handle, { kind: 'trolley', part }); return c;
     };
-    add('floor', 0.24, 0.015, 0.37, 0, H(0.56), 0);
-    add('basket', 0.015, 0.21, 0.44, -0.265, H(0.77), -0.05); add('basket', 0.015, 0.21, 0.44, 0.265, H(0.77), -0.05);
-    add('front', 0.27, 0.22, 0.015, 0, H(0.77), -0.44, -Math.atan2(0.12, 0.42));
-    add('basket', 0.27, 0.21, 0.015, 0, H(0.77), 0.385);
+    if (this.V.flatbed) {
+      add('floor', 0.275, 0.022, 0.49, 0, H(0.273), -0.03);
+      for (const x of [-0.26, 0.26]) add('basket', 0.015, 0.055, 0.49, x, H(0.35), -0.03);
+      add('front', 0.275, 0.055, 0.018, 0, H(0.35), -0.51);
+      add('basket', 0.275, 0.055, 0.018, 0, H(0.35), 0.44);
+    } else {
+      add('floor', 0.24, 0.015, 0.37, 0, H(0.56), 0);
+      add('basket', 0.015, 0.21, 0.44, -0.265, H(0.77), -0.05); add('basket', 0.015, 0.21, 0.44, 0.265, H(0.77), -0.05);
+      add('front', 0.27, 0.22, 0.015, 0, H(0.77), -0.44, -Math.atan2(0.12, 0.42));
+      add('basket', 0.27, 0.21, 0.015, 0, H(0.77), 0.385);
+    }
     add('handle', 0.29, 0.03, 0.05, 0, H(1.0), 0.53);
     add('base', 0.21, 0.03, 0.44, 0, H(0.19), -0.02, 0, 0.12);
   }

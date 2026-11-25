@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, sstep, Batch, frame, bx, cy } from './util.js';
-import { W, roadAt, prof, sb, chunkOf, staticBox, staticMeshCol, TOP, botToWorld, botH } from './world.js?v=grumbleton-audit';
+import { W, roadAt, prof, sb, chunkOf, staticBox, staticMeshCol, TOP, botToWorld, botH } from './world.js?v=green-fingers';
 const T = C.T;
 
 // ---------------- speed bump in the Spendwells car park ----------------
@@ -67,7 +67,7 @@ function transporter() {
   box(Lt - 3.1, Lt - 0.15, 0, 2.42, 1.18, 'LORRY CAB'); box(8.0, Lt - 3.1, 0, 1.05, 1.15, 'LORRY');
   W.nearTargets.push({ x: (pr[0] + pf[0]) / 2, z: (pr[2] + pf[2]) / 2, r: 9, kind: 'LORRY', box: { hx: 1.25, hz: Lt / 2, yaw: -Rm.th } });
   const pickup = Lt * 0.65, [x, y, z] = at(pickup, dc + 0.15, hAt(pickup) + 0.92);
-  W.pickups.push({ k: 'gnome', x, y, z, reach: 1.08 });
+  W.pickups.push({ k: 'sausage', x, y, z, reach: 1.08 });
 }
 
 // ---------------- embankments round Harrison's car park ----------------
@@ -117,6 +117,7 @@ function carParkBerms() {
 }
 
 export function buildExtras() {
+  BERMS.length = 0;
   speedBump();
   transporter();
   carParkBerms();

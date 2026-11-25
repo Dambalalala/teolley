@@ -1,9 +1,10 @@
 import { C } from './core.js';
 import { TAU, clamp, sstep, rng, pick, Batch, GEO, M, FM, frame, bx, cy, seg, Baker } from './util.js';
 const DECOR = new Baker();
-import { TX, signTex, plainSign, limitSign, warnSign, giveWay, chevron, cameraSign, fascia, textFit } from './textures.js?v=grumbleton-audit';
-import { W, RA_S, RA_ENTRY, ZEBRA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js?v=grumbleton-audit';
-import { makeTrolley, makeCar } from './models.js?v=grumbleton-audit';
+import { addRamp, rampPower, signPost } from './course.js';
+import { TX, signTex, plainSign, limitSign, warnSign, giveWay, chevron, cameraSign, fascia, textFit } from './textures.js?v=green-fingers';
+import { W, RA_S, RA_ENTRY, ZEBRA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js?v=green-fingers';
+import { makeTrolley, makeCar } from './models.js?v=green-fingers';
 const T = C.T;
 const _v = new T.Vector3();
 const tp = (F, x, y, z) => { _v.set(x, y, z); if (F) _v.applyMatrix4(F); return [_v.x, _v.y, _v.z]; };
@@ -19,27 +20,6 @@ export function tbox(B, F, w, h, d, cx, cy, cz, color = 0xffffff, tile = 1.2, no
 }
 // box collider in a frame
 function colBox(F, yaw, w, h, d, cx, cy, cz, info, opts) { const c = wp(F, cx, cy, cz); return staticBox(c.x, c.y, c.z, w / 2, h / 2, d / 2, yaw, info, 0, 0, opts); }
-const MATSIGN = new Map();
-function signMat(tex) { if (!MATSIGN.has(tex)) MATSIGN.set(tex, new T.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: 0.1 })); return MATSIGN.get(tex); }
-const backMat = () => (MATSIGN.get('back') || (MATSIGN.set('back', new T.MeshLambertMaterial({ color: 0x8a8d92 })), MATSIGN.get('back')));
-// a sign on a post: plate faces local -z (towards whoever approaches up the road), posts get a collider and can wobble
-export function signPost(scene, x, y, z, yaw, tex, w, h, postH = 2.4, opts = {}) {
-  const g = new T.Group(); g.name = opts.name || 'SIGN'; g.position.set(x, y, z); g.rotation.y = yaw; scene.add(g);
-  const posts = opts.twin ? [-w * 0.35, w * 0.35] : [0];
-  const pb = new Batch(); for (const px of posts) cy(pb, null, 0.04, postH, px, postH / 2, 0.03, opts.postCol || 0x8a8d92, 8);
-  const pm = new T.Mesh(pb.geometry(), mats().lam); pm.castShadow = true; g.add(pm);
-  const plate = new T.Mesh(new T.PlaneGeometry(w, h), signMat(tex)); plate.position.set(0, postH + h / 2 - (opts.sink || 0), 0); plate.rotation.y = Math.PI; g.add(plate);
-  if (!opts.noBack) { const back = new T.Mesh(new T.PlaneGeometry(w * 0.98, h * 0.98), backMat()); back.position.set(0, postH + h / 2 - (opts.sink || 0), 0.012); g.add(back); }
-  plate.castShadow = true;
-  const wob = W.wobblers.length;
-  W.wobblers.push({ obj: g, a: 0, v: 0 });
-  for (const offset of posts) {
-    staticCyl(x + Math.cos(yaw) * offset + Math.sin(yaw) * 0.03, y + postH / 2,
-      z - Math.sin(yaw) * offset + Math.cos(yaw) * 0.03, 0.045, postH / 2,
-      { kind: 'sign', name: opts.name || 'SIGN', wob });
-  }
-  return g;
-}
 function lampPost(s, side, chunk) {
   const R = roadAt(s, {}), d = side * (R.w + 0.45), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d);
   const B = sb(chunk, 'lam'), yaw = yawTo(-side * R.rx, -side * R.rz), F = frame(x, y, z, yaw);
@@ -322,28 +302,6 @@ function plankAndSkip(scene) {
     metal.add(GEO.ico, rubble, pick(rng(i), [0x8a7a6a, 0xa4523a, 0x6a6a6a, 0x9b7148]));
   }
   colBox(F, -c.th, skipWidth, skipHeight, skipLength, 0, skipHeight / 2, 0, { kind: 'wall', name: 'SKIP' });
-}
-
-// The mesh and collider share the ramp profile. The approach follows the grade before curving up to the lip.
-const rampPower = (length, height, lipDeg) => Math.max(1.05, Math.tan(lipDeg * Math.PI / 180) * length / height);
-export function addRamp(scene, at, th, w, len, h, mat, name, lipDeg = 28, grade = 0) {
-  const fx = Math.sin(th), fz = -Math.cos(th), rx = Math.cos(th), rz = Math.sin(th);
-  const pw = rampPower(len, h, lipDeg), N = 14;
-  const P3 = (u, v, y) => {
-    const along = v - len / 2;
-    return [at.x + rx * u + fx * along, at.y + y + grade * along, at.z + rz * u + fz * along];
-  };
-  const top = [], pos = [], uv = [], col = [], tri = [];
-  const vtx = (q, U, V, c = 1) => { pos.push(...q); uv.push(U, V); col.push(c, c, c); return pos.length / 3 - 1; };
-  for (let k = 0; k <= N; k++) { const v = len * k / N, y = h * Math.pow(k / N, pw); top.push([v, y]); }
-  // riding surface
-  for (let k = 0; k < N; k++) { const [v0, y0] = top[k], [v1, y1] = top[k + 1]; const a = vtx(P3(-w / 2, v0, y0), 0, v0), b = vtx(P3(w / 2, v0, y0), w, v0), c = vtx(P3(w / 2, v1, y1), w, v1), d = vtx(P3(-w / 2, v1, y1), 0, v1); tri.push(a, b, c, a, c, d); }
-  // sides and back
-  for (const side of [-1, 1]) for (let k = 0; k < N; k++) { const [v0, y0] = top[k], [v1, y1] = top[k + 1], u = side * w / 2; const a = vtx(P3(u, v0, 0), v0, 0, 0.7), b = vtx(P3(u, v1, 0), v1, 0, 0.7), c = vtx(P3(u, v1, y1), v1, y1, 0.7), d = vtx(P3(u, v0, y0), v0, y0, 0.7); if (side > 0) tri.push(a, c, b, a, d, c); else tri.push(a, b, c, a, c, d); }
-  { const a = vtx(P3(-w / 2, len, 0), 0, 0, 0.6), b = vtx(P3(w / 2, len, 0), w, 0, 0.6), c = vtx(P3(w / 2, len, h), w, h, 0.6), d = vtx(P3(-w / 2, len, h), 0, h, 0.6); tri.push(a, c, b, a, d, c); }
-  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv.map(x => x * 0.5), 2)); g.setAttribute('color', new T.Float32BufferAttribute(col, 3)); g.setIndex(tri); g.computeVertexNormals();
-  const m = new T.Mesh(g, mat === 'wood' ? mats().wood : mats().lam); m.castShadow = true; m.receiveShadow = true; scene.add(m);
-  staticMeshCol(g, { kind: 'ground', name }, { friction: 0.6, rest: 0.02 });
 }
 
 // ---------------- roundabout ----------------

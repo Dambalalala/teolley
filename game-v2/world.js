@@ -1,6 +1,8 @@
-import { C, G, ig, ALL } from './core.js';
+import { C } from './core.js';
 import { TAU, clamp, lerp, sstep, rng, Batch, GEO, M, FM, frame, bx, vnoise } from './util.js';
-import { TX, ctex } from './textures.js?v=grumbleton-audit';
+import { TX, ctex } from './textures.js?v=green-fingers';
+import { mats, sb, chunkOf, buildSky, staticBox, staticMeshCol, finishCol } from './terrain.js';
+export { mats, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol } from './terrain.js';
 const T = C.T;
 
 // ============ the road: centreline, elevation and cross-section ============
@@ -11,12 +13,14 @@ const HUMP_HALF_LENGTH = 0.9;
 export const S_END = 782;           // where the hill road meets the bottom junction
 const KERB = 0.13, PAVE = 2.2, CROWN = 0.07;
 const kerbHeight = s => lerp(0.018, KERB, sstep(1.6, 3.2, Math.abs(s - ZEBRA_S)));
-export const W = {
+const makeWorld = () => ({
   KERB, PAVE,
   bumps: [72, 136, 226, 516, 652],
   potholes: [], nearTargets: [], pickups: [],
   houses: { L: [[8, 372], [486, 738]], R: [[8, 296], [490, 738]] },
-};
+});
+export let W;
+export function releaseWorld() { W = null; }
 
 // monotone cubic interpolation (keeps the hill profile from overshooting)
 function pchip(xs, ys) {
@@ -103,51 +107,6 @@ export function locate(x, z, o = LOC) {
   return o;
 }
 
-// ============ static batches & colliders ============
-const MATS = {};
-export function mats() {
-  if (MATS.lam) return MATS;
-  const L = o => new T.MeshLambertMaterial(Object.assign({ vertexColors: true }, o));
-  Object.assign(MATS, {
-    lam: L(), road: L({ map: TX.asphalt }), tarmac: L({ map: TX.tarmac }), pave: L({ map: TX.pavement }), kerb: L({ map: TX.kerb }), grass: L({ map: TX.grass }),
-    brick: L({ map: TX.brick }), brickY: L({ map: TX.brickY }), brickB: L({ map: TX.brickB }), render: L({ map: TX.render }), roof: L({ map: TX.roof }), tile: L({ map: TX.roofTile }),
-    wood: L({ map: TX.wood }), hedge: L({ map: TX.hedge }), dirt: L({ map: TX.dirt }),
-    glass: L({ map: TX.glass }), mark: L({ polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
-    decal: new T.MeshLambertMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
-  });
-  return MATS;
-}
-const SB = new Map();
-export function sb(chunk, mat) { const k = chunk + '|' + mat; if (!SB.has(k)) SB.set(k, { chunk, mat, B: new Batch() }); return SB.get(k).B; }
-export const chunkOf = s => 'c' + Math.floor(clamp(s, -100, 999) / 90);
-export function flushStatics(scene) {
-  const MM = mats();
-  for (const { chunk, mat, B } of SB.values()) {
-    if (B.empty) continue; const m = new T.Mesh(B.geometry(), MM[mat] || MM.lam);
-    const background = chunk.startsWith('bg');
-    m.userData.background = background;
-    m.receiveShadow = !background; m.castShadow = !background && !(mat === 'road' || mat === 'pave' || mat === 'grass' || mat === 'kerb' || mat === 'mark' || mat === 'tarmac' || mat === 'dirt' || mat === 'glass');
-    m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
-  }
-  SB.clear();
-}
-const yq = (yaw, pitch = 0, roll = 0) => { const q = new T.Quaternion().setFromEuler(new T.Euler(pitch, yaw, roll, 'YXZ')); return { x: q.x, y: q.y, z: q.z, w: q.w }; };
-function finishCol(desc, info, opts = {}) {
-  desc.setFriction(opts.friction ?? 0.7).setRestitution(opts.rest ?? 0.15).setCollisionGroups(ig(G.GROUND, ALL));
-  const c = C.phys.createCollider(desc); if (info) C.colInfo.set(c.handle, info); return c;
-}
-export function staticBox(x, y, z, hx, hy, hz, yaw = 0, info = null, pitch = 0, roll = 0, opts) {
-  const R = C.RAPIER; return finishCol(R.ColliderDesc.cuboid(hx, hy, hz).setTranslation(x, y, z).setRotation(yq(yaw, pitch, roll)), info, opts);
-}
-export function staticCyl(x, y, z, r, hh, info = null, opts) { const R = C.RAPIER; return finishCol(R.ColliderDesc.cylinder(hh, r).setTranslation(x, y, z), info, opts); }
-export function staticHull(pts, info = null, opts) { const R = C.RAPIER; const d = R.ColliderDesc.convexHull(new Float32Array(pts)); return d ? finishCol(d, info, opts) : null; }
-// static triangle mesh from a (non-indexed or indexed) BufferGeometry already placed in world space
-export function staticMeshCol(geo, info = null, opts) {
-  const R = C.RAPIER, pos = geo.attributes.position.array, idx = geo.index ? geo.index.array : null;
-  const ii = idx ? new Uint32Array(idx) : new Uint32Array(pos.length / 3).map((_, k) => k);
-  return finishCol(R.ColliderDesc.trimesh(new Float32Array(pos), ii), info, opts);
-}
-
 // ============ corridor mesh + collider ============
 function sampleList() {
   // The first road row meets the car park at its edge without an overlapping surface.
@@ -231,7 +190,7 @@ function buildCorridor(scene) {
     const a = edge(s), b = edge(Math.min(s + 6, S_END));
     const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2, z = (a.z + b.z) / 2;
     const length = Math.hypot(b.x - a.x, b.z - a.z), yaw = yawTo(a.x - b.x, a.z - b.z);
-    const pitch = Math.atan2(b.y - a.y, length), F = frame(x, y, z, yaw, pitch), wood = sb(chunkOf(s), 'wood');
+    const pitch = Math.atan2(b.y - a.y, length), F = frame(x, y, z, yaw, pitch), wood = sb(chunkOf(s), 'lam');
     bx(wood, F, 0.16, 2.1, length + 0.035, 0, 1, 0, 0x9a8b73);
     bx(wood, F, 0.24, 2.18, 0.18, 0, 1.02, length / 2, 0x796b58);
     const centre = new T.Vector3(0, 1, 0).applyMatrix4(F);
@@ -499,23 +458,6 @@ function buildBackdrop(scene) {
 }
 
 // ============ sky ============
-function buildSky(scene) {
-  const sky = new T.Mesh(new T.SphereGeometry(3000, 24, 12), new T.ShaderMaterial({
-    side: T.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: new T.Color(0x6f9fd6) }, hor: { value: new T.Color(0xdfe6ea) } },
-    vertexShader: 'varying vec3 vP;void main(){vP=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-    fragmentShader: 'uniform vec3 top,hor;varying vec3 vP;void main(){float h=clamp(vP.y,0.0,1.0);gl_FragColor=vec4(mix(hor,top,pow(h,0.55)),1.0);}',
-  }));
-  sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky); W.sky = sky;
-  const r = rng(4), B = new Batch();
-  for (let i = 0; i < 26; i++) {
-    const a = r() * TAU, d = 700 + r() * 1300, x = Math.cos(a) * d, z = -380 + Math.sin(a) * d, y = 260 + r() * 220;
-    for (let k = 0; k < 4; k++) B.add(GEO.ico1, M(x + (k - 1.5) * 38 + r() * 20, y + r() * 12, z + r() * 30, 0, r() * 3, 0, 46 + r() * 30, 18 + r() * 10, 34 + r() * 20), 0xffffff);
-  }
-  const clouds = new T.Mesh(B.geometry(), new T.MeshBasicMaterial({ vertexColors: true, fog: false, transparent: true, opacity: 0.92 }));
-  clouds.renderOrder = -9; scene.add(clouds); W.clouds = clouds;
-}
-
 // ============ queries used by gameplay ============
 const bottomPosition = {};
 export function groundY(x, z) {
@@ -526,8 +468,9 @@ export function groundY(x, z) {
 }
 
 export function buildWorldBase(scene) {
+  W = makeWorld();
   mats();
-  buildSky(scene);
+  buildSky(scene, W);
   buildCorridor(scene);
   buildMarkings(scene);
   buildPotholes(scene);
@@ -537,5 +480,7 @@ export function buildWorldBase(scene) {
   W.start = { x: 0, y: TOP.y, z: 24, yaw: 0 };
   Object.assign(W, { locate, groundY, P, roadAt, prof, botToWorld, worldToBot, botH });
   C.world = W;
+  W.busRoute = { min: BOT.lx0, max: BOT.lx1, lane: 12.7, stop: -27 };
+  W.carParkCamera = true;
   return W;
 }

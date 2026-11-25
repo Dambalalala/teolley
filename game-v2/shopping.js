@@ -1,6 +1,6 @@
 import { C, G, ig, ALL } from './core.js';
 import { TAU } from './util.js';
-import { ITEMS, makeItemMesh } from './models.js?v=grumbleton-audit';
+import { ITEMS, makeItemMesh } from './models.js?v=green-fingers';
 const T = C.T;
 
 // Floating pickups along the route, and the shopping that physically rattles about in the basket.
@@ -41,12 +41,12 @@ export class Shopping {
     this.items.push(it); return it;
   }
   addToBasket(k) {
-    const tr = C.trolley, s = tr.s, p = tr.local((Math.random() - 0.5) * 0.2 * s, 0.32 * s, (Math.random() - 0.5) * 0.3 * s), v = tr.vel();
+    const tr = C.trolley, s = tr.s, p = tr.local((Math.random() - 0.5) * 0.2 * s, tr.cargoMount * s, (Math.random() - 0.5) * 0.3 * s), v = tr.vel();
     return this.spawn(k, p.x, p.y, p.z, v, 'basket');
   }
   update(dt, active) {
     const tr = C.trolley; if (!tr) return;
-    const s = tr.s, mouth = tr.local(0, 0.42 * s, -0.05 * s, this.mouth);
+    const s = tr.s, mouth = tr.local(0, (tr.V.flatbed ? 0.10 : 0.42) * s, -0.05 * s, this.mouth);
     for (const p of this.pickups) {
       if (p.taken) continue;
       p.ph += dt; p.m.rotation.y += dt * 1.6; p.m.position.y = Math.sin(p.ph * 2.2) * 0.08;
@@ -66,7 +66,7 @@ export class Shopping {
       const it = this.items[i], q = it.body.translation();
       if (q.y < -40) { this.removeItem(it); i--; continue; }
       if (it.state === 'basket') {
-        const L = tr.toLocal(q.x, q.y, q.z, this.itemLocal), xs = 0.36 * s, out = Math.abs(L.x) > xs || L.y < (0.56 - 0.5 - 0.12) * s || L.y > (0.98 - 0.5 + 0.35) * s || L.z < -0.58 * s || L.z > 0.48 * s;
+        const L = tr.toLocal(q.x, q.y, q.z, this.itemLocal), xs = 0.36 * s, out = Math.abs(L.x) > xs || L.y < (tr.cargoFloor - 0.5 - 0.12) * s || L.y > (tr.cargoTop - 0.5 + 0.35) * s || L.z < -0.58 * s || L.z > 0.48 * s;
         if (out) it.lostT += dt; else it.lostT = 0;
         if (it.lostT > 0.25) { it.state = 'loose'; it.looseT = 0; C.game.ev('lost', { k: it.k, x: q.x, y: q.y, z: q.z }); }
         else { count++; if (count > cap) { it.body.applyImpulse({ x: (Math.random() - 0.5) * 2, y: 4 * ITEMS[it.k].mass, z: (Math.random() - 0.5) * 2 }, true); } }
@@ -74,7 +74,7 @@ export class Shopping {
         it.looseT += dt;
         if (active && it.looseT > 1.5 && this.basketCount() < cap) {
           const dx = q.x - mouth.x, dy = q.y - mouth.y, dz = q.z - mouth.z;
-          if (dx * dx + dy * dy + dz * dz < 0.8 * 0.8 * Math.max(1, s)) { it.state = 'basket'; it.lostT = 0; const p = tr.local(0, 0.32 * s, 0), v = tr.vel(); it.body.setTranslation(p, true); it.body.setLinvel(v, true); C.game.ev('recollect', { k: it.k }); }
+          if (dx * dx + dy * dy + dz * dz < 0.8 * 0.8 * Math.max(1, s)) { it.state = 'basket'; it.lostT = 0; const p = tr.local(0, tr.cargoMount * s, 0), v = tr.vel(); it.body.setTranslation(p, true); it.body.setLinvel(v, true); C.game.ev('recollect', { k: it.k }); }
         }
       }
     }

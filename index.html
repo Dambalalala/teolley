@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#8fa6b8">
 <link rel="icon" href="data:,">
 <script defer src="vendor/three-r128.min.js"></script>
-<link rel="modulepreload" href="game-v2/main.js?v=grumbleton-audit">
+<link rel="modulepreload" href="game-v2/main.js?v=green-fingers">
 <style>
 /* pixel fonts for everything on screen; Bungee and Barlow are only used for signs painted in the world */
 @font-face{font-family:'Press Start 2P';font-style:normal;font-weight:400;font-display:block;src:url(fonts/press-start-2p-latin-400-normal.woff2) format('woff2')}
@@ -84,7 +84,7 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 .btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
 .btn:disabled{opacity:.45;cursor:default;box-shadow:none;transform:none}
 
-#title{align-items:center;justify-content:center;gap:28px;background:linear-gradient(180deg,rgba(22,22,26,.26),rgba(22,22,26,.72))}
+#title{align-items:center;justify-content:center;gap:28px;background:linear-gradient(180deg,rgba(22,22,26,.26),rgba(22,22,26,.72)),url("game-v2/grumbleton.webp") center/cover}
 #title h1{font:400 clamp(34px,11vw,84px)/1 var(--display);--fp:4px}
 #title .btn{min-width:140px;min-height:48px}
 #levels{align-items:center;overflow:auto;touch-action:pan-y;overscroll-behavior:contain;background:rgba(22,22,26,.82)}
@@ -107,8 +107,9 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 .levelMenu .btn,#pause .btn,.resbtns .btn,.selNav .btn{font-size:clamp(10px,2.7vw,14px);min-height:44px}
 .levelBody .btn{justify-self:start}
 .lockMessage{font:700 16px/1.2 var(--label);text-transform:uppercase}
+#levelError{margin-bottom:12px;color:var(--paper)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
-@media (min-width:660px){.levelCards{grid-template-columns:1.23fr 1fr;align-items:start}.levelBody{padding:16px}}
+@media (min-width:660px){.levelCards{grid-template-columns:1fr 1fr;align-items:start}.levelBody{padding:16px}}
 @media (max-width:659px){.levelCard.locked img{aspect-ratio:5/1}}
 .plist section+section ul{grid-template-columns:1fr}
 
@@ -222,26 +223,8 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
       <h2 id="levelHeading" class="metal">Level select</h2>
       <button id="bLevelBack" class="btn alt">Back</button>
     </header>
-    <div class="levelCards">
-      <article class="levelCard" aria-labelledby="hillName">
-        <img src="game-v2/grumbleton.webp" width="480" height="160" alt="Grumbleton's terraced houses and downhill street">
-        <div class="levelBody">
-          <h3 id="hillName">Grumbleton</h3>
-          <p class="levelStats"><span id="levelProgress">0/5 goals</span><span id="levelBest">Best 0</span></p>
-          <ul class="levelGoals" id="levelGoals" aria-label="Grumbleton goals"></ul>
-          <p class="levelShopping"><strong>Shopping list</strong> <span id="levelShopping"></span></p>
-          <button id="bLevelPlay" class="btn">Choose trolley</button>
-        </div>
-      </article>
-      <article class="levelCard locked" aria-labelledby="airportName" aria-disabled="true">
-        <img src="game-v2/departures.webp" width="480" height="160" alt="An airport runway and terminal at dusk">
-        <div class="levelBody">
-          <h3 id="airportName">Departures</h3>
-          <p class="lockMessage">Coming soon</p>
-          <p id="airportRequirement"></p>
-        </div>
-      </article>
-    </div>
+    <p id="levelError" role="alert" hidden></p>
+    <div class="levelCards" id="levelCards"></div>
   </div>
 </div>
 <div id="select" class="screen hidden" role="dialog" aria-label="Choose a trolley">
@@ -295,6 +278,6 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 <div id="loading" role="status"><span>FETCHING A <span class="loading-tail">TROLLEY<span class="dots" aria-hidden="true">...</span></span></span></div>
 <div id="err" class="hidden"></div>
 
-<script type="module" src="game-v2/main.js?v=grumbleton-audit"></script>
+<script type="module" src="game-v2/main.js?v=green-fingers"></script>
 </body>
 </html>

@@ -19,6 +19,8 @@ const KINDS = {
   glass: { sys: 'add', col: [0.7, 0.85, 0.95], size: 0.07, life: 0.8, grav: 1, grow: 0, a: 0.9, drag: 0.2, spread: 1 },
   rubbish: { sys: 'hard', col: null, size: 0.09, life: 1.6, grav: 1, grow: 0, a: 1, drag: 0.3, spread: 1 },
   confetti: { sys: 'hard', col: null, size: 0.07, life: 2.0, grav: 0.25, grow: 0, a: 1, drag: 1.4, spread: 1 },
+  terracotta: { sys: 'hard', col: [0.72, 0.32, 0.17], size: 0.09, life: 0.85, grav: 1, grow: 0, a: 1, drag: 0.35, spread: 1 },
+  fountain: { sys: 'hard', col: [0.79, 0.92, 1], size: 0.055, life: 0.7, grav: 0.8, grow: 0, a: 0.8, drag: 0.28, spread: 0.3 },
   feather: { sys: 'hard', col: [0.95, 0.95, 0.92], size: 0.06, life: 2.2, grav: 0.08, grow: 0, a: 1, drag: 1.6, spread: 1 },
 };
 const RUB = [[0.9, 0.9, 0.88], [0.85, 0.2, 0.2], [0.2, 0.45, 0.8], [0.95, 0.8, 0.2], [0.3, 0.6, 0.3], [0.6, 0.45, 0.3]];

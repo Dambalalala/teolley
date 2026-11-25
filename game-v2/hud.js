@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, fmt } from './util.js';
-import { SHOPPING_LIST, LIST_NAMES } from './game.js?v=grumbleton-audit';
+import { LIST_NAMES } from './game.js?v=green-fingers';
 
 // All three fonts are drawn on an 8-pixel grid, so sizes stay at multiples of 8 and every glyph is placed on a whole
 // device pixel; that keeps the letters as hard-edged as the rest of the game.
@@ -77,9 +77,9 @@ export class HUD {
     this.text('BEST ' + fmt(G.progress.best), xPad, yPad + (small ? 58 : 66), 'l', 16, PAPER);
     // Show shopping progress once the first list item has been picked up.
     let comboY = yPad + 80;
-    if (SHOPPING_LIST.some(k => R.got[k])) {
+    if (G.level.shopping.some(k => R.got[k])) {
       let x = xPad, y = yPad + (small ? 76 : 84); g.font = `16px ${FACE.l}`;
-      for (const k of SHOPPING_LIST) {
+      for (const k of G.level.shopping) {
         const lab = LIST_NAMES[k].toUpperCase(), w = Math.ceil(this.measure(lab)) + 14, on = R.got[k];
         if (x + w > W - pad - right) { x = xPad; y += 24; }
         g.fillStyle = on ? '#ffd21f' : 'rgba(22,22,26,.55)'; this.rect(x, y, w, 20);

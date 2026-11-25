@@ -13,7 +13,7 @@ export class Input {
     addEventListener('keydown', e => {
       const G = C.game; if (!G) return; C.audio && C.audio.init();
       const ui = G.state, typing = e.target?.tagName === 'INPUT';
-      if (typing) return;
+      if (typing || ui === 'loading') return;
       if (ui === 'title' || ui === 'levels' || ui === 'select' || ui === 'results' || G.paused) {
         if (e.repeat && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); return; }
       }

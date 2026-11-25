@@ -20,7 +20,7 @@ export class Cam {
     const airK = tr.nWheels === 0 ? 1.2 : 3.4;
     this.yaw = snap ? want : this.yaw + angDiff(want, this.yaw) * (1 - Math.exp(-dt * airK));
     // Show both sides of the car park exit on narrow phones, then ease into the hill camera.
-    const carPark = C.touch && cam.aspect < 0.7 ? clamp((p.z + 4) / 21, 0, 1) : 0;
+    const carPark = C.world.carParkCamera && C.touch && cam.aspect < 0.7 ? clamp((p.z + 4) / 21, 0, 1) : 0;
     const over = G2.state === 'over', dist = over ? 6.5 : 4.4 + Math.min(sp, 22) * 0.06 + carPark * 1.6, ht = over ? 3.2 : 1.85 + Math.min(sp, 22) * 0.025;
     const tx = p.x + Math.sin(this.yaw) * dist, tz = p.z + Math.cos(this.yaw) * dist;
     const want3 = this._w.set(tx, p.y + ht, tz);

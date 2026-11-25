@@ -1,21 +1,15 @@
 import { C } from './core.js';
 import { clamp, lerp, angDiff } from './util.js';
-import { ITEMS, VARIANTS } from './models.js?v=grumbleton-audit';
-import { Trolley } from './trolley.js?v=grumbleton-audit';
+import { ITEMS, VARIANTS } from './models.js?v=green-fingers';
+import { Trolley } from './trolley.js?v=green-fingers';
+
+import { grumbleton } from './levels/grumbleton.js?v=green-fingers';
+import { greenFingers } from './levels/greenfingers.js?v=green-fingers';
 
 const SAVE_KEY = 'trolley-save-v1';
-export const GRUMBLETON = { id: 'grumbleton', name: 'Grumbleton', unlock: 'demon' };
-export const DEPARTURES = { id: 'departures', name: 'Departures', requiredGoals: 4 };
-// the list each run starts with
-export const SHOPPING_LIST = ['pineapple', 'gnome', 'milk', 'tampons', 'loo'];
-export const LIST_NAMES = { pineapple: 'Pineapple', gnome: 'Garden gnome', milk: 'Milk', tampons: 'Tampons', loo: 'Loo roll' };
-export const TASKS = [
-  { id: 'list', label: 'Complete the shopping list', short: 'SHOPPING LIST', pts: 1000 },
-  { id: 'cones', label: 'Knock over 10 traffic cones', short: '10 CONES', n: 10, pts: 500 },
-  { id: 'camera', label: 'Trip the speed camera (over 30 mph)', short: 'SPEED CAMERA', pts: 500 },
-  { id: 'lollipop', label: 'Hit the lollipop lady', short: 'LOLLIPOP LADY', pts: 700 },
-  { id: 'return', label: 'Return the trolley at Harrisons', short: 'TROLLEY RETURNED', pts: 5000 },
-];
+export const LEVELS = [grumbleton, greenFingers];
+export const LIST_NAMES = { pineapple: 'Pineapple', sausage: 'Sausage roll', milk: 'Milk', tampons: 'Tampons', loo: 'Loo roll',
+  seed: 'Seed packet', potPlant: 'Bedding plant', gnome: 'Garden gnome', fishFood: 'Koi food', mincePie: 'Mince pie' };
 const SPIN_NAMES = ['', '180', '360', '540', '720', '900', '1080'];
 // the only messages the game prints, each at most once a run
 const QUIPS = { lost: 'UNEXPECTED ITEM IN BAGGING AREA' };
@@ -23,23 +17,27 @@ const levelProgress = unlocked => ({ best: 0, goals: {}, runs: 0, unlocked });
 
 export class Game {
   constructor() {
-    this.state = 'loading'; this.paused = false;
-    this.save = { unlocked: { dave: true }, sel: 'dave', muted: false,
-      levels: { [GRUMBLETON.id]: levelProgress(true), [DEPARTURES.id]: levelProgress(false) } };
+    this.state = 'title'; this.paused = false; this.level = null;
+    const levels = Object.fromEntries(LEVELS.map(level => [level.id, levelProgress(!level.requires)]));
+    this.save = { unlocked: { dave: true }, sel: 'dave', muted: false, levels };
     try {
       const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
       if (saved && typeof saved === 'object') {
         const unlocked = this.save.unlocked;
         for (const key of Object.keys(VARIANTS)) if (saved.unlocked?.[key] === true) unlocked[key] = true;
         if (Object.hasOwn(unlocked, saved.sel)) this.save.sel = saved.sel;
-        const previous = saved.levels?.[GRUMBLETON.id] ?? saved;
-        if (Number.isFinite(previous.best) && previous.best >= 0) this.progress.best = previous.best;
-        if (Number.isSafeInteger(previous.runs) && previous.runs >= 0) this.progress.runs = previous.runs;
-        for (const task of TASKS) if (previous.goals?.[task.id] === true) this.progress.goals[task.id] = true;
-        // The previous save only recorded the return challenge through its reward.
-        if (!saved.levels && unlocked[GRUMBLETON.unlock]) this.progress.goals.return = true;
-        this.updateLevelUnlocks();
         this.save.muted = saved.muted === true;
+        for (const level of LEVELS) {
+          const previous = saved.levels?.[level.id] ?? (level === grumbleton ? saved : {});
+          const progress = levels[level.id];
+          if (Number.isFinite(previous.best) && previous.best >= 0) progress.best = previous.best;
+          if (Number.isSafeInteger(previous.runs) && previous.runs >= 0) progress.runs = previous.runs;
+          if (Object.hasOwn(VARIANTS, previous.selected)) progress.selected = previous.selected;
+          for (const task of level.goals) if (previous.goals?.[task.id] === true) progress.goals[task.id] = true;
+        }
+        // The original save recorded the return challenge only through its trolley reward.
+        if (!saved.levels && unlocked[grumbleton.reward]) levels[grumbleton.id].goals.return = true;
+        this.updateLevelUnlocks();
       }
     } catch (e) { /* Storage may be unavailable in embedded browsers. */ }
     this.msgs = []; this.pops = []; this.shake = 0; this.flash = 0;
@@ -48,14 +46,22 @@ export class Game {
     this.onCollision = this.onCollision.bind(this);
     this.resetRun();
   }
-  get progress() { return this.save.levels[GRUMBLETON.id]; }
+  get progress() { return this.save.levels[this.level.id]; }
   persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.save)); } catch (e) {} }
   updateLevelUnlocks() {
-    this.save.levels[DEPARTURES.id].unlocked = Object.keys(this.progress.goals).length >= DEPARTURES.requiredGoals;
+    for (const level of LEVELS) if (level.requires) {
+      const { level: other, goals } = level.requires;
+      if (Object.keys(this.save.levels[other].goals).length >= goals) this.save.levels[level.id].unlocked = true;
+    }
   }
-  hasTrolleyChoice() { return Object.keys(this.save.unlocked).length > 1; }
+  canUseTrolley(key) { return key === this.level.starter || (key !== 'flatbed' && this.save.unlocked[key] === true); }
+  get selectedTrolley() {
+    const selected = this.progress.selected ?? this.level.starter ?? this.save.sel;
+    return this.canUseTrolley(selected) ? selected : 'dave';
+  }
+  hasTrolleyChoice() { return !!this.level.starter || Object.keys(this.save.unlocked).length > 1; }
   resetRun() {
-    this.run = { got: {}, done: {}, cones: 0, score: 0, taskPts: 0, time: 0, dist: 0, maxSpeed: 0, maxMph: 0, items: {}, lost: 0, broken: 0, brokenBy: {}, peds: 0, nearMisses: 0, wheels: 0, bestCombo: 0, airMax: 0, tricks: 0, ducks: false, end: null, flags: {}, speedCam: false };
+    this.run = { got: {}, done: {}, goalCounts: {}, cones: 0, score: 0, taskPts: 0, time: 0, dist: 0, maxSpeed: 0, maxMph: 0, items: {}, lost: 0, broken: 0, brokenBy: {}, peds: 0, nearMisses: 0, wheels: 0, bestCombo: 0, airMax: 0, tricks: 0, ducks: false, end: null, flags: {}, speedCam: false };
     this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} };
     this.collectTimes = []; this.chain = { n: 0, t: -9 }; this.lastHit = { t: -9, x: 0, z: 0 };
     this.near = new Map(); this.stillT = 0; this.tiltT = 0; this.wetT = 0; this.wetN = 0; this.overT = 0; this.trail = []; this.trailT = 0;
@@ -68,7 +74,8 @@ export class Game {
   // ---------- tasks ----------
   task(id) {
     const R = this.run; if (R.done[id] || !(this.state === 'run' || this.state === 'push' || (id === 'return' && this.state === 'over'))) return;
-    const task = TASKS.find(t => t.id === id);
+    const task = this.level.goals.find(t => t.id === id);
+    if (!task) return;
     R.done[id] = true;
     if (!this.progress.goals[id]) {
       this.progress.goals[id] = true;
@@ -79,9 +86,18 @@ export class Game {
     C.audio.sfx('kaching');
     this.say(task.short, { kind: 'cheer', dur: id === 'return' ? 3 : 2 });
   }
+  goalCount(id) {
+    const goal = this.level.goals.find(task => task.id === id);
+    if (!goal?.n || this.run.done[id]) return;
+    const counts = this.run.goalCounts;
+    counts[id] = (counts[id] || 0) + 1;
+    if (counts[id] >= goal.n) this.task(id);
+  }
   listTick(k) {
-    const R = this.run; if (!SHOPPING_LIST.includes(k) || R.got[k]) return; R.got[k] = true;
-    if (SHOPPING_LIST.every(x => R.got[x])) this.task('list'); else C.audio.sfx('tick');
+    const R = this.run, list = this.level.shopping;
+    if (!list.includes(k) || R.got[k]) return;
+    R.got[k] = true;
+    if (list.every(x => R.got[x])) this.task('list'); else C.audio.sfx('tick');
   }
   // ---------- combo ----------
   addCombo(name, pts, o = {}) {
@@ -174,7 +190,9 @@ export class Game {
     const t = C.time; if (t - this.chain.t < 1.5) this.chain.n++; else this.chain.n = 1; this.chain.t = t;
     if (this.state === 'run' || this.state === 'push') {
       this.addCombo(p.S.name, p.S.pts);
-      if (p.type === 'cone') { R.cones++; if (R.cones >= 10) this.task('cones'); }
+      if (p.type === 'cone') { R.cones++; this.goalCount('cones'); }
+      if (p.type === 'pot') this.goalCount('pots');
+      if (p.type === 'pane') this.goalCount('glass');
       if (this.chain.n >= 3) this.countCombo('chain', 'CHAIN REACTION ×' + this.chain.n, 60);
     }
   }
@@ -219,7 +237,7 @@ export class Game {
       if (this.overT <= 0) this.showResults();
       return;
     }
-    if (this.state === 'push') { this.pushT -= dt; if (this.pushT <= 0 || p.z < 4) this.beginRun(); }
+    if (this.state === 'push') { this.pushT -= dt; if (this.pushT <= 0 || (W.carParkCamera && p.z < 4)) this.beginRun(); }
     if (this.state === 'run') R.time += dt;
     this.grazeCones(this.hasLastPos ? this.lastPos : p, p, v, sp, tr.s);
     if (this.hasLastPos) { const d = Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.z); if (d < 5) R.dist += d; }
@@ -246,7 +264,7 @@ export class Game {
     if (this.combo.live.chain && t - this.chain.t > 1.5) this.endLive('chain');
     if (this.combo.live.spree && (!this.collectTimes.length || t - this.collectTimes[this.collectTimes.length - 1] > 4.5)) this.endLive('spree');
     // run endings
-    if (W.finishes && p.y < 3 && W.finishes.some(f => Math.abs(p.x - f.x) < f.hx && Math.abs(p.z - f.z) < f.hz)) return this.endRun('returned');
+    if (W.finishes?.some(f => p.y < (f.y ?? 0) + 3 && Math.abs(p.x - f.x) < f.hx && Math.abs(p.z - f.z) < f.hz)) return this.endRun('returned');
     if (tr.submerged) {
       if (this.wetT === 0) {
         C.fx.pondSplash(p.x, p.z, clamp(0.85 + sp * 0.045, 0.85, 1.5));
@@ -299,23 +317,26 @@ export class Game {
   }
   // ---------- flow ----------
   ensureTrolley() {
-    const key = this.save.unlocked[this.save.sel] ? this.save.sel : 'dave';
+    const key = this.selectedTrolley;
     if (!C.trolley || C.trolley.key !== key) { if (C.trolley) C.trolley.dispose(); C.trolley = new Trolley(key); }
   }
   toMenu(screen) {
     C.select.close(false);
     this.state = screen; this.paused = false; this.slowmo = 0;
-    this.ensureTrolley(); this.resetWorld(); this.resetRun();
+    if (C.world && screen === 'select') { this.ensureTrolley(); this.resetWorld(); }
+    else C.input.release();
+    this.resetRun();
     this.msgs = []; this.pops = [];
     C.audio.alarm(false);
     C.ui.show(screen);
   }
   resetWorld() {
-    C.input.release(); C.props.reset(); C.shopping.reset(); C.fx.clear();
+    C.input.release(); C.props.reset(); C.shopping.reset(); C.fx.clear(); C.world.reset?.();
     this.shake = 0; this.flash = 0;
     C.trolley.reset(C.world.start); C.camera.userData.snap = true;
   }
   startRun() {
+    if (!C.world) return;
     C.audio.init(); C.select.close(false); this.ensureTrolley(); this.resetWorld(); this.resetRun();
     this.msgs = []; this.pops = []; this.bankPop = null; this.lostPop = null;
     this.state = 'push'; this.pushT = 2.4; this.paused = false; this.slowmo = 0;
@@ -337,14 +358,14 @@ export class Game {
   }
   showResults() {
     const R = this.run; this.state = 'results'; C.audio.alarm(false);
-    const taskPoints = TASKS.reduce((sum, task) => sum + (R.done[task.id] ? task.pts : 0), 0);
+    const taskPoints = this.level.goals.reduce((sum, task) => sum + (R.done[task.id] ? task.pts : 0), 0);
     const total = R.score + (R.basketPts ?? 0) * 2 + (R.end === 'pond' ? 1500 : 0)
       + Math.round(R.dist * 2) + taskPoints + Math.round(Math.max(0, R.maxMph - 30) * 40);
     const progress = this.progress, newBest = total > progress.best;
     if (newBest) progress.best = total;
     const unlocked = [];
-    const reward = GRUMBLETON.unlock;
-    if (R.end === 'returned' && !this.save.unlocked[reward]) {
+    const reward = this.level.reward;
+    if (reward && R.end === 'returned' && !this.save.unlocked[reward]) {
       this.save.unlocked[reward] = true;
       unlocked.push(VARIANTS[reward].name);
     }

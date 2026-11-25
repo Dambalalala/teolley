@@ -1,20 +1,18 @@
 import RAPIER from './rapier.js';
 import { C } from './core.js';
-import { buildTextures } from './textures.js?v=grumbleton-audit';
-import { buildWorldBase, flushStatics } from './world.js?v=grumbleton-audit';
-import { buildScenery } from './scenery.js?v=grumbleton-audit';
-import { buildExtras } from './extras.js?v=grumbleton-audit';
-import { FX } from './fx.js?v=stop-sign-splash';
-import { Props } from './props.js?v=grumbleton-audit';
-import { Shopping } from './shopping.js?v=grumbleton-audit';
-import { Audio } from './audio.js?v=stop-sign-splash';
-import { Game } from './game.js?v=grumbleton-audit';
-import { Input } from './input.js?v=grumbleton-audit';
-import { Cam } from './camera.js?v=carpark-graffiti';
-import { HUD } from './hud.js?v=grumbleton-audit';
-import { UI } from './ui.js?v=grumbleton-audit';
-import { Select } from './select.js?v=grumbleton-audit';
-import { makeContactShadow } from './shadows.js?v=grumbleton-polish';
+import { buildTextures, TX } from './textures.js?v=green-fingers';
+import { flushStatics, mats } from './terrain.js';
+import { FX } from './fx.js?v=green-fingers';
+import { Props } from './props.js?v=green-fingers';
+import { Shopping } from './shopping.js?v=green-fingers';
+import { Audio } from './audio.js?v=green-fingers';
+import { Game, LEVELS } from './game.js?v=green-fingers';
+import { Input } from './input.js?v=green-fingers';
+import { Cam } from './camera.js?v=green-fingers';
+import { HUD } from './hud.js?v=green-fingers';
+import { UI } from './ui.js?v=green-fingers';
+import { Select } from './select.js?v=green-fingers';
+import { makeContactShadow } from './shadows.js?v=green-fingers';
 
 const T = C.T, $ = id => document.getElementById(id);
 function fail(msg) { $('loading').classList.add('hidden'); const e = $('err'); e.textContent = msg; e.classList.remove('hidden'); }
@@ -27,8 +25,6 @@ async function boot() {
   try { await RAPIER.init(); } catch (e) { return fail('The physics engine could not start in this browser. Reload to try again.'); }
   await fonts;
   C.RAPIER = RAPIER;
-  C.phys = new RAPIER.World({ x: 0, y: -9.81, z: 0 }); C.phys.timestep = DT; C.phys.numSolverIterations = 6;
-  C.events = new RAPIER.EventQueue(true);
   // renderer: low-res, no AA, vertex-lit materials: a lost PS2 game
   const canvas = $('gl');
   const touchy = matchMedia('(pointer: coarse)').matches;
@@ -39,36 +35,97 @@ async function boot() {
   const renderer = C.renderer = new T.WebGLRenderer({ canvas, context, ...options });
   renderer.shadowMap.enabled = !touchy;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
-  const scene = C.scene = new T.Scene();
-  scene.fog = new T.Fog(0xd5dee6, 140, 900);
   const camera = C.camera = new T.PerspectiveCamera(62, 1, 0.1, 4000);
-  const hemi = new T.HemisphereLight(0xd8e6f4, 0x7a8a5a, 0.72); scene.add(hemi);
-  const sun = new T.DirectionalLight(0xfff0d8, 0.78); sun.castShadow = !touchy;
-  const shadowRadius = 32;
-  sun.shadow.mapSize.setScalar(2048);
-  Object.assign(sun.shadow.camera, { left: -shadowRadius, right: shadowRadius, top: shadowRadius, bottom: -shadowRadius, near: 22, far: 198 }); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
-  sun.shadow.camera.updateProjectionMatrix();
-  sun.position.set(55, 78, 30);
-  scene.add(sun); scene.add(sun.target); C.lights = { hemi, sun }; const SUN = new T.Vector3(0.55, 0.78, 0.3).normalize();
-  // light-space axes for snapping the shadow camera to whole texels
-  const LR = new T.Vector3().crossVectors(new T.Vector3(0, 1, 0), SUN).normalize(), LU = new T.Vector3().crossVectors(SUN, LR).normalize(), TEX = 2 * shadowRadius / sun.shadow.mapSize.x, snapP = new T.Vector3();
+  const SUN = new T.Vector3(0.55, 0.78, 0.3).normalize(), snapP = new T.Vector3();
+  const shadowRadius = 32, shadowSize = 2048, TEX = 2 * shadowRadius / shadowSize;
+  const LR = new T.Vector3().crossVectors(new T.Vector3(0, 1, 0), SUN).normalize();
+  const LU = new T.Vector3().crossVectors(SUN, LR).normalize();
   buildTextures();
-  buildWorldBase(scene);
-  buildScenery(scene);
-  buildExtras();
-  flushStatics(scene);
-  // Static scenery owns these visibility flags. Pickups, props and menu models keep their own state.
+  const sharedTextures = new Set(Object.values(TX)), sharedMaterials = new Set(Object.values(mats()));
+  let scene, contactShadow, releaseWorld;
   const staticBounds = [], box = new T.Box3();
-  const animated = new Set([C.world.sky, C.world.clouds, ...C.world.turbines, ...C.world.wobblers.map(w => w.obj)]);
-  for (const object of scene.children) {
-    if (object.isLight || object === sun.target) continue;
-    if (!animated.has(object)) { object.updateMatrix(); object.matrixAutoUpdate = false; }
-    if (object.userData.background || object === C.world.sky || object === C.world.clouds || object === C.world.water) continue;
-    box.setFromObject(object);
-    if (box.isEmpty()) continue;
-    const bounds = box.getBoundingSphere(new T.Sphere());
-    if (bounds.radius < 135) staticBounds.push({ object, bounds });
+
+  function disposeLevel() {
+    if (!scene) return;
+    C.select.releaseLevel();
+    const geometries = new Set(), materials = new Set(), textures = new Set();
+    scene.traverse(object => {
+      if (object.geometry) geometries.add(object.geometry);
+      if (object.isInstancedMesh) object.dispose();
+      if (Array.isArray(object.material)) object.material.forEach(material => materials.add(material));
+      else if (object.material) materials.add(object.material);
+    });
+    for (const material of materials) if (!sharedMaterials.has(material)) {
+      for (const value of Object.values(material)) if (value?.isTexture && !sharedTextures.has(value)) textures.add(value);
+      material.dispose();
+    }
+    for (const geometry of geometries) geometry.dispose();
+    for (const texture of textures) texture.dispose();
+    C.lights.sun.shadow.map?.dispose();
+    renderer.renderLists.dispose();
+    C.events.free(); C.phys.free();
+    C.colInfo.clear(); staticBounds.length = 0;
+    releaseWorld?.(); releaseWorld = null;
+    scene.clear(); scene = contactShadow = null;
+    C.scene = C.world = C.props = C.shopping = C.fx = C.trolley = C.lights = C.events = C.phys = null;
   }
+
+  function assemble(level, builder) {
+    const { light } = level;
+    scene = C.scene = new T.Scene();
+    scene.fog = new T.Fog(light.fog, light.near, light.far);
+    const hemi = new T.HemisphereLight(light.sky, light.gnd, light.hemi);
+    const sun = new T.DirectionalLight(light.sunC, light.sun); sun.castShadow = !touchy;
+    sun.shadow.mapSize.setScalar(shadowSize);
+    Object.assign(sun.shadow.camera, { left: -shadowRadius, right: shadowRadius, top: shadowRadius, bottom: -shadowRadius, near: 22, far: 198 });
+    sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03; sun.shadow.camera.updateProjectionMatrix();
+    sun.position.set(55, 78, 30);
+    scene.add(hemi, sun, sun.target); C.lights = { hemi, sun };
+    C.phys = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+    C.phys.timestep = DT; C.phys.numSolverIterations = 6;
+    C.events = new RAPIER.EventQueue(true);
+    releaseWorld = builder.release; C.time = 0;
+    builder.build(scene);
+    flushStatics(scene);
+    const animated = new Set([C.world.sky, C.world.clouds, ...C.world.turbines, ...C.world.wobblers.map(w => w.obj)]);
+    for (const object of scene.children) {
+      if (object.isLight || object === sun.target || object.userData.animated) continue;
+      if (!animated.has(object)) { object.updateMatrix(); object.matrixAutoUpdate = false; }
+      if (object.userData.background || object === C.world.sky || object === C.world.clouds || object === C.world.water) continue;
+      box.setFromObject(object);
+      if (box.isEmpty()) continue;
+      const bounds = box.getBoundingSphere(new T.Sphere());
+      if (bounds.radius < 135) staticBounds.push({ object, bounds });
+    }
+    contactShadow = touchy ? makeContactShadow(scene) : null;
+    C.fx = new FX(); C.props = new Props(); C.shopping = new Shopping();
+    C.fx?.setScale(renderer.getDrawingBufferSize(bufferSize).y / (2 * Math.tan(camera.fov * Math.PI / 360)));
+    C.phys.updateSceneQueries();
+  }
+
+  C.loadLevel = async id => {
+    const game = C.game, level = LEVELS.find(option => option.id === id);
+    if (!level || !game.save.levels[id].unlocked || game.state === 'loading') return;
+    const error = $('levelError'); error.hidden = true;
+    if (scene && level === game.level) { game.toMenu('select'); return; }
+    game.state = 'loading'; C.ui.show('loading'); $('loading').classList.remove('hidden');
+    try {
+      const builder = await level.load();
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      disposeLevel();
+      game.level = level; assemble(level, builder);
+      acc = gameAcc = 0;
+      game.toMenu('select'); renderer.compile(scene, camera); dirty = true;
+    } catch (e) {
+      console.error(e);
+      disposeLevel(); game.level = null;
+      error.textContent = 'The level could not load. Try selecting it again.'; error.hidden = false;
+      game.toMenu('levels');
+    } finally {
+      $('loading').classList.add('hidden');
+    }
+  };
+
   const offset = new T.Vector3(), view = new T.Frustum(), viewProjection = new T.Matrix4();
   let visibilityAge = 1;
   function updateVisibility(dt, snap) {
@@ -84,12 +141,10 @@ async function boot() {
         (offset.lengthSq() < (range + bounds.radius) ** 2 && view.intersectsSphere(bounds));
     }
   }
-  const contactShadow = touchy ? makeContactShadow(scene) : null;
-  C.fx = new FX(); C.props = new Props(); C.shopping = new Shopping(); C.audio = new Audio(); C.game = new Game();
+  C.audio = new Audio(); C.game = new Game();
   C.audio.muted = !!C.game.save.muted;
   C.input = new Input(); C.cam = new Cam(camera); C.hud = new HUD($('hud')); C.ui = new UI(); C.select = new Select();
   C.game.toMenu('title');
-  C.phys.updateSceneQueries();
   let width = 0, height = 0, pixelRatio = 0, quality = 1, frameTime = 16.7, qualityTime = 0, resizePending = false;
   let last = 0, acc = 0, gameAcc = 0, audioAcc = 0, contextLost = false, dirty = true, previousScreen;
   const bufferSize = new T.Vector2(), roadPosition = {}, road = {}, audioState = {}, sparkPoint = {};
@@ -104,7 +159,7 @@ async function boot() {
     }
     width = w; height = h; pixelRatio = ratio; dirty = true;
     renderer.setDrawingBufferSize(w, h, ratio);
-    C.fx.setScale(renderer.getDrawingBufferSize(bufferSize).y / (2 * Math.tan(camera.fov * Math.PI / 360)));
+    C.fx?.setScale(renderer.getDrawingBufferSize(bufferSize).y / (2 * Math.tan(camera.fov * Math.PI / 360)));
   }
   resize();
   const scheduleResize = () => { resizePending = true; };
@@ -135,20 +190,20 @@ async function boot() {
         if (next !== quality) { quality = next; qualityTime = 0; scheduleResize(); }
       }
     } else { qualityTime = 0; frameTime = 16.7; }
-    if (!skipRender) {
+    if (!skipRender && scene && game.state !== 'loading') {
       const screen = game.paused ? 'pause' : game.state;
       const still = screen === 'title' || screen === 'levels' || screen === 'pause' || screen === 'results';
       if (dirty || previousScreen !== screen || !still) {
         render(dt);
         dirty = false; previousScreen = screen;
       }
-      updateAudio(dt);
     }
+    if (C.trolley) updateAudio(dt);
     requestAnimationFrame(loop);
   }
   function step(dtR) {
     const game = C.game;
-    if (game.paused || game.state === 'results' || game.state === 'title' || game.state === 'levels') return;
+    if (!scene || game.paused || game.state === 'loading' || game.state === 'results' || game.state === 'title' || game.state === 'levels') return;
     if (game.state === 'select') {
       C.props.update(dtR, C.time, false);
       return;
@@ -167,6 +222,7 @@ async function boot() {
         gameAcc = 0;
         C.shopping.update(GAME_DT, game.state === 'run' || game.state === 'push');
         C.props.update(GAME_DT, C.time, true);
+        C.world.update?.(GAME_DT, C.time);
         game.update(GAME_DT, C.time);
         emitTrolleyFx();
       }
@@ -177,7 +233,7 @@ async function boot() {
     const phys = C.phys;
     // The wheel, camera and ground-shadow rays only see GROUND. The bus is
     // its sole moving collider. Keep the query tree current near Station Road.
-    if (Math.abs(C.trolley.currentPosition.z - C.props.bus.z) < 28) {
+    if (C.props.bus && Math.abs(C.trolley.currentPosition.z - C.props.bus.z) < 28) {
       phys.step(C.events);
       return;
     }
@@ -193,6 +249,7 @@ async function boot() {
   }
   let skipRender = false;
   function render(dtR) {
+    if (!scene || !C.trolley) return;
     const tr = C.trolley, game = C.game;
     const frozen = game.paused || game.state === 'results' || game.state === 'title' || game.state === 'levels';
     const drawDt = frozen ? 0 : dtR;
@@ -209,6 +266,7 @@ async function boot() {
       const root = selecting ? C.select.models[C.select.idx].root : tr.vis.root;
       contactShadow(root, selecting, !selecting && tr.submerged);
     } else {
+      const { sun } = C.lights;
       const p = selecting ? C.select.focus : tr.vis.root.position;
       const a = Math.round(p.dot(LR) / TEX) * TEX, b = Math.round(p.dot(LU) / TEX) * TEX, c = p.dot(SUN);
       snapP.copy(LR).multiplyScalar(a).addScaledVector(LU, b).addScaledVector(SUN, c);
@@ -218,13 +276,13 @@ async function boot() {
     W.sky.position.copy(camera.position);
     W.clouds.position.set(camera.position.x * 0.9, 0, camera.position.z * 0.9);
     W.clouds.rotation.y += drawDt * 0.002;
-    W.water.material.map.offset.x += drawDt * 0.01;
+    if (W.water?.material.map) W.water.material.map.offset.x += drawDt * 0.01;
     for (const t of W.turbines) t.rotation.z += drawDt * 0.9;
     renderer.render(scene, camera);
     C.hud.draw(dtR);
   }
   function updateAudio(dt) {
-    if (!C.audio.ok) return;
+    if (!C.audio.ok || !C.trolley) return;
     audioAcc += dt;
     if (audioAcc >= 1 / 30) {
       const tr = C.trolley, game = C.game, p = tr.vis.root.position, W = C.world;
@@ -239,6 +297,7 @@ async function boot() {
       audioState.wheels = tr.nWheels;
       audioState.bump = Math.min(1, bump);
       audioState.wet = tr.submerged;
+      audioState.fountain = active && (W.waterSound?.(p) || 0);
       audioState.surface = surface;
       audioState.squeak = (tr.key === 'pensioner' ? 0.6 : 0) + (tr.wheels.some(wheelSticks) ? 1 : 0);
       C.audio.update(audioAcc, audioState);
@@ -246,16 +305,15 @@ async function boot() {
     }
   }
   function wheelSticks(wheel) { return wheel.stick > 0; }
-  renderer.compile(scene, camera);
-  render(0);
   $('loading').classList.add('hidden');
   requestAnimationFrame(loop);
   // Expose automation tools only when explicitly enabled.
   if (!new URLSearchParams(window.location.search).has('debug')) return;
   window.__trolley = {
-    get: () => { const tr = C.trolley, p = tr.pos(), v = tr.vel(), L = C.world.locate(p.x, p.z, {}); return { x: p.x, y: p.y, z: p.z, vx: v.x, vy: v.y, vz: v.z, speed: tr.speed(), mph: tr.speed() * 2.237, s: L.s, d: L.d, up: tr.up, wheels: tr.nWheels, touching: tr.touching, state: C.game.state, score: C.game.run.score + C.game.run.taskPts, combo: C.game.combo.list.map(e => e.name), mult: C.game.combo.mult, basket: C.shopping.inBasket().length, hp: { b: tr.hp.basket, h: tr.hp.handle, w: tr.wheels.map(w => +w.hp.toFixed(2)) }, end: C.game.run.end, msgs: C.game.msgs.map(m => m.text), broken: C.game.run.broken, near: C.game.run.nearMisses, air: tr.airT, time: C.game.run.time, dist: C.game.run.dist }; },
+    get: () => { const tr = C.trolley; if (!tr) return { state: C.game.state }; const p = tr.pos(), v = tr.vel(), L = C.world.locate(p.x, p.z, {}); return { x: p.x, y: p.y, z: p.z, vx: v.x, vy: v.y, vz: v.z, speed: tr.speed(), mph: tr.speed() * 2.237, s: L.s, d: L.d, up: tr.up, wheels: tr.nWheels, touching: tr.touching, state: C.game.state, score: C.game.run.score + C.game.run.taskPts, combo: C.game.combo.list.map(e => e.name), mult: C.game.combo.mult, basket: C.shopping.inBasket().length, hp: { b: tr.hp.basket, h: tr.hp.handle, w: tr.wheels.map(w => +w.hp.toFixed(2)) }, end: C.game.run.end, msgs: C.game.msgs.map(m => m.text), broken: C.game.run.broken, near: C.game.run.nearMisses, air: tr.airT, time: C.game.run.time, dist: C.game.run.dist }; },
     keys: k => { for (const n of ['push', 'brake', 'left', 'right']) C.input.k[n] = !!(k && k[n]); if (k && k.hop) C.input.hopQ = true; if (k && k.tap) C.input.pushQ = true; },
     start: () => C.game.startRun(),
+    load: id => C.loadLevel(id),
     place: (s, d, yawOff = 0, h = 0.6) => { const tr = C.trolley, R = C.world.roadAt(s, {}), P = C.world.P(s, d); tr.reset({ x: P.x, y: P.y + h, z: P.z, yaw: -R.th + yawOff }); C.camera.userData.snap = true; },
     placeXZ: (x, z, yaw = 0, h = 0.6) => { C.trolley.reset({ x, y: C.world.groundY(x, z) + h, z, yaw }); C.camera.userData.snap = true; },
     vel: (vx, vy, vz) => C.trolley.body.setLinvel({ x: vx, y: vy, z: vz }, true),
