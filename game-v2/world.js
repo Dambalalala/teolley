@@ -79,18 +79,19 @@ export const yawTo = (dx, dz) => Math.atan2(dx, dz);
 
 // nearest centreline point for any (x,z): grid hash of samples
 const GH = new Map(), GCELL = 12;
-for (let i = 0; i < NS; i += 2) { const k = Math.floor(CX[i] / GCELL) + ',' + Math.floor(CZ[i] / GCELL); if (!GH.has(k)) GH.set(k, []); GH.get(k).push(i); }
+const cellKey = (x, z) => x * 65536 + z;
+for (let i = 0; i < NS; i += 2) { const k = cellKey(Math.floor(CX[i] / GCELL), Math.floor(CZ[i] / GCELL)); if (!GH.has(k)) GH.set(k, []); GH.get(k).push(i); }
 const LOC = { s: 0, d: 0, dist: 1e9 };
 export function locate(x, z, o = LOC) {
   const cx = Math.floor(x / GCELL), cz = Math.floor(z / GCELL); let best = -1, bd = 1e18;
   for (let r = 0; r < 12 && best < 0; r++) {
     for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) {
       if (Math.max(Math.abs(a), Math.abs(b)) !== r) continue;
-      const L = GH.get((cx + a) + ',' + (cz + b)); if (!L) continue;
+      const L = GH.get(cellKey(cx + a, cz + b)); if (!L) continue;
       for (const i of L) { const dx = x - CX[i], dz = z - CZ[i], dd = dx * dx + dz * dz; if (dd < bd) { bd = dd; best = i; } }
     }
     if (best >= 0 && r < 11) { // one more ring to be safe
-      for (let a = -r - 1; a <= r + 1; a++) for (let b = -r - 1; b <= r + 1; b++) { if (Math.max(Math.abs(a), Math.abs(b)) !== r + 1) continue; const L = GH.get((cx + a) + ',' + (cz + b)); if (!L) continue; for (const i of L) { const dx = x - CX[i], dz = z - CZ[i], dd = dx * dx + dz * dz; if (dd < bd) { bd = dd; best = i; } } }
+      for (let a = -r - 1; a <= r + 1; a++) for (let b = -r - 1; b <= r + 1; b++) { if (Math.max(Math.abs(a), Math.abs(b)) !== r + 1) continue; const L = GH.get(cellKey(cx + a, cz + b)); if (!L) continue; for (const i of L) { const dx = x - CX[i], dz = z - CZ[i], dd = dx * dx + dz * dz; if (dd < bd) { bd = dd; best = i; } } }
     }
   }
   if (best < 0) { o.s = 0; o.d = 0; o.dist = 1e9; return o; }
@@ -351,8 +352,8 @@ function buildPotholes(scene) {
 // ============ the bottom plaza (heightfield) ============
 export const BOT = { lf0: 2, lf1: 136, lx0: -48, lx1: 48, res: 1 };
 let BE = null;
-export function botToWorld(lx, lf) { if (!BE) BE = roadAt(780, {}); return { x: BE.x + lx, z: BE.z - lf }; }
-export function worldToBot(x, z) { if (!BE) BE = roadAt(780, {}); return { lx: x - BE.x, lf: BE.z - z }; }
+export function botToWorld(lx, lf, out = {}) { if (!BE) BE = roadAt(780, {}); out.x = BE.x + lx; out.z = BE.z - lf; return out; }
+export function worldToBot(x, z, out = {}) { if (!BE) BE = roadAt(780, {}); out.lx = x - BE.x; out.lf = BE.z - z; return out; }
 export const POND = { lx: 0, lf: 38, rx: 13.5, rz: 9.5, water: -0.38 };
 export function botH(lx, lf) {
   let h = 0;
@@ -507,9 +508,10 @@ function buildSky(scene) {
 }
 
 // ============ queries used by gameplay ============
+const bottomPosition = {};
 export function groundY(x, z) {
   if (z > TOP.z0 && x > TOP.x0 && x < TOP.x1 && z < TOP.z1) return TOP.y;
-  const b = worldToBot(x, z);
+  const b = worldToBot(x, z, bottomPosition);
   if (b.lf >= BOT.lf0 && b.lf < BOT.lf1 && b.lx > BOT.lx0 && b.lx < BOT.lx1) return botH(b.lx, b.lf) + (W.bermH ? W.bermH(b.lx, b.lf) : 0);
   const L = locate(x, z, {}); return prof(L.s, L.d);
 }

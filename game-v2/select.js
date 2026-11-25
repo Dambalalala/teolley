@@ -1,7 +1,7 @@
 import { C } from './core.js';
 import { clamp, lerp, sstep, fmt } from './util.js';
-import { makeTrolley, VARIANTS } from './models.js?v=grumbleton-polish';
-import { trolleyStats } from './trolley.js?v=grumbleton-polish';
+import { makeTrolley, VARIANTS } from './models.js?v=stop-sign-splash';
+import { trolleyStats } from './trolley.js?v=stop-sign-splash';
 const T = C.T, $ = id => document.getElementById(id);
 
 // Trolley select: each trolley waits somewhere ordinary in the world and the camera goes to it.

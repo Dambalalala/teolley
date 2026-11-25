@@ -1,24 +1,24 @@
 import RAPIER from './rapier.js';
 import { C } from './core.js';
 import { buildTextures } from './textures.js?v=grumbleton-polish';
-import { buildWorldBase, flushStatics } from './world.js?v=grumbleton-polish';
-import { buildScenery } from './scenery.js?v=grumbleton-polish';
-import { buildExtras } from './extras.js?v=grumbleton-polish';
-import { FX } from './fx.js';
-import { Props } from './props.js?v=grumbleton-polish';
-import { Shopping } from './shopping.js?v=grumbleton-polish';
-import { Audio } from './audio.js';
-import { Game } from './game.js?v=grumbleton-polish';
-import { Input } from './input.js?v=grumbleton-polish';
+import { buildWorldBase, flushStatics } from './world.js?v=stop-sign-splash';
+import { buildScenery } from './scenery.js?v=stop-sign-splash';
+import { buildExtras } from './extras.js?v=stop-sign-splash';
+import { FX } from './fx.js?v=stop-sign-splash';
+import { Props } from './props.js?v=stop-sign-splash';
+import { Shopping } from './shopping.js?v=stop-sign-splash';
+import { Audio } from './audio.js?v=stop-sign-splash';
+import { Game } from './game.js?v=stop-sign-splash';
+import { Input } from './input.js?v=stop-sign-splash';
 import { Cam } from './camera.js';
-import { HUD } from './hud.js?v=grumbleton-polish';
-import { UI } from './ui.js?v=grumbleton-polish';
-import { Select } from './select.js?v=grumbleton-polish';
+import { HUD } from './hud.js?v=stop-sign-splash';
+import { UI } from './ui.js?v=stop-sign-splash';
+import { Select } from './select.js?v=stop-sign-splash';
 import { makeContactShadow } from './shadows.js?v=grumbleton-polish';
 
 const T = C.T, $ = id => document.getElementById(id);
 function fail(msg) { $('loading').classList.add('hidden'); const e = $('err'); e.textContent = msg; e.classList.remove('hidden'); }
-const DT = 1 / 120, GAME_DT = 2 * DT;
+const DT = 1 / 120, GAME_DT = 2 * DT, MAX_STEPS = 6;
 
 async function boot() {
   if (!T) return fail("The 3D engine didn't load. Check your connection and reload.");
@@ -59,8 +59,11 @@ async function boot() {
   flushStatics(scene);
   // Static scenery owns these visibility flags. Pickups, props and menu models keep their own state.
   const staticBounds = [], box = new T.Box3();
+  const animated = new Set([C.world.sky, C.world.clouds, ...C.world.turbines, ...C.world.wobblers.map(w => w.obj)]);
   for (const object of scene.children) {
-    if (object.isLight || object.userData.background || object === sun.target || object === C.world.sky || object === C.world.clouds || object === C.world.water) continue;
+    if (object.isLight || object === sun.target) continue;
+    if (!animated.has(object)) { object.updateMatrix(); object.matrixAutoUpdate = false; }
+    if (object.userData.background || object === C.world.sky || object === C.world.clouds || object === C.world.water) continue;
     box.setFromObject(object);
     if (box.isEmpty()) continue;
     const bounds = box.getBoundingSphere(new T.Sphere());
@@ -86,9 +89,10 @@ async function boot() {
   C.audio.muted = !!C.game.save.muted;
   C.input = new Input(); C.cam = new Cam(camera); C.hud = new HUD($('hud')); C.ui = new UI(); C.select = new Select();
   C.game.toSelect();
-  let width = 0, height = 0, pixelRatio = 0, quality = 1, frameTime = 16.7, qualityTime = 0;
+  C.phys.updateSceneQueries();
+  let width = 0, height = 0, pixelRatio = 0, quality = 1, frameTime = 16.7, qualityTime = 0, resizePending = false;
   let last = 0, acc = 0, gameAcc = 0, audioAcc = 0, contextLost = false, dirty = true, previousScreen;
-  const bufferSize = new T.Vector2(), roadPosition = {}, road = {};
+  const bufferSize = new T.Vector2(), roadPosition = {}, road = {}, audioState = {}, sparkPoint = {};
   function resize() {
     const w = Math.max(1, canvas.clientWidth), h = Math.max(1, canvas.clientHeight);
     const maxRatio = Math.min(devicePixelRatio || 1, 1.25, Math.sqrt((touchy ? 550000 : 1600000) / (w * h)));
@@ -103,8 +107,9 @@ async function boot() {
     C.fx.setScale(renderer.getDrawingBufferSize(bufferSize).y / (2 * Math.tan(camera.fov * Math.PI / 360)));
   }
   resize();
-  addEventListener('resize', resize);
-  window.visualViewport?.addEventListener('resize', resize);
+  const scheduleResize = () => { resizePending = true; };
+  addEventListener('resize', scheduleResize);
+  window.visualViewport?.addEventListener('resize', scheduleResize);
   document.addEventListener('visibilitychange', () => { last = 0; });
   canvas.addEventListener('webglcontextlost', e => {
     e.preventDefault(); contextLost = true; C.ui.pause();
@@ -116,17 +121,18 @@ async function boot() {
   function loop(now) {
     const elapsed = last ? (now - last) / 1000 : 0; last = now;
     if (contextLost || document.hidden) { requestAnimationFrame(loop); return; }
-    const dt = Math.min(0.05, elapsed);
+    if (resizePending) { resizePending = false; resize(); }
+    const dt = Math.min(MAX_STEPS * DT, elapsed);
     step(dt);
     const game = C.game;
     if (elapsed > 0 && game.state === 'run' && !game.paused) {
       frameTime += (Math.min(70, elapsed * 1000) - frameTime) * Math.min(1, dt * 3);
       qualityTime += dt;
-      if (qualityTime >= 2.5) {
+      if (qualityTime >= 4) {
         let next = quality;
-      if (frameTime > 24) next = Math.max(0.68, quality - 0.12);
-      else if (frameTime < 17.5 && qualityTime >= 8) next = Math.min(1, quality + 0.06);
-        if (next !== quality) { quality = next; qualityTime = 0; resize(); }
+        if (frameTime > 24) next = Math.max(0.68, quality - 0.12);
+        else if (frameTime < 17.5 && qualityTime >= 10) next = Math.min(1, quality + 0.06);
+        if (next !== quality) { quality = next; qualityTime = 0; scheduleResize(); }
       }
     } else { qualityTime = 0; frameTime = 16.7; }
     if (!skipRender) {
@@ -148,11 +154,11 @@ async function boot() {
     }
 
     game.slowmo = Math.max(0, game.slowmo - dtR);
-    acc += dtR * (game.slowmo > 0 ? 0.35 : 1);
-    while (acc >= DT && game.state !== 'results') {
+    acc = Math.min(MAX_STEPS * DT, acc + dtR * (game.slowmo > 0 ? 0.35 : 1));
+    for (let i = 0; i < MAX_STEPS && acc >= DT && game.state !== 'results'; i++) {
       C.props.stepBus(DT);
       C.trolley.step(DT, C.input.sample(), C.time);
-      C.phys.step(C.events);
+      stepPhysics();
       C.trolley.post();
       game.processEvents();
       C.time += DT; acc -= DT; gameAcc += DT;
@@ -166,9 +172,23 @@ async function boot() {
     }
     C.fx.update(dtR * (game.slowmo > 0 ? 0.35 : 1));
   }
+  function stepPhysics() {
+    const phys = C.phys;
+    // The wheel, camera and ground-shadow rays only see GROUND. The bus is
+    // its sole moving collider. Keep the query tree current near Station Road.
+    if (Math.abs(C.trolley.currentPosition.z - C.props.bus.z) < 28) {
+      phys.step(C.events);
+      return;
+    }
+    phys.physicsPipeline.step(phys.gravity, phys.integrationParameters, phys.islands, phys.broadPhase,
+      phys.narrowPhase, phys.bodies, phys.colliders, phys.impulseJoints, phys.multibodyJoints, phys.ccdSolver, C.events);
+  }
   function emitTrolleyFx() {
-    const tr = C.trolley; if (!tr) return;
-    for (const W of tr.wheels) if (W.gone) { const q = tr.local(W.lx, -0.47 * tr.s, W.lz), sp = tr.speed(); if (tr.touching && sp > 3 && Math.random() < 0.7) C.fx.emit('spark', q.x, q.y, q.z, 0, 1.2, 0, 2, 1.6); }
+    const tr = C.trolley; if (!tr.touching) return;
+    for (const W of tr.wheels) if (W.gone && tr.speed() > 3 && Math.random() < 0.7) {
+      tr.local(W.lx, -0.47 * tr.s, W.lz, sparkPoint);
+      C.fx.emit('spark', sparkPoint.x, sparkPoint.y, sparkPoint.z, 0, 1.2, 0, 2, 1.6);
+    }
   }
   let skipRender = false;
   function render(dtR) {
@@ -181,7 +201,7 @@ async function boot() {
     C.select.update(drawDt);
     C.cam.update(drawDt);
     updateVisibility(drawDt, snap || skipRender);
-    C.props.sync(drawDt);
+    C.props.sync(drawDt, C.time - (1 - blend) * DT);
     C.shopping.sync();
     const selecting = game.state === 'select';
     if (contactShadow) {
@@ -212,10 +232,20 @@ async function boot() {
       for (const wheel of tr.wheels) bump += Math.abs(wheel.comp - 0.01) * 20;
       const L = active ? W.locate(p.x, p.z, roadPosition) : roadPosition;
       const surface = active && Math.abs(L.d) > W.roadAt(L.s, road).w ? 'pave' : 'road';
-      C.audio.update(audioAcc, { active, speed: active ? tr.speed() : 0, air: tr.nWheels === 0, wheels: tr.nWheels, bump: Math.min(1, bump), wet: tr.submerged, surface, squeak: (tr.key === 'pensioner' ? 0.6 : 0) + (tr.wheels.some(w => w.stick > 0) ? 1 : 0) });
+      audioState.active = active;
+      audioState.speed = active ? tr.speed() : 0;
+      audioState.air = tr.nWheels === 0;
+      audioState.wheels = tr.nWheels;
+      audioState.bump = Math.min(1, bump);
+      audioState.wet = tr.submerged;
+      audioState.surface = surface;
+      audioState.squeak = (tr.key === 'pensioner' ? 0.6 : 0) + (tr.wheels.some(wheelSticks) ? 1 : 0);
+      C.audio.update(audioAcc, audioState);
       audioAcc = 0;
     }
   }
+  function wheelSticks(wheel) { return wheel.stick > 0; }
+  renderer.compile(scene, camera);
   render(0);
   $('loading').classList.add('hidden');
   requestAnimationFrame(loop);

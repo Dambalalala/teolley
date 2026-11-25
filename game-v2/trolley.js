@@ -1,6 +1,6 @@
 import { C, G, ig, ALL } from './core.js';
 import { clamp, lerp, angDiff, TAU, sstep } from './util.js';
-import { makeTrolley, TD, VARIANTS } from './models.js?v=grumbleton-polish';
+import { makeTrolley, TD, VARIANTS } from './models.js?v=stop-sign-splash';
 const T = C.T;
 
 // Per-trolley handling. Push is self-propulsion (m/s^2) up to pushV; crr is rolling resistance, drag is air drag.
@@ -41,6 +41,11 @@ export class Trolley {
     this.currentPosition = new T.Vector3();
     this.previousRotation = new T.Quaternion();
     this.currentRotation = new T.Quaternion();
+    this.v = new T.Vector3(); this.w = new T.Vector3();
+    this.heldAtTakeoff = { push: false, brake: false };
+    this.safePose = { p: new T.Vector3(), q: new T.Quaternion() };
+    this.scanHullPair = this.scanHullPair.bind(this);
+    this.scanHullManifold = this.scanHullManifold.bind(this);
     this.wheelRay = new C.RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
     this.airT = 0; this.air = null; this.groundT = 0; this.hopCD = 0; this.pushPh = 0; this.steerFlip = 0; this.steerFlipT = 2;
     this.tilt = 0; this.touching = false; this.submerged = false; this.scrape = 0;
@@ -73,7 +78,7 @@ export class Trolley {
     this.body.setLinvel({ x: 0, y: 0, z: 0 }, true); this.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     for (const w of this.wheels) Object.assign(w, { phi: 0, phiEff: 0, stick: 0, stickA: 0, contact: false, wasContact: false, comp: 0, prevComp: 0, hitY: null, hp: 1, gone: false, roll: 0, slip: 0, kerbT: -1, blocked: 0 });
     this.hp.basket = 1; this.hp.handle = 1; this.airT = 0; this.air = null; this.submerged = false;
-    this.safe = null; this.safeT = 0; this.landT = null; this.landOK = true; this.hopCD = 0; this.pushPh = 0; this.steerFlip = 0; this.steerFlipT = 2; this.heldAtTakeoff = null;
+    this.safe = null; this.safeT = 0; this.landT = null; this.landOK = true; this.hopCD = 0; this.pushPh = 0; this.steerFlip = 0; this.steerFlipT = 2;
     this.nWheels = 4; this.touching = false; this.hullGround = false; this.up = 1;
     this.capturePose(true);
     for (const w of this.vis.wheels) { w.pivot.visible = true; w.wheel.rotation.x = 0; }
@@ -108,9 +113,7 @@ export class Trolley {
     const b = this.body, R = this.R, s = this.s, P = this.P;
     if (this.hp.handle < 0.5) { this.steerFlipT -= dt; if (this.steerFlipT < 0) { this.steerFlip = this.steerFlip > 0 ? 0 : 0.45; this.steerFlipT = this.steerFlip > 0 ? 0.45 : 1.5 + Math.random() * 2; } if (this.steerFlip > 0) this.steerFlip -= dt; }
     this.updR();
-    const p = b.translation(), lv = b.linvel(), av = b.angvel();
-    this.v = { x: lv.x, y: lv.y, z: lv.z }; this.w = { x: av.x, y: av.y, z: av.z };
-    const v = this.v, w = this.w;
+    const p = b.translation(), v = this.v.copy(b.linvel()), w = this.w.copy(b.angvel());
     const upx = R[1], upy = R[4], upz = R[7], fwx = -R[2], fwy = -R[5], fwz = -R[8], rtx = R[0], rty = R[3], rtz = R[6];
     const sp = Math.hypot(v.x, v.y, v.z), vfwd = v.x * fwx + v.y * fwy + v.z * fwz;
     const dmg = 1 - (this.wheels.reduce((a, w2) => a + w2.hp, 0) / 4) * 0.7 - this.hp.basket * 0.15 - this.hp.handle * 0.15;
@@ -266,7 +269,7 @@ export class Trolley {
     const airborne = n === 0 && !this.touching;
     if (airborne) {
       // keys already held at take-off (pushing, braking) don't flip you until you press them again
-      if (this.airT === 0) this.heldAtTakeoff = { push: !!ctl.push, brake: !!ctl.brake };
+      if (this.airT === 0) { this.heldAtTakeoff.push = !!ctl.push; this.heldAtTakeoff.brake = !!ctl.brake; }
       if (this.heldAtTakeoff.push && !ctl.push) this.heldAtTakeoff.push = false;
       if (this.heldAtTakeoff.brake && !ctl.brake) this.heldAtTakeoff.brake = false;
       this.airT += dt;
@@ -296,7 +299,11 @@ export class Trolley {
     if (!(isFinite(v.x) && isFinite(v.y) && isFinite(v.z) && isFinite(w.x) && isFinite(w.y) && isFinite(w.z))) { this.recover(); return; }
     b.setLinvel(v, true); b.setAngvel(w, true);
 
-    if (this.up > 0.8 && n >= 3 && (!this.safeT || t - this.safeT > 0.5)) { this.safeT = t; const q = b.rotation(); this.safe = { p: { x: p.x, y: p.y, z: p.z }, q: { x: q.x, y: q.y, z: q.z, w: q.w } }; }
+    if (this.up > 0.8 && n >= 3 && (!this.safeT || t - this.safeT > 0.5)) {
+      this.safeT = t; this.safe = this.safePose;
+      this.safe.p.copy(p);
+      this.safe.q.copy(b.rotation());
+    }
   }
   recover() {
     const b = this.body, S = this.safe || { p: C.world.start, q: { x: 0, y: 0, z: 0, w: 1 } };
@@ -325,21 +332,30 @@ export class Trolley {
     this.updR(this.currentRotation);
     const R = this.R, p = this.currentPosition;
     // touching anything with the body (for airborne logic, scraping)
-    this.touching = false; let ground = false;
+    this.touching = false; this.hullGround = false;
     for (const c of this.colliders.values()) {
-      if (this.touching && ground) break;
-      C.phys.contactPairsWith(c, o => {
-        if (this.touching && ground) return; if (this.colliders.has(o.handle)) return;
-        const inf = C.colInfo.get(o.handle); if (inf && (inf.kind === 'item' || inf.kind === 'debris')) return; // shopping in the basket doesn't count
-        C.phys.contactPair(c, o, (m) => { if (m.numContacts() > 0 && m.contactDist(0) < 0.03) { this.touching = true; if (inf && inf.kind === 'ground') ground = true; } });
-      });
+      if (this.hullGround) break;
+      this.hullCollider = c;
+      C.phys.contactPairsWith(c, this.scanHullPair);
     }
-    this.hullGround = ground;
     // pond
     const pond = C.world.pond; this.submerged = false;
     if (pond) { const u = (p.x - pond.x) / pond.rx, v2 = (p.z - pond.z) / pond.rz; if (u * u + v2 * v2 < 1.05 && p.y < pond.water + 0.25 * this.s) this.submerged = true; }
     // tilt and crash
     this.up = R[4];
+  }
+  scanHullPair(other) {
+    if (this.hullGround || this.colliders.has(other.handle)) return;
+    const info = C.colInfo.get(other.handle);
+    if (info?.kind === 'item' || info?.kind === 'debris') return;
+    this.hullPairIsGround = info?.kind === 'ground';
+    C.phys.contactPair(this.hullCollider, other, this.scanHullManifold);
+  }
+  scanHullManifold(manifold) {
+    if (manifold.numContacts() > 0 && manifold.contactDist(0) < 0.03) {
+      this.touching = true;
+      if (this.hullPairIsGround) this.hullGround = true;
+    }
   }
   sync(dtR, blend) {
     const V = this.vis;
@@ -358,6 +374,14 @@ export class Trolley {
   vel() { return this.body.linvel(); }
   speed() { const v = this.body.linvel(); return Math.hypot(v.x, v.y, v.z); }
   fwd() { this.updR(); return { x: -this.R[2], y: -this.R[5], z: -this.R[8] }; }
-  local(x, y, z) { this.updR(); const p = this.body.translation(), R = this.R; return { x: p.x + R[0] * x + R[1] * y + R[2] * z, y: p.y + R[3] * x + R[4] * y + R[5] * z, z: p.z + R[6] * x + R[7] * y + R[8] * z }; }
-  toLocal(x, y, z) { this.updR(); const p = this.body.translation(), R = this.R, dx = x - p.x, dy = y - p.y, dz = z - p.z; return { x: R[0] * dx + R[3] * dy + R[6] * dz, y: R[1] * dx + R[4] * dy + R[7] * dz, z: R[2] * dx + R[5] * dy + R[8] * dz }; }
+  local(x, y, z, out = {}) {
+    this.updR(); const p = this.body.translation(), R = this.R;
+    out.x = p.x + R[0] * x + R[1] * y + R[2] * z; out.y = p.y + R[3] * x + R[4] * y + R[5] * z; out.z = p.z + R[6] * x + R[7] * y + R[8] * z;
+    return out;
+  }
+  toLocal(x, y, z, out = {}) {
+    this.updR(); const p = this.body.translation(), R = this.R, dx = x - p.x, dy = y - p.y, dz = z - p.z;
+    out.x = R[0] * dx + R[3] * dy + R[6] * dz; out.y = R[1] * dx + R[4] * dy + R[7] * dz; out.z = R[2] * dx + R[5] * dy + R[8] * dz;
+    return out;
+  }
 }

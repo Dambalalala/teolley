@@ -1,7 +1,7 @@
 import { C } from './core.js';
 import { fmt } from './util.js';
-import { ITEMS } from './models.js?v=grumbleton-polish';
-import { GRUMBLETON, SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=grumbleton-polish';
+import { ITEMS } from './models.js?v=stop-sign-splash';
+import { GRUMBLETON, SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=stop-sign-splash';
 const $ = id => document.getElementById(id);
 const NOTE = '<svg class="px" viewBox="0 0 8 9" width="16" height="18" aria-hidden="true"><path d="M3 0h3v1h-3zM3 1h1v1h-1zM5 1h2v1h-2zM3 2h1v1h-1zM6 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM1 5h3v1h-3zM0 6h4v1h-4zM0 7h4v1h-4zM1 8h2v1h-2z"/></svg>';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

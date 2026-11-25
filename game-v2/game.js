@@ -1,7 +1,7 @@
 import { C } from './core.js';
 import { clamp, lerp, angDiff } from './util.js';
-import { ITEMS, VARIANTS } from './models.js?v=grumbleton-polish';
-import { Trolley } from './trolley.js?v=grumbleton-polish';
+import { ITEMS, VARIANTS } from './models.js?v=stop-sign-splash';
+import { Trolley } from './trolley.js?v=stop-sign-splash';
 
 const SAVE_KEY = 'trolley-save-v1';
 export const GRUMBLETON = { name: 'Grumbleton', unlock: 'demon' };
@@ -35,6 +35,9 @@ export class Game {
       }
     } catch (e) { /* Storage may be unavailable in embedded browsers. */ }
     this.msgs = []; this.pops = []; this.shake = 0; this.flash = 0;
+    this.roadPosition = {}; this.lastPos = {}; this.scrapePoint = {};
+    this.onContactForce = this.onContactForce.bind(this);
+    this.onCollision = this.onCollision.bind(this);
     this.resetRun();
   }
   persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.save)); } catch (e) {} }
@@ -43,7 +46,7 @@ export class Game {
     this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} };
     this.collectTimes = []; this.chain = { n: 0, t: -9 }; this.lastHit = { t: -9, x: 0, z: 0 };
     this.near = new Map(); this.stillT = 0; this.tiltT = 0; this.wetT = 0; this.wetN = 0; this.overT = 0; this.trail = []; this.trailT = 0;
-    this.air = null; this.twoT = 0; this.scrapeT = 0; this.lastPos = null; this.pushT = 0;
+    this.air = null; this.twoT = 0; this.scrapeT = 0; this.hasLastPos = false; this.pushT = 0;
   }
   // ---------- messages ----------
   say(text, o = {}) { const m = { text, t: 0, dur: o.dur || 2.4, kind: o.kind || 'notice', big: o.big }; if (o.now) this.msgs.unshift(m); else this.msgs.push(m); if (this.msgs.length > 4) this.msgs.splice(1, 1); }
@@ -105,25 +108,26 @@ export class Game {
   }
   // Rapier contact events (called after each physics step)
   processEvents() {
-    const tr = C.trolley; if (!tr) return;
-    C.events.drainContactForceEvents(e => {
-      const h1 = e.collider1(), h2 = e.collider2(), i1 = C.colInfo.get(h1), i2 = C.colInfo.get(h2);
-      if (!i1 || !i2) return;
-      let mine = null, other = null, mh = 0, oh = 0;
-      if (i1.kind === 'trolley') { mine = i1; other = i2; mh = h1; oh = h2; } else if (i2.kind === 'trolley') { mine = i2; other = i1; mh = h2; oh = h1; }
-      if (!mine) { if (i1.kind === 'item' || i2.kind === 'item') { const f = e.totalForceMagnitude(); if (f > 60 && Math.random() < 0.3) C.audio.sfx('item', clamp(f / 400, 0.2, 1)); } return; }
-      this.trolleyImpact(mine, other, e.totalForceMagnitude(), mh, oh);
-    });
-    C.events.drainCollisionEvents((h1, h2, started) => {
-      if (!started) return;
-      const i1 = C.colInfo.get(h1), i2 = C.colInfo.get(h2); if (!i1 || !i2) return;
-      const tv = tr.vel(), ts = Math.hypot(tv.x, tv.y, tv.z);
-      const pair = (a, b) => (i1.kind === a && i2.kind === b) ? [i1, i2] : (i2.kind === a && i1.kind === b) ? [i2, i1] : null;
-      let pp;
-      if ((pp = pair('trolley', 'prop'))) { const p = pp[1].prop; if (ts > 1.2 && C.props.knock(p, 'trolley', ts)) this.broke(p, ts); else if (ts > 1.2) this.sfxFor(p.type, ts); }
-      else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, tv)) { this.run.peds++; this.addCombo('LOLLIPOP LADY', 700); this.task('lollipop'); } }
-      else if ((pp = pair('prop', 'prop'))) { const a = pp[0].prop, b = pp[1].prop; const moving = p => !p.body.isFixed() && !p.body.isSleeping() && (C.time - p.hitT < 3); const src = moving(a) ? a : moving(b) ? b : null, dst = src === a ? b : a; if (src && dst && !dst.hit) { const v = src.body.linvel(), rs = Math.hypot(v.x, v.y, v.z); if (rs > 1.5 && C.props.knock(dst, 'prop', rs)) { this.broke(dst, rs, true); } } }
-    });
+    C.events.drainContactForceEvents(this.onContactForce);
+    C.events.drainCollisionEvents(this.onCollision);
+  }
+  onContactForce(e) {
+    const h1 = e.collider1(), h2 = e.collider2(), i1 = C.colInfo.get(h1), i2 = C.colInfo.get(h2);
+    if (!i1 || !i2) return;
+    let mine = null, other = null, mh = 0, oh = 0;
+    if (i1.kind === 'trolley') { mine = i1; other = i2; mh = h1; oh = h2; } else if (i2.kind === 'trolley') { mine = i2; other = i1; mh = h2; oh = h1; }
+    if (!mine) { if (i1.kind === 'item' || i2.kind === 'item') { const f = e.totalForceMagnitude(); if (f > 60 && Math.random() < 0.3) C.audio.sfx('item', clamp(f / 400, 0.2, 1)); } return; }
+    this.trolleyImpact(mine, other, e.totalForceMagnitude(), mh, oh);
+  }
+  onCollision(h1, h2, started) {
+    if (!started) return;
+    const i1 = C.colInfo.get(h1), i2 = C.colInfo.get(h2); if (!i1 || !i2) return;
+    const tv = C.trolley.vel(), ts = Math.hypot(tv.x, tv.y, tv.z);
+    const pair = (a, b) => (i1.kind === a && i2.kind === b) ? [i1, i2] : (i2.kind === a && i1.kind === b) ? [i2, i1] : null;
+    let pp;
+    if ((pp = pair('trolley', 'prop'))) { const p = pp[1].prop; if (ts > 1.2 && C.props.knock(p, 'trolley', ts)) this.broke(p, ts); else if (ts > 1.2) this.sfxFor(p.type, ts); }
+    else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, tv)) { this.run.peds++; this.addCombo('LOLLIPOP LADY', 700); this.task('lollipop'); } }
+    else if ((pp = pair('prop', 'prop'))) { const a = pp[0].prop, b = pp[1].prop; const moving = p => !p.body.isFixed() && !p.body.isSleeping() && (C.time - p.hitT < 3); const src = moving(a) ? a : moving(b) ? b : null, dst = src === a ? b : a; if (src && dst && !dst.hit) { const v = src.body.linvel(), rs = Math.hypot(v.x, v.y, v.z); if (rs > 1.5 && C.props.knock(dst, 'prop', rs)) { this.broke(dst, rs, true); } } }
   }
   sfxFor(type, sp) { const k = clamp(sp / 8, 0.3, 1.2); if (type === 'bin') C.audio.sfx('bonk', k); else if (type === 'cone') C.audio.sfx('thwop', k); else if (type === 'pane') C.audio.sfx('glass'); else C.audio.sfx('thud', k * 0.7); }
   broke(p, sp, chain) {
@@ -165,7 +169,7 @@ export class Game {
   // ---------- per-frame run logic ----------
   update(dt, t) {
     const tr = C.trolley; if (!tr) return;
-    for (const m of this.msgs.slice(0, 1)) m.t += dt; if (this.msgs[0] && this.msgs[0].t > this.msgs[0].dur) this.msgs.shift();
+    const msg = this.msgs[0]; if (msg) { msg.t += dt; if (msg.t > msg.dur) this.msgs.shift(); }
     for (let i = this.pops.length - 1; i >= 0; i--) { this.pops[i].t += dt; if (this.pops[i].t > 1.3) this.pops.splice(i, 1); }
     if (this.bankPop) { this.bankPop.t += dt; if (this.bankPop.t > 2) this.bankPop = null; }
     if (this.lostPop) { this.lostPop.t += dt; if (this.lostPop.t > 1.8) this.lostPop = null; }
@@ -179,10 +183,11 @@ export class Game {
     }
     if (this.state === 'push') { this.pushT -= dt; if (this.pushT <= 0 || p.z < 4) this.beginRun(); }
     if (this.state === 'run') R.time += dt;
-    if (this.lastPos) { const d = Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.z); if (d < 5) R.dist += d; } this.lastPos = { x: p.x, z: p.z };
+    if (this.hasLastPos) { const d = Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.z); if (d < 5) R.dist += d; }
+    this.lastPos.x = p.x; this.lastPos.z = p.z; this.hasLastPos = true;
     R.maxSpeed = Math.max(R.maxSpeed, sp); R.maxMph = Math.max(R.maxMph, mph);
     // where are we on the hill?
-    const L = W.locate(p.x, p.z, {}), s = L.s;
+    const L = W.locate(p.x, p.z, this.roadPosition), s = L.s;
     // speed
     if (mph > 30 && tr.nWheels > 0) this.liveCombo('speed', 'SPEEDING', 55, dt); else this.endLive('speed');
     if (W.speedCam && !R.speedCam && Math.abs(s - W.speedCam.s) < 2.5 && mph > 30 && Math.abs(L.d) < W.roadAt(s).w) { R.speedCam = true; this.flash = 1; C.audio.sfx('flash'); this.addCombo(`SPEED CAMERA ${Math.round(mph)} MPH`, 400); this.task('camera'); }
@@ -194,7 +199,7 @@ export class Game {
     } else if (this.air && tr.nWheels > 0) { this.land(this.air, tr, v); this.air = null; tr.air = null; }
     // two wheels, scraping
     const nw = tr.nWheels; if (nw === 2 && !air && sp > 3) { this.twoT += dt; if (this.twoT > 0.35) this.liveCombo('two', 'TWO-WHEELER', 140, dt); } else { this.twoT = 0; this.endLive('two'); }
-    if (tr.touching && tr.hullGround && sp > 4 && nw < 4) { this.scrapeT += dt; if (this.scrapeT > 0.3) { this.liveCombo('scrape', 'SPARKY SCRAPE', 120, dt); const q = tr.local(0, -0.3 * tr.s, 0); if (Math.random() < 0.6) C.fx.emit('spark', q.x, q.y, q.z, -v.x * 0.2, 1, -v.z * 0.2, 2, 1.5); } } else { this.scrapeT = 0; this.endLive('scrape'); }
+    if (tr.touching && tr.hullGround && sp > 4 && nw < 4) { this.scrapeT += dt; if (this.scrapeT > 0.3) { this.liveCombo('scrape', 'SPARKY SCRAPE', 120, dt); const q = tr.local(0, -0.3 * tr.s, 0, this.scrapePoint); if (Math.random() < 0.6) C.fx.emit('spark', q.x, q.y, q.z, -v.x * 0.2, 1, -v.z * 0.2, 2, 1.5); } } else { this.scrapeT = 0; this.endLive('scrape'); }
     // near misses with parked cars, posts, the bus
     this.nearMisses(p, sp, t);
     // combo timer
@@ -203,7 +208,14 @@ export class Game {
     if (this.combo.live.spree && (!this.collectTimes.length || t - this.collectTimes[this.collectTimes.length - 1] > 4.5)) this.endLive('spree');
     // run endings
     if (W.finishes && p.y < 3 && W.finishes.some(f => Math.abs(p.x - f.x) < f.hx && Math.abs(p.z - f.z) < f.hz)) return this.endRun('returned');
-    if (tr.submerged) { this.wetN++; this.wetT += dt; if (this.wetT === dt || this.wetT < dt * 1.5) { C.audio.sfx('splash'); C.fx.emit('splash', p.x, p.y + 0.3, p.z, v.x * 0.2, 4, v.z * 0.2, 40, 3); if (C.props.disturbDucks()) this.ev('ducks', {}); } if (this.wetT > 1.4) return this.endRun('pond'); } else this.wetT = 0;
+    if (tr.submerged) {
+      if (this.wetT === 0) {
+        C.fx.pondSplash(p.x, p.z, clamp(0.85 + sp * 0.045, 0.85, 1.5));
+        if (C.props.disturbDucks()) this.ev('ducks', {});
+      }
+      this.wetN++; this.wetT += dt;
+      if (this.wetT > 1.4) return this.endRun('pond');
+    } else this.wetT = 0;
     if (p.y < -25) return this.endRun('void');
     const up = tr.up;
     // on its side or upside down on the ground for a moment means it's over

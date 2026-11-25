@@ -1,5 +1,7 @@
 import { C } from './core.js';
 
+const CONTROL_KEYS = ['push', 'brake', 'left', 'right'];
+
 // Keyboard and touch. Held keys drive ctl; taps drive the push-off and hops.
 export class Input {
   constructor() {
@@ -92,7 +94,7 @@ export class Input {
   // sample the controls for this physics substep
   sample() {
     const on = C.game && (C.game.state === 'run' || C.game.state === 'push') && !C.game.paused;
-    for (const k of ['push', 'brake', 'left', 'right']) this.ctl[k] = on && (this.k[k] || this.t[k]);
+    for (const k of CONTROL_KEYS) this.ctl[k] = on && (this.k[k] || this.t[k]);
     this.ctl.hop = on && this.hopQ; this.hopQ = false;
     this.ctl.pushTap = on && this.pushQ; this.pushQ = false;
     return this.ctl;

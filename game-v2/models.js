@@ -222,9 +222,23 @@ export function makePerson(kind) {
   const limb = (x, y, len, w, colTop, colEnd, endH) => { const grp = new T.Group(); grp.position.set(x, y, 0); body.add(grp); grp.add(part(B => { B.add(GEO.box, M(0, -len / 2, 0, 0, 0, 0, w, len, w * 1.1), colTop); B.add(GEO.box, M(0, -len - endH / 2, -0.03, 0, 0, 0, w * 1.05, endH, w * 1.6), colEnd); })); return grp; };
   const legL = limb(-0.11, 0.82, 0.74, 0.15, P.legs, P.shoes, 0.08), legR = limb(0.11, 0.82, 0.74, 0.15, P.legs, P.shoes, 0.08);
   const armL = limb(-0.29, 1.44, 0.56, 0.11, P.hivis ? 0xe8f23a : P.top, P.skin, 0.09), armR = limb(0.29, 1.44, 0.56, 0.11, P.hivis ? 0xe8f23a : P.top, P.skin, 0.09);
-  let extra = null;
-  if (kind === 'lollipop') { extra = part(B => { B.add(GEO.cyl8, M(0, 0.9, 0, 0, 0, 0, 0.02, 1.8, 0.02), 0xf2f2f2); B.add(GEO.cyl16, M(0, 1.9, 0, Math.PI / 2, 0, 0, 0.3, 0.02, 0.3), 0xd0202a); B.add(GEO.cyl16, M(0, 1.9, -0.012, Math.PI / 2, 0, 0, 0.25, 0.01, 0.25), 0xffffff); }); extra.position.set(0.36, 0, -0.05); body.add(extra); const sgn = new T.Mesh(new T.PlaneGeometry(0.4, 0.2), new T.MeshBasicMaterial({ map: signTex(128, 64, (g2, w, h) => { g2.fillStyle = '#fff'; g2.fillRect(0, 0, w, h); g2.fillStyle = '#111'; g2.textAlign = 'center'; g2.font = '700 46px "Barlow Condensed",Arial'; g2.fillText('STOP', 64, 48); }), transparent: true })); sgn.position.set(0.36, 1.9, -0.075); sgn.rotation.y = Math.PI; body.add(sgn); }
-  return { group: g, body, head, legL, legR, armL, armR, torso, kind };
+  let sign = null;
+  if (kind === 'lollipop') {
+    sign = new T.Group(); sign.position.set(0.36, 1, -0.05); body.add(sign);
+    sign.add(part(B => {
+      B.add(GEO.cyl8, M(0, -0.1, 0, 0, 0, 0, 0.02, 1.8, 0.02), 0xf2f2f2);
+      B.add(GEO.cyl16, M(0, 0.9, 0, Math.PI / 2, 0, 0, 0.3, 0.02, 0.3), 0xd0202a);
+      B.add(GEO.cyl16, M(0, 0.9, -0.012, Math.PI / 2, 0, 0, 0.25, 0.01, 0.25), 0xffffff);
+    }));
+    const label = signTex(128, 64, (g, w, h) => {
+      g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#111'; g.textAlign = 'center'; g.font = '700 46px "Barlow Condensed",Arial';
+      g.fillText('STOP', 64, 48);
+    });
+    const face = new T.Mesh(new T.PlaneGeometry(0.4, 0.2), new T.MeshBasicMaterial({ map: label, transparent: true }));
+    face.position.set(0, 0.9, -0.025); face.rotation.y = Math.PI; sign.add(face);
+  }
+  return { group: g, body, head, legL, legR, armL, armR, torso, sign, kind };
 }
 export function makeDuck(drake) {
   const B = new Batch();

@@ -2,8 +2,8 @@ import { C } from './core.js';
 import { TAU, clamp, sstep, rng, pick, Batch, GEO, M, FM, frame, bx, cy, seg, Baker } from './util.js';
 const DECOR = new Baker();
 import { TX, signTex, plainSign, limitSign, warnSign, giveWay, chevron, fascia, textFit } from './textures.js?v=grumbleton-polish';
-import { W, RA_S, ZEBRA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js?v=grumbleton-polish';
-import { makeTrolley, makeCar } from './models.js?v=grumbleton-polish';
+import { W, RA_S, ZEBRA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js?v=stop-sign-splash';
+import { makeTrolley, makeCar } from './models.js?v=stop-sign-splash';
 const T = C.T;
 const _v = new T.Vector3();
 const tp = (F, x, y, z) => { _v.set(x, y, z); if (F) _v.applyMatrix4(F); return [_v.x, _v.y, _v.z]; };
@@ -231,6 +231,7 @@ function plankAndSkip(scene) {
     metal.add(GEO.ico, rubble, pick(rng(i), [0x8a7a6a, 0xa4523a, 0x6a6a6a, 0x9b7148]));
   }
   colBox(F, -c.th, skipWidth, skipHeight, skipLength, 0, skipHeight / 2, 0, { kind: 'wall', name: 'SKIP' });
+  W.skip = { x: c.x, y: c.y + skipHeight, z: c.z, yaw: -c.th };
 }
 
 // The mesh and collider share the ramp profile. The approach follows the grade before curving up to the lip.
