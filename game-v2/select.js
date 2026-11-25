@@ -1,7 +1,7 @@
 import { C } from './core.js';
 import { clamp, lerp, sstep, fmt } from './util.js';
-import { makeTrolley, VARIANTS } from './models.js?v=stop-sign-splash';
-import { trolleyStats } from './trolley.js?v=stop-sign-splash';
+import { makeTrolley, VARIANTS } from './models.js?v=grumbleton-audit';
+import { trolleyStats } from './trolley.js?v=grumbleton-audit';
 const T = C.T, $ = id => document.getElementById(id);
 
 // Trolley select: each trolley waits somewhere ordinary in the world and the camera goes to it.
@@ -81,7 +81,7 @@ export class Select {
   confirm() {
     if (!this.open) return;
     C.audio.init();
-    C.audio.sfx('click'); this.close(true); C.game.toBriefing();
+    C.audio.sfx('click'); this.close(true); C.game.startRun();
   }
   step(d) {
     if (!this.open || this.S.length < 2) return;
@@ -142,7 +142,7 @@ export class Select {
     $('selName').textContent = V.name; $('selBlurb').textContent = V.blurb;
     $('selStats').innerHTML = [['Speed', S.speed], ['Stability', S.stability], ['Handling', S.handling]].map(([n, v]) =>
       `<div class="sst"><span>${n}</span><span class="segs" role="img" aria-label="${n} ${v} out of 10">${'<i class="on"></i>'.repeat(v)}${'<i></i>'.repeat(10 - v)}</span></div>`).join('');
-    const best = C.game.save.best; $('bestLine').textContent = best ? `BEST ${fmt(best)}` : '';
+    const best = C.game.progress.best; $('bestLine').textContent = best ? `BEST ${fmt(best)}` : '';
     const count = this.S.length;
     for (const id of ['selPrev', 'selIdx', 'selNext', 'selKeys']) $(id).classList.toggle('hidden', count < 2);
     $('selIdx').textContent = `${this.idx + 1} / ${count}`;

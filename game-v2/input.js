@@ -14,26 +14,34 @@ export class Input {
       const G = C.game; if (!G) return; C.audio && C.audio.init();
       const ui = G.state, typing = e.target?.tagName === 'INPUT';
       if (typing) return;
+      if (ui === 'title' || ui === 'levels' || ui === 'select' || ui === 'results' || G.paused) {
+        if (e.repeat && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); return; }
+      }
+      if (ui === 'title' || ui === 'levels') {
+        if (ui === 'levels' && e.code === 'Escape' && !e.repeat) { e.preventDefault(); G.toMenu('title'); }
+        return;
+      }
       if (ui === 'select') {
         const onBtn = e.target && e.target.tagName === 'BUTTON';
         if (!e.repeat && (e.code === 'Enter' || e.code === 'Space') && !onBtn) { e.preventDefault(); C.select.confirm(); }
         else if (e.code === 'KeyA' || e.code === 'ArrowLeft') { e.preventDefault(); C.select.step(-1); }
         else if (e.code === 'KeyD' || e.code === 'ArrowRight') { e.preventDefault(); C.select.step(1); }
+        else if (e.code === 'Escape' && !e.repeat) { e.preventDefault(); G.toMenu('levels'); }
         return;
       }
       if (ui === 'results') {
         const onButton = e.target?.tagName === 'BUTTON';
         if (!e.repeat && (e.code === 'KeyR' || (!onButton && (e.code === 'Enter' || e.code === 'Space')))) {
-          e.preventDefault(); G.toBriefing();
-        } else if (!e.repeat && e.code === 'KeyT' && G.hasTrolleyChoice()) G.toSelect();
+          e.preventDefault(); G.startRun();
+        } else if (!e.repeat && e.code === 'KeyT' && G.hasTrolleyChoice()) G.toMenu('select');
+        else if (!e.repeat && e.code === 'Escape') { e.preventDefault(); G.toMenu('levels'); }
         return;
       }
-      if (ui === 'briefing') {
-        if (e.repeat && (e.code === 'Enter' || e.code === 'Space')) e.preventDefault();
-        if (!e.repeat && e.code === 'Escape' && G.hasTrolleyChoice()) { e.preventDefault(); G.toSelect(); }
+      if (G.paused) {
+        if (!e.repeat && (e.code === 'Escape' || e.code === 'KeyP')) { e.preventDefault(); C.ui.resume(); }
+        else if (!e.repeat && e.code === 'KeyR') G.startRun();
         return;
       }
-      if (G.paused) { if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); C.ui.resume(); } else if (!e.repeat && e.code === 'KeyR') G.toBriefing(); return; }
       if (G.state === 'over' && e.code !== 'KeyR' && e.code !== 'KeyM') return;
       if (map[e.code] && (!e.repeat || this.keys.has(e.code))) {
         e.preventDefault();
@@ -45,7 +53,7 @@ export class Input {
         if (!e.repeat) this.hopQ = true;
       }
       if (e.repeat) return;
-      if (e.code === 'KeyR') G.toBriefing();
+      if (e.code === 'KeyR') G.startRun();
       else if (e.code === 'KeyP' || e.code === 'Escape') C.ui.pause();
       else if (e.code === 'KeyM') C.ui.toggleMute();
     });

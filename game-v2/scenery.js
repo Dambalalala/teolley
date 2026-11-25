@@ -1,9 +1,9 @@
 import { C } from './core.js';
 import { TAU, clamp, sstep, rng, pick, Batch, GEO, M, FM, frame, bx, cy, seg, Baker } from './util.js';
 const DECOR = new Baker();
-import { TX, signTex, plainSign, limitSign, warnSign, giveWay, chevron, fascia, textFit } from './textures.js?v=grumbleton-polish';
-import { W, RA_S, ZEBRA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js?v=stop-sign-splash';
-import { makeTrolley, makeCar } from './models.js?v=stop-sign-splash';
+import { TX, signTex, plainSign, limitSign, warnSign, giveWay, chevron, cameraSign, fascia, textFit } from './textures.js?v=grumbleton-audit';
+import { W, RA_S, RA_ENTRY, ZEBRA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js?v=grumbleton-audit';
+import { makeTrolley, makeCar } from './models.js?v=grumbleton-audit';
 const T = C.T;
 const _v = new T.Vector3();
 const tp = (F, x, y, z) => { _v.set(x, y, z); if (F) _v.applyMatrix4(F); return [_v.x, _v.y, _v.z]; };
@@ -24,16 +24,20 @@ function signMat(tex) { if (!MATSIGN.has(tex)) MATSIGN.set(tex, new T.MeshLamber
 const backMat = () => (MATSIGN.get('back') || (MATSIGN.set('back', new T.MeshLambertMaterial({ color: 0x8a8d92 })), MATSIGN.get('back')));
 // a sign on a post: plate faces local -z (towards whoever approaches up the road), posts get a collider and can wobble
 export function signPost(scene, x, y, z, yaw, tex, w, h, postH = 2.4, opts = {}) {
-  const g = new T.Group(); g.position.set(x, y, z); g.rotation.y = yaw; scene.add(g);
+  const g = new T.Group(); g.name = opts.name || 'SIGN'; g.position.set(x, y, z); g.rotation.y = yaw; scene.add(g);
   const posts = opts.twin ? [-w * 0.35, w * 0.35] : [0];
   const pb = new Batch(); for (const px of posts) cy(pb, null, 0.04, postH, px, postH / 2, 0.03, opts.postCol || 0x8a8d92, 8);
   const pm = new T.Mesh(pb.geometry(), mats().lam); pm.castShadow = true; g.add(pm);
   const plate = new T.Mesh(new T.PlaneGeometry(w, h), signMat(tex)); plate.position.set(0, postH + h / 2 - (opts.sink || 0), 0); plate.rotation.y = Math.PI; g.add(plate);
   if (!opts.noBack) { const back = new T.Mesh(new T.PlaneGeometry(w * 0.98, h * 0.98), backMat()); back.position.set(0, postH + h / 2 - (opts.sink || 0), 0.012); g.add(back); }
   plate.castShadow = true;
-  const c = staticCyl(x, y + postH / 2, z, 0.06 * posts.length, postH / 2, { kind: 'sign', name: opts.name || 'SIGN' });
-  W.wobblers.push({ obj: g, handle: c.handle, a: 0, v: 0, axis: 0 });
-  C.colInfo.get(c.handle).wob = W.wobblers.length - 1;
+  const wob = W.wobblers.length;
+  W.wobblers.push({ obj: g, a: 0, v: 0 });
+  for (const offset of posts) {
+    staticCyl(x + Math.cos(yaw) * offset + Math.sin(yaw) * 0.03, y + postH / 2,
+      z - Math.sin(yaw) * offset + Math.cos(yaw) * 0.03, 0.045, postH / 2,
+      { kind: 'sign', name: opts.name || 'SIGN', wob });
+  }
   return g;
 }
 function lampPost(s, side, chunk) {
@@ -125,9 +129,14 @@ function frontGarden(F, yaw, chunk, style) {
   const PV = sb(chunk, 'pave'); PV.quad(tp(F, 0.95, 0.02, gz), tp(F, 1.95, 0.02, gz), tp(F, 1.95, 0.02, 0.45), tp(F, 0.95, 0.02, 0.45), 0xffffff, [0, 0, 0.6, 2]);
   const seg2 = (x0, x1) => {
     const w = x1 - x0, cx = (x0 + x1) / 2;
-    if (style === 'wall') { tbox(sb(chunk, 'brick'), F, w, 0.72, 0.24, cx, 0.2, gz - 0.12, 0xffffff, 1.2); bx(L, F, w + 0.02, 0.07, 0.3, cx, 0.6, gz - 0.12, 0xc8c4b8); colBox(F, yaw, w, 0.8, 0.24, cx, 0.24, gz - 0.12, { kind: 'wall', name: 'GARDEN WALL' }); }
-    else if (style === 'hedge') { tbox(sb(chunk, 'hedge'), F, w, 1.15, 0.7, cx, 0.42, gz - 0.38, 0xffffff, 1.0); colBox(F, yaw, w, 1.2, 0.7, cx, 0.45, gz - 0.38, { kind: 'hedge', name: 'HEDGE' }); }
-    else { const c = wp(F, cx, 0.42, gz - 0.12); W.dyn.push({ type: 'picket', x: c.x, y: c.y, z: c.z, yaw, w }); }
+    if (style === 'wall') { tbox(sb(chunk, 'brick'), F, w, 0.96, 0.24, cx, 0.08, gz - 0.12, 0xffffff, 1.2); bx(L, F, w + 0.02, 0.07, 0.3, cx, 0.6, gz - 0.12, 0xc8c4b8); colBox(F, yaw, w, 1.04, 0.24, cx, 0.115, gz - 0.12, { kind: 'wall', name: 'GARDEN WALL' }); }
+    else if (style === 'hedge') { tbox(sb(chunk, 'hedge'), F, w, 1.36, 0.7, cx, 0.315, gz - 0.38, 0xffffff, 1.0); colBox(F, yaw, w, 1.36, 0.7, cx, 0.315, gz - 0.38, { kind: 'hedge', name: 'HEDGE' }); }
+    else {
+      const a = wp(F, x0, 0, gz - 0.12), b = wp(F, x1, 0, gz - 0.12);
+      const ya = W.groundY(a.x, a.z), yb = W.groundY(b.x, b.z);
+      W.dyn.push({ type: 'picket', x: (a.x + b.x) / 2, y: (ya + yb) / 2 + 0.45,
+        z: (a.z + b.z) / 2, yaw, roll: Math.atan2(yb - ya, w), w });
+    }
   };
   seg2(-wd / 2, 0.9); seg2(2.0, wd / 2);
 }
@@ -181,7 +190,7 @@ function street(scene) {
     if (Math.abs(s - RA_S) < 50 || (s > 168 && s < 194) || (s > 216 && s < 296) || (s > 326 && s < 342)) continue;
     const side = r() < 0.5 ? -1 : 1; if (!hasHouse(s, side)) continue;
     const n = 1 + Math.floor(r() * 2.4);
-    for (let i = 0; i < n; i++) { const R = roadAt(s + i * 0.75, {}), d = side * (R.w + 0.6), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'bin', x, y: prof(s + i * 0.75, d) + 0.55, z, yaw: yawTo(-side * R.rx, -side * R.rz) + (r() - 0.5) * 0.3, lid: pick(r, [0x2a2a2c, 0x2a2a2c, 0x2a6a3a, 0x2a4aa0, 0x6a4a2a]) }); }
+    for (let i = 0; i < n; i++) { const R = roadAt(s + i * 0.75, {}), d = side * (R.w + 0.6), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'bin', x, y: prof(s + i * 0.75, d) + 0.53, z, yaw: yawTo(-side * R.rx, -side * R.rz) + (r() - 0.5) * 0.3, lid: pick(r, [0x2a2a2c, 0x2a2a2c, 0x2a6a3a, 0x2a4aa0, 0x6a4a2a]) }); }
   }
   // One Belisha beacon at each end of the crossing.
   W.blink = [];
@@ -195,65 +204,103 @@ function street(scene) {
   const S = (s, side, tex, w, h, postH, opts = {}) => { const R = roadAt(s, {}), d = side * (R.w + (opts.off || 0.5)), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d); const yaw = yawTo(-R.fx, -R.fz) + (opts.turn || 0); return signPost(scene, x, y, z, yaw + Math.PI, tex, w, h, postH, opts); };
   const L30 = limitSign(30);
   S(10, -1, L30, 0.75, 0.75, 2.2, { name: '30 SIGN' }); S(10, 1, L30, 0.75, 0.75, 2.2, { name: '30 SIGN' }); S(498, -1, L30, 0.75, 0.75, 2.2, { name: '30 SIGN' });
-  S(52, -1, warnSign('humps'), 0.8, 0.72, 2.0, { name: 'HUMPS SIGN' }); S(146, 1, warnSign('children'), 0.8, 0.72, 2.0, { name: 'SCHOOL SIGN' });
+  S(52, -1, warnSign('humps'), 0.8, 0.72, 2.0, { name: 'HUMPS SIGN' }); S(146, -1, warnSign('children'), 0.85, 0.77, 2.0, { name: 'SCHOOL SIGN' });
   S(202, -1, warnSign('works'), 0.85, 0.77, 1.6, { name: 'ROADWORKS SIGN' });
-  S(366, -1, warnSign('roundabout'), 0.85, 0.77, 2.0, { name: 'ROUNDABOUT SIGN' }); S(398, -1, giveWay(), 0.75, 0.68, 1.6, { name: 'GIVE WAY SIGN' });
+  const roundWarn = warnSign('roundabout'), yieldSign = giveWay();
+  for (const direction of [1, -1]) {
+    const turn = direction < 0 ? Math.PI : 0;
+    S(RA_S - direction * 54, -direction, roundWarn, 0.85, 0.77, 2, { name: 'ROUNDABOUT SIGN', turn });
+    S(RA_S - direction * (RA_ENTRY + 1.5), -direction, yieldSign, 0.9, 0.82, 1.6, { name: 'GIVE WAY SIGN', turn, off: 0.55 });
+  }
   S(388, -1, plainSign(['GRUMBLETON', ['Please drive carefully', 22], ['Twinned with nowhere in particular', 18]], { w: 256, h: 150, bg: '#ffffff', fg: '#111111', border: '#111111' }), 2.0, 1.15, 0.8, { name: 'TOWN SIGN', twin: true, off: 3 });
-  S(538, 1, plainSign(['SPEED', 'CAMERAS'], { w: 128, h: 128, bg: '#ffffff', border: '#111' }), 0.7, 0.7, 2.0, { name: 'CAMERA SIGN' });
+  S(537, -1, cameraSign(), 0.75, 0.75, 2.0, { name: 'CAMERA SIGN' });
   S(700, -1, warnSign('ducks'), 0.85, 0.77, 1.9, { name: 'DUCKS SIGN' });
-  S(120, 1, plainSign(['NEIGHBOURHOOD', 'WATCH', ['You are being watched', 20]], { w: 192, h: 160, bg: '#f2f2ee', fg: '#1d3d8f', border: '#1d3d8f' }), 0.6, 0.5, 2.2, { name: 'NEIGHBOURHOOD WATCH SIGN' });
+  S(120, -1, plainSign(['NEIGHBOURHOOD', 'WATCH', ['You are being watched', 20]], { w: 192, h: 160, bg: '#f2f2ee', fg: '#1d3d8f', border: '#1d3d8f' }), 0.6, 0.5, 2.2, { name: 'NEIGHBOURHOOD WATCH SIGN' });
   // speed camera
-  { const s = 560, R = roadAt(s, {}), d = R.w + 0.6, x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d), L = sb(chunkOf(s), 'lam'), F = frame(x, y, z, yawTo(-R.fx, -R.fz));
-    cy(L, F, 0.08, 3.0, 0, 1.5, 0, 0x8c9096); bx(L, F, 0.55, 0.65, 0.75, 0, 3.2, 0, 0xf2c81f); bx(L, F, 0.4, 0.3, 0.05, 0, 3.3, -0.4, 0x1c1c1e);
+  { const s = 560, R = roadAt(s, {}), d = -(R.w + 0.6), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d), L = sb(chunkOf(s), 'lam'), F = frame(x, y, z, yawTo(-R.fx, -R.fz));
+    cy(L, F, 0.08, 3.0, 0, 1.5, 0, 0x8c9096); bx(L, F, 0.55, 0.65, 0.75, 0, 3.2, 0, 0xf2c81f); bx(L, F, 0.4, 0.3, 0.05, 0, 3.3, 0.4, 0x1c1c1e);
     for (let i = 0; i < 4; i++) bx(L, F, 0.56, 0.06, 0.76, 0, 2.95 + i * 0.17, 0, i % 2 ? 0x1c1c1e : 0xf2c81f);
     staticCyl(x, y + 1.5, z, 0.1, 1.5, { kind: 'pole', name: 'SPEED CAMERA' }); W.speedCam = { s, x, y: y + 3.3, z };
   }
-  // CCTV along the route
 }
-function groundAt(c) { return c.y > 50 ? TOP.y : (C.world && C.world.groundY ? C.world.groundY(c.x, c.z) : 0); }
 
 // ---------------- parked cars ----------------
+function placeParkedCar(scene, car, x, z, yaw, surface, name = 'PARKED CAR') {
+  const { wheelX, wheelZ } = car, cos = Math.cos(yaw), sin = Math.sin(yaw);
+  const height = (dx, dz) => surface(x + cos * dx + sin * dz, z - sin * dx + cos * dz);
+  const frontLeft = height(-wheelX, -wheelZ), frontRight = height(wheelX, -wheelZ);
+  const backLeft = height(-wheelX, wheelZ), backRight = height(wheelX, wheelZ);
+  const y = (frontLeft + frontRight + backLeft + backRight) / 4;
+  const pitch = Math.atan2(frontLeft + frontRight - backLeft - backRight, 4 * wheelZ);
+  const roll = Math.atan2(frontRight + backRight - frontLeft - backLeft, 4 * wheelX);
+  car.group.position.set(x, y, z);
+  car.group.rotation.set(pitch, yaw, roll, 'YXZ');
+  car.group.updateMatrix();
+  scene.add(car.group);
+  const index = W.cars.length, info = { kind: 'car', name, car: index };
+  W.cars.push({ car, x, y, z, yaw, alarm: 0 });
+  // Each visible body panel supplies the shape of its own convex collider.
+  for (const shell of car.shell) {
+    const vertices = shell.attributes.position, points = new Float32Array(vertices.count * 3);
+    for (let i = 0; i < vertices.count; i++) {
+      _v.fromBufferAttribute(vertices, i).applyMatrix4(car.group.matrix).toArray(points, 3 * i);
+    }
+    staticHull(points, info, { rest: 0.04 });
+  }
+  W.nearTargets.push({ x, z, r: car.L / 2, kind: name, box: { hx: car.W / 2, hz: car.L / 2, yaw } });
+}
 function parkedCars(scene) {
-  const r = rng(23);
-  const kinds = ['hatch', 'hatch', 'hatch', 'estate', 'van', 'hatch', 'estate'];
-  let robin = false;
-  for (let s = 26; s < 736; s += 11 + r() * 16) {
-    if ((s > 166 && s < 196) || Math.abs(s - RA_S) < 54 || (s > 470 && s < 486)) continue;
-    let bad = false; for (const b of W.bumps) if (Math.abs(s - b) < 7) bad = true; if (bad) continue;
-    const side = r() < 0.5 ? -1 : 1; if (side > 0 && ((s > 236 && s < 296) || (s > 318 && s < 350))) continue; if (side < 0 && s > 586 && s < 652) continue;
-    if (!hasHouse(s, side)) continue;
-    let kind = pick(r, kinds); if (s > 410 && !robin) { kind = 'robin'; robin = true; }
-    const car = makeCar(kind, kind === 'robin' ? 0xf2c81f : (kind === 'van' ? 0xf2f2ee : null), Math.floor(r() * 1e6));
-    const R = roadAt(s, {}), d = side * (R.w - car.W / 2 - 0.18), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d);
-    const yaw = -R.th + (r() < 0.5 ? 0 : Math.PI);
-    car.group.position.set(x, y, z); car.group.rotation.y = yaw; scene.add(car.group);
-    const idx = W.cars.length; W.cars.push({ car, x, y, z, yaw, alarm: 0, rock: 0 });
-    staticBox(x, y + 0.6, z, car.W / 2, 0.45, car.L / 2 - 0.05, yaw, { kind: 'car', name: kind === 'van' ? 'WHITE VAN' : kind === 'robin' ? 'THREE-WHEELER' : 'PARKED CAR', car: idx });
-    staticBox(x, y + 1.2, z, car.W / 2 - 0.1, 0.25 + (kind === 'van' ? 0.5 : 0), car.L / 2 - 0.9, yaw, { kind: 'car', name: 'PARKED CAR', car: idx });
-    W.nearTargets.push({ x, z, r: Math.max(car.W, car.L) * 0.5, kind: kind === 'van' ? 'WHITE VAN' : 'PARKED CAR', box: { hx: car.W / 2, hz: car.L / 2, yaw } });
-    s += car.L * 0.5;
+  const r = rng(23), kinds = ['hatch', 'hatch', 'estate', 'hatch', 'van'];
+  // Left kerb, out of crossing controls and clear of each jump's run-up and landing.
+  for (const s of [47, 58, 87, 101, 113, 124, 212, 306, 467, 489, 504, 533, 546, 575, 666, 681, 696, 715, 728]) {
+    const kind = s === 467 ? 'hatch' : pick(r, kinds);
+    const car = makeCar(kind, s === 467 ? 0xf2c81f : kind === 'van' ? 0xf2f2ee : null, Math.floor(r() * 1e6));
+    const road = roadAt(s, {}), centre = P(s, -(road.w - car.W / 2 - 0.23));
+    placeParkedCar(scene, car, centre.x, centre.z, -road.th, C.world.groundY, kind === 'van' ? 'WHITE VAN' : 'PARKED CAR');
   }
 }
 
 // ---------------- roadworks ----------------
 function roadworks(scene) {
   // barriered-off right lane with a hole and a sand pile, well up the hill from the plank
-  // Keep the cone line on the open side of the road, clear of the barriers and sand pile.
-  for (let s = 243; s <= 271; s += 2.6) { const p = P(s, -0.35, 0.36); W.dyn.push({ type: 'cone', x: p.x, y: p.y, z: p.z, yaw: 0 }); }
+  // Taper from the right kerb to the inside edge of the work area.
+  const cones = [[239, 2.95], [241.5, 1.8], [244, 0.75]];
+  for (let s = 246.6; s < 271; s += 2.6) cones.push([s, 0.75]);
+  cones.push([273, 1.6], [276, 2.8]);
+  for (const [s, d] of cones) {
+    const p = P(s, d, 0.36);
+    W.dyn.push({ type: 'cone', x: p.x, y: p.y, z: p.z, yaw: 0 });
+  }
   for (const [s, d] of [[244, 2.3], [247, 3], [263, 3.15], [266, 2.9]]) {
-    const p = P(s, d, 0.55);
+    const p = P(s, d, 0.51);
     W.dyn.push({ type: 'barrier', x: p.x, y: p.y, z: p.z, yaw: -p.th });
   }
-  const hole = new T.Mesh(new T.PlaneGeometry(2.0, 18), new T.MeshLambertMaterial({ color: 0x3a2c22, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-  const hp = P(255, 2.1, 0.02); hole.position.set(hp.x, hp.y, hp.z); hole.rotation.order = 'YXZ'; hole.rotation.set(-Math.PI / 2, -hp.th, 0); scene.add(hole);
+  const patch = sb(chunkOf(255), 'lam');
+  const at = (station, offset) => { const { x, y, z } = P(station, offset, 0.018); return [x, y, z]; };
+  for (let s = 246; s < 264; s++) for (let d = 1.1; d < 3.05; d += 0.5) {
+    patch.quad(at(s, d), at(s, d + 0.5), at(s + 1, d + 0.5), at(s + 1, d), 0x3a322c);
+  }
   // sand pile (static, rideable)
-  { const c = P(272, 2.6), width = 1.55, pts = []; for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; pts.push(c.x + Math.cos(a) * width, c.y, c.z + Math.sin(a) * 1.4); } pts.push(c.x, c.y + 1.05, c.z); staticHull(pts, { kind: 'ground', name: 'SAND PILE' });
-    const g = new T.SphereGeometry(1, 10, 6, 0, TAU, 0, Math.PI / 2); const m = new T.Mesh(g, mats().dirt); m.scale.set(width, 1.05, 1.4); m.position.set(c.x, c.y, c.z); m.receiveShadow = true; m.castShadow = true; scene.add(m); }
-  // temporary lights
-  for (const s of [220, 292]) { const R = roadAt(s, {}), d = -(R.w + 0.8), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d), L = sb(chunkOf(s), 'lam'), F = frame(x, y, z, -R.th + (s > 250 ? Math.PI : 0));
-    cy(L, F, 0.05, 2.4, 0, 1.2, 0, 0x2a2a2e); bx(L, F, 0.3, 0.8, 0.25, 0, 2.6, 0, 0x2a2a2e); bx(L, F, 0.5, 0.15, 0.5, 0, 0.1, 0, 0xf2c81f);
-    const red = new T.Mesh(new T.CircleGeometry(0.09, 10), new T.MeshBasicMaterial({ color: 0xff2a1f })); const rp = new T.Vector3(0, 2.85, -0.13).applyMatrix4(F); red.position.copy(rp); red.rotation.y = -R.th + (s > 250 ? 0 : Math.PI); scene.add(red);
-    staticCyl(x, y + 1.3, z, 0.08, 1.3, { kind: 'pole', name: 'TRAFFIC LIGHTS' }); }
+  { const c = P(268, 2.72), g = new T.SphereGeometry(1, 10, 6, 0, TAU, 0, Math.PI / 2);
+    g.scale(0.84, 0.82, 1.4); g.rotateY(-c.th); g.translate(c.x, 0, c.z);
+    const pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setY(i, pos.getY(i) + W.groundY(pos.getX(i), pos.getZ(i)) - 0.01);
+    g.computeVertexNormals();
+    const m = new T.Mesh(g, mats().dirt); m.receiveShadow = true; m.castShadow = true; scene.add(m);
+    staticMeshCol(g, { kind: 'ground', name: 'SAND PILE' }); }
+  // Two signal heads face their respective approaches on the nearside kerb.
+  for (const [s, side] of [[220, -1], [292, 1]]) {
+    const R = roadAt(s, {}), p = P(s, side * (R.w + 0.75));
+    const yaw = -R.th + (side > 0 ? Math.PI : 0), L = sb(chunkOf(s), 'lam'), F = frame(p.x, p.y, p.z, yaw);
+    cy(L, F, 0.05, 2.4, 0, 1.2, 0, 0x2a2a2a); bx(L, F, 0.3, 0.8, 0.25, 0, 2.6, 0, 0x2a2a2a);
+    bx(L, F, 0.5, 0.15, 0.5, 0, 0.075, 0, 0xf2c81f);
+    for (const [i, color] of [0xe82a27, 0xeebf26, 0x39ef65].entries()) {
+      const lit = i === (side < 0 ? 2 : 0);
+      cy(L, F, 0.092, 0.025, 0, 2.84 - i * 0.24, 0.133, lit ? color : 0x434343, 12, Math.PI / 2);
+    }
+    colBox(F, yaw, 0.5, 0.15, 0.5, 0, 0.075, 0, { kind: 'wall', name: 'SIGNAL BASE' });
+    staticCyl(p.x, p.y + 1.2, p.z, 0.05, 1.2, { kind: 'pole', name: 'TRAFFIC LIGHTS' });
+  }
 }
 
 const PLANK = { s: 334, d: 1.6, width: 1.4, length: 4.8, height: 0.9 };
@@ -301,40 +348,56 @@ export function addRamp(scene, at, th, w, len, h, mat, name, lipDeg = 28, grade 
 
 // ---------------- roundabout ----------------
 function roundabout(scene) {
-  const c = P(RA_S, 0), R0 = 6.4, top = 1.7, base = c.y, KH = 0.07;
+  const c = P(RA_S, 0), R0 = 6.4, top = 1.7, base = c.y, KH = 0.07, inner = R0 - 0.35;
   // island: a low overrun kerb, then a smooth grassy mound that works as a kicker (mesh and collider share the shape)
-  const domeH = r => KH + top * (1 - Math.min(1, r / R0) ** 2) ** 2;
+  const domeH = r => KH + top * (1 - Math.min(1, r / inner) ** 2) ** 2;
+  const followRoad = geometry => {
+    geometry.translate(c.x, 0, c.z);
+    const pos = geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setY(i, pos.getY(i) + W.groundY(pos.getX(i), pos.getZ(i)));
+    geometry.computeVertexNormals();
+    return geometry;
+  };
   const white = g => { g.setAttribute('color', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(1), 3)); return g; };
-  { const ring = white(new T.CylinderGeometry(R0, R0, KH + 0.12, 40, 1, true)); const kerb = new T.Mesh(ring, mats().kerb); kerb.position.set(c.x, base + KH / 2 - 0.06, c.z); scene.add(kerb);
-    const cap = white(new T.RingGeometry(R0 - 0.35, R0, 40, 1)); cap.rotateX(-Math.PI / 2); const capM = new T.Mesh(cap, mats().kerb); capM.position.set(c.x, base + KH + 0.004, c.z); scene.add(capM); }
-  const prof2 = [new T.Vector2(R0, -0.1), new T.Vector2(R0, KH)]; for (let k = 1; k <= 14; k++) { const r = R0 * (1 - k / 14); prof2.push(new T.Vector2(Math.max(0.001, r), domeH(r))); }
-  const domeG = new T.LatheGeometry(prof2, 32); domeG.translate(c.x, base, c.z);
+  { const ring = new T.CylinderGeometry(R0, R0, KH + 0.12, 40, 1, true); ring.translate(0, KH / 2 - 0.06, 0);
+    scene.add(new T.Mesh(white(followRoad(ring)), mats().kerb));
+    const cap = new T.RingGeometry(inner, R0, 40, 1); cap.rotateX(-Math.PI / 2); cap.translate(0, KH + 0.006, 0);
+    scene.add(new T.Mesh(white(followRoad(cap)), mats().kerb)); }
+  const prof2 = [new T.Vector2(R0, -0.1), new T.Vector2(R0, KH), new T.Vector2(inner, KH)];
+  for (let k = 1; k <= 14; k++) { const r = inner * (1 - k / 14); prof2.push(new T.Vector2(r, domeH(r))); }
+  const domeG = followRoad(new T.LatheGeometry(prof2, 40));
   const dcol = new Float32Array(domeG.attributes.position.count * 3).fill(1); domeG.setAttribute('color', new T.BufferAttribute(dcol, 3));
   const dome = new T.Mesh(domeG, mats().grass); dome.receiveShadow = true; scene.add(dome);
   staticMeshCol(domeG, { kind: 'ground', name: 'ROUNDABOUT' }, { friction: 0.7, rest: 0.05 });
   // flower bed and chevrons
   const L = sb('ra', 'lam'), r = rng(3);
-  for (let k = 0; k < 40; k++) { const a = r() * TAU, rr = 1.2 + r() * 2.2, x = c.x + Math.cos(a) * rr, z = c.z + Math.sin(a) * rr, h = base + domeH(rr) - 0.04; L.add(GEO.ico, M(x, h + 0.08, z, 0, 0, 0, 0.18, 0.14, 0.18), pick(r, [0xd2486a, 0xf2c94a, 0x8a5ad2, 0xf2f2f2, 0xe8602a])); }
+  for (let k = 0; k < 40; k++) { const a = r() * TAU, rr = 1.2 + r() * 2.2, x = c.x + Math.cos(a) * rr, z = c.z + Math.sin(a) * rr, h = W.groundY(x, z) + domeH(rr) - 0.04; L.add(GEO.ico, M(x, h + 0.08, z, 0, 0, 0, 0.18, 0.14, 0.18), pick(r, [0xd2486a, 0xf2c94a, 0x8a5ad2, 0xf2f2f2, 0xe8602a])); }
   // chevrons stand either side of the straight-over line, so the mound works as a kicker
   const chev = chevron(), fx = Math.sin(c.th), fz = -Math.cos(c.th), rx = Math.cos(c.th), rz = Math.sin(c.th), rr2 = R0 - 1.1, ca = Math.cos(0.75), sa = Math.sin(0.75);
   for (const [side, back, yaw] of [[1, -1, Math.PI - c.th], [-1, 1, -c.th]]) {
     const x = c.x + (fx * back * ca + rx * side * sa) * rr2, z = c.z + (fz * back * ca + rz * side * sa) * rr2;
-    signPost(scene, x, base + domeH(rr2) - 0.05, z, yaw, chev, 1.6, 0.8, 0.45, { name: 'CHEVRON SIGN', twin: true });
+    signPost(scene, x, W.groundY(x, z) + domeH(rr2) - 0.05, z, yaw, chev, 1.6, 0.66, 0.45, { name: 'CHEVRON SIGN', twin: true });
   }
   W.roundabout = { x: c.x, z: c.z, r: R0, top: base + 0.16 + top };
   // pickups on the island
-  W.pickups.push({ k: 'pineapple', x: c.x, y: base + top + 1.4, z: c.z });
+  W.pickups.push({ k: 'pineapple', x: c.x, y: base + KH + top + 0.97, z: c.z });
 }
 // green spaces around the roundabout and the allotments
 function greens(scene) {
   const r = rng(17);
-  const tree = (x, z, s = 1) => { const y = C.world.groundY(x, z), L = sb(chunkOf(locS(x, z)), 'lam'); cy(L, null, 0.18 * s, 3 * s, x, y + 1.5 * s, z, 0x6a5038, 6); for (let k = 0; k < 4; k++) L.add(GEO.ico, M(x + (r() - 0.5) * 1.6 * s, y + (3.2 + r() * 1.6) * s, z + (r() - 0.5) * 1.6 * s, r(), r(), 0, (1.4 + r() * 0.8) * s, (1.2 + r() * 0.6) * s, (1.4 + r() * 0.8) * s), pick(r, [0x4c7a35, 0x5a8a3e, 0x3f6a2e, 0x6a9a44])); staticCyl(x, y + 1.5 * s, z, 0.25 * s, 1.5 * s, { kind: 'pole', name: 'TREE' }); W.nearTargets.push({ x, z, r: 0.35, kind: 'TREE' }); };
+  const tree = (x, z, s = 1) => { const y = C.world.groundY(x, z), L = sb(chunkOf(locS(x, z)), 'lam'); cy(L, null, 0.18 * s, 3 * s, x, y + 1.5 * s, z, 0x6a5038, 6); for (let k = 0; k < 4; k++) L.add(GEO.ico, M(x + (r() - 0.5) * 1.6 * s, y + (3.2 + r() * 1.6) * s, z + (r() - 0.5) * 1.6 * s, r(), r(), 0, (1.4 + r() * 0.8) * s, (1.2 + r() * 0.6) * s, (1.4 + r() * 0.8) * s), pick(r, [0x4c7a35, 0x5a8a3e, 0x3f6a2e, 0x6a9a44])); staticCyl(x, y + 1.5 * s, z, 0.18 * s, 1.5 * s, { kind: 'pole', name: 'TREE' }); W.nearTargets.push({ x, z, r: 0.35, kind: 'TREE' }); };
   for (const side of [-1, 1]) for (let s = 378; s < 484; s += 9 + r() * 6) { const R = roadAt(s, {}); if (Math.abs(s - RA_S) < 8) continue; const d = side * (R.w + 6 + r() * 6); const p = P(s, d); tree(p.x, p.z, 0.9 + r() * 0.4); }
   // boundary hedges on the green
   for (const side of [-1, 1]) for (let s = 374; s < 486; s += 4) { const R = roadAt(s, {}), d = side * (R.w + 14.5), p = P(s, d), yaw = -R.th; tbox(sb(chunkOf(s), 'hedge'), frame(p.x, p.y, p.z, yaw), 1.2, 1.6, 4.2, 0, 0.8, 0, 0xffffff, 1.2); staticBox(p.x, p.y + 0.8, p.z, 0.6, 0.8, 2.1, yaw, { kind: 'hedge', name: 'HEDGE' }); }
   for (const side of [-1, 1]) for (let s = 298; s < 376; s += 4) { if (side < 0) continue; const R = roadAt(s, {}), d = side * (R.w + 6.2), p = P(s, d), yaw = -R.th; tbox(sb(chunkOf(s), 'hedge'), frame(p.x, p.y, p.z, yaw), 0.8, 1.3, 4.2, 0, 0.65, 0, 0xffffff, 1.2); staticBox(p.x, p.y + 0.65, p.z, 0.4, 0.65, 2.1, yaw, { kind: 'hedge', name: 'HEDGE' }); }
-  // allotments behind that hedge: sheds and veg rows
-  for (let s = 306; s < 370; s += 16) { const p = P(s, 13), F = frame(p.x, p.y, p.z, -roadAt(s, {}).th + (r() - 0.5) * 0.3), L = sb(chunkOf(s), 'lam'); bx(L, F, 2.2, 2.0, 1.8, 0, 1.0, 0, pick(r, [0x6a8a5a, 0x7a5a3a, 0x5a6a8a])); L.add(GEO.prism, FM(F, 0, 2.0, 0, 0, 0, 0, 2.4, 0.6, 2.0), 0x3a3a3e); for (let k = 0; k < 4; k++) bx(L, F, 0.5, 0.25, 5, 3 + k * 1.1, 0.12, 0, k % 2 ? 0x5a8a3e : 0x6a5038); }
+  // Allotment sheds sit behind the hedge.
+  for (let s = 306; s < 370; s += 16) {
+    const p = P(s, 13), yaw = -p.th + (r() - 0.5) * 0.3, F = frame(p.x, p.y, p.z, yaw), L = sb(chunkOf(s), 'lam');
+    bx(L, F, 2.2, 2, 1.8, 0, 1, 0, pick(r, [0x6a8a5a, 0x7a5a3a, 0x5a6a8a]));
+    L.add(GEO.prism, FM(F, 0, 2, 0, 0, 0, 0, 2.4, 0.6, 2), 0x3a3a3e);
+    colBox(F, yaw, 2.2, 2, 1.8, 0, 1, 0, { kind: 'wall', name: 'ALLOTMENT SHED' });
+    for (let k = 0; k < 4; k++) bx(L, F, 0.5, 0.25, 5, 3 + k * 1.1, 0.12, 0, k % 2 ? 0x5a8a3e : 0x6a5038);
+  }
   // bus shelter, phone box, post box and benches on the green
   { const R = roadAt(404, {}); busShelter(scene, P(404, R.w + 3.2), yawTo(R.rx, R.rz), 'mid'); }
   { const p = P(455, -(roadAt(455, {}).w + 4.5)), F = frame(p.x, p.y, p.z, -roadAt(455, {}).th - Math.PI / 2), L = sb('ra', 'lam'); bx(L, F, 1.0, 2.5, 1.0, 0, 1.25, 0, 0xc8202a); for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++) bx(L, F, 0.22, 0.32, 1.02, -0.25 + i * 0.25, 0.7 + j * 0.38, 0, 0x2a3440); bx(L, F, 0.8, 0.15, 1.04, 0, 2.3, 0, 0xf2f2ee); bx(L, F, 1.1, 0.15, 1.1, 0, 2.6, 0, 0xc8202a); staticBox(p.x, p.y + 1.25, p.z, 0.5, 1.25, 0.5, -roadAt(455, {}).th, { kind: 'wall', name: 'PHONE BOX' }); }
@@ -369,12 +432,19 @@ function topScenery(scene) {
   staticBox(0, y + 4.5, 74, 32, 4.5, 12, 0, { kind: 'house', name: 'SPENDWELLS' });
   // trolley bay with a row of trolleys (one missing)
   const bayF = frame(-12, y, 30, Math.PI / 2);
-  for (const sx of [-4, 4]) for (const sz of [-1.1, 1.1]) bx(L, bayF, 0.1, 2.4, 0.1, sx, 1.2, sz, 0x9a9da2);
+  for (const sx of [-4, 4]) for (const sz of [-1.1, 1.1]) {
+    bx(L, bayF, 0.1, 2.4, 0.1, sx, 1.2, sz, 0x9a9da2);
+    colBox(bayF, Math.PI / 2, 0.1, 2.4, 0.1, sx, 1.2, sz, { kind: 'wall', name: 'TROLLEY BAY POST' });
+  }
   bx(L, bayF, 8.4, 0.08, 2.6, 0, 2.45, 0, 0x2f6a9a); bx(L, bayF, 8.4, 0.5, 0.06, 0, 2.15, -1.2, 0xf26a1b);
-  staticBox(...wp(bayF, 0, 2.45, 0).toArray(), 4.2, 0.1, 1.3, Math.PI / 2, { kind: 'wall', name: 'TROLLEY BAY' });
-  for (const sx of [-4, 4]) staticBox(...wp(bayF, sx, 1.2, 0).toArray(), 0.1, 1.2, 1.2, Math.PI / 2, { kind: 'wall', name: 'TROLLEY BAY' });
+  colBox(bayF, Math.PI / 2, 8.4, 0.08, 2.6, 0, 2.45, 0, { kind: 'wall', name: 'TROLLEY BAY ROOF' });
   const tmpl = makeTrolley('dave').root;
-  for (let k = 0; k < 6; k++) { if (k === 2) continue; const t = tmpl.clone(); const p = wp(bayF, -3 + k * 0.32 + (k > 2 ? 1.5 : 0), 0.5, 0); t.position.copy(p); t.rotation.y = Math.PI / 2 + Math.PI / 2; DECOR.add(t); }
+  for (const offset of [-3.15, -2.81, -2.47, 1.8, 2.14]) {
+    const t = tmpl.clone(); t.position.copy(wp(bayF, offset, 0.5, 0)); t.rotation.y = Math.PI; DECOR.add(t);
+  }
+  for (const [offset, length] of [[-2.81, 1.7], [1.97, 1.36]]) {
+    colBox(bayF, Math.PI / 2, length, 0.76, 0.57, offset, 0.59, 0, { kind: 'wall', name: 'PARKED TROLLEYS' });
+  }
   const bs = wp(bayF, 4.6, 0, 1.8);
   signPost(scene, bs.x, bs.y, bs.z, Math.PI, plainSign(['RETURN', 'TROLLEYS', 'HERE'], { w: 128, h: 128, bg: '#f26a1b', fg: '#fff', border: '#f26a1b' }), 0.6, 0.6, 1.8, { name: 'TROLLEY SIGN' });
   // the ominous exit sign
@@ -386,10 +456,27 @@ function topScenery(scene) {
   { const cr = new Batch(); cr.add(GEO.sph, M(0, 0, 0, 0, 0, 0, 0.12, 0.1, 0.2), 0x111114); cr.add(GEO.sph, M(0, 0.1, -0.15, 0, 0, 0, 0.07, 0.07, 0.07), 0x111114); cr.add(GEO.cone8, M(0, 0.09, -0.24, -Math.PI / 2, 0, 0, 0.025, 0.08, 0.025), 0x2a2a2a); cr.add(GEO.box, M(0, 0.02, 0.2, 0.3, 0, 0, 0.1, 0.02, 0.16), 0x111114); const crow = new T.Mesh(cr.geometry(), mats().lam); crow.position.set(0, y + 7.25, 44); crow.rotation.y = Math.PI; scene.add(crow); W.crow = crow; }
   for (const [x, z, c] of [[16, 70, 0x2a6a3a], [18.5, 70, 0x2a4aa0], [21, 70, 0x8a8a8a]]) { L.add(GEO.sph, M(x, y + 1.1, z - 12, 0, 0, 0, 1.1, 1.2, 1.1), c); L.add(GEO.box, M(x, y + 0.4, z - 12, 0, 0, 0, 2.0, 0.8, 2.0), c); staticBox(x, y + 0.9, z - 12, 1.0, 0.9, 1.0, 0, { kind: 'wall', name: 'BOTTLE BANK' }); }
   const r = rng(77);
-  for (const [x, z, yaw] of [[-30, 17, 0], [-27.3, 17, Math.PI], [30, 33, 0], [19, 17, Math.PI], [-35, 33, 0], [27.4, 17, 0]]) { const car = makeCar(pick(r, ['hatch', 'estate', 'hatch']), null, Math.floor(r() * 1e6)); car.group.position.set(x, y, z); car.group.rotation.y = yaw; scene.add(car.group); const idx = W.cars.length; W.cars.push({ car, x, y, z, yaw, alarm: 0, rock: 0 }); staticBox(x, y + 0.7, z, car.W / 2, 0.6, car.L / 2, yaw, { kind: 'car', name: 'PARKED CAR', car: idx }); W.nearTargets.push({ x, z, r: car.L / 2, kind: 'PARKED CAR', box: { hx: car.W / 2, hz: car.L / 2, yaw } }); }
-  // perimeter: low wall with railings, open at the exit
-  const wall = (x0, z0, x1, z1) => { const len = Math.hypot(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, yaw = Math.atan2(x1 - x0, z1 - z0), F = frame(cx, y, cz, yaw); tbox(sb('top', 'brick'), F, 0.3, 0.9, len, 0, 0.45, 0, 0xffffff); for (let k = -len / 2 + 0.2; k < len / 2; k += 0.52) bx(L, F, 0.027, 0.7, 0.027, 0, 1.25, k, 0x1c1c1e); bx(L, F, 0.04, 0.04, len, 0, 1.6, 0, 0x1c1c1e); staticBox(cx, y + 0.8, cz, 0.15, 0.8, len / 2, yaw, { kind: 'wall', name: 'CAR PARK WALL' }); };
-  wall(TOP.x0, 0.2, -5.95, 0.2); wall(5.95, 0.2, TOP.x1, 0.2); wall(TOP.x0, 0.2, TOP.x0, 62); wall(TOP.x1, 0.2, TOP.x1, 62);
+  for (const [x, z, yaw] of [[-30.55, 16.5, 0], [-25.15, 16.5, 0], [28.85, 32.5, Math.PI], [18.05, 16.5, 0], [-35.95, 32.5, Math.PI], [26.15, 16.5, 0]]) {
+    const car = makeCar(pick(r, ['hatch', 'estate', 'hatch']), null, Math.floor(r() * 1e6));
+    placeParkedCar(scene, car, x, z, yaw, () => y);
+  }
+  // The railings share one mesh collider rather than a solid invisible wall.
+  const rails = new Batch();
+  const wall = (x0, z0, x1, z1) => {
+    const len = Math.hypot(x1 - x0, z1 - z0), yaw = Math.atan2(x1 - x0, z1 - z0);
+    const F = frame((x0 + x1) / 2, y, (z0 + z1) / 2, yaw);
+    tbox(sb('top', 'brick'), F, 0.3, 0.9, len, 0, 0.45, 0, 0xffffff);
+    colBox(F, yaw, 0.3, 0.9, len, 0, 0.45, 0, { kind: 'wall', name: 'CAR PARK WALL' });
+    for (let k = -len / 2 + 0.2; k < len / 2; k += 0.52) bx(rails, F, 0.027, 0.7, 0.027, 0, 1.25, k, 0x1c1c1e);
+    bx(rails, F, 0.04, 0.04, len, 0, 1.6, 0, 0x1c1c1e);
+  };
+  wall(TOP.x0, 0.2, -5.95, 0.2); wall(5.95, 0.2, TOP.x1, 0.2);
+  wall(TOP.x0, 0.2, TOP.x0, TOP.z1); wall(TOP.x1, 0.2, TOP.x1, TOP.z1);
+  wall(TOP.x0, TOP.z1 - 0.1, -32, TOP.z1 - 0.1); wall(32, TOP.z1 - 0.1, TOP.x1, TOP.z1 - 0.1);
+  const railingGeometry = rails.geometry();
+  L.add(railingGeometry, null);
+  staticMeshCol(railingGeometry, { kind: 'wall', name: 'RAILING' });
+  railingGeometry.dispose();
   carParkGraffiti(scene, y, 0.35);
 }
 
@@ -405,15 +492,34 @@ function bottomScenery(scene) {
     bx(L, F, 26, 0.35, 4.5, 0, 4.8, 14.2, 0x0c5a37); for (const sx of [-12.5, 12.5]) cy(L, F, 0.14, 4.8, sx, 2.4, 16.2, 0xffd21f, 8);
     const p = BW(0, 118); staticBox(p.x, 5, p.z, 37, 5, 12, 0, { kind: 'house', name: 'HARRISONS' });
     const fm = new T.Mesh(new T.PlaneGeometry(30, 2.4), new T.MeshBasicMaterial({ map: fascia('HARRISONS', { bg: '#0c5a37', fg: '#ffd21f', w: 512, h: 64, size: 50 }) })); const fp = BW(0, 118 - 12.45); fm.position.set(fp.x, 8.6, fp.z); scene.add(fm); }
-  // trolley shelters; the one by the door is the finish
   const tmpl = makeTrolley('dave').root;
-  const shelter = (lx, lf, n, finish) => { const F = bf(lx, lf, 0); for (const sx of [-1.4, 1.4]) for (const sz of [-4, 4]) bx(L, F, 0.1, 2.4, 0.1, sx, 1.2, sz, 0x9a9da2); bx(L, F, 3.0, 0.08, 8.4, 0, 2.45, 0, 0x0c5a37); bx(L, F, 0.06, 0.5, 8.4, -1.4, 2.15, 0, 0xffd21f);
-    const p = BW(lx, lf); staticBox(p.x, 2.45, p.z, 1.5, 0.08, 4.2, 0, { kind: 'wall', name: 'TROLLEY SHELTER' });
-    for (let k = 0; k < n; k++) { const t = tmpl.clone(); const q = BW(lx, lf - 3 + k * 0.34); t.position.set(q.x, 0.5, q.z); t.rotation.y = Math.PI; DECOR.add(t, 'bottom'); }
-    if (finish) { (W.finishes = W.finishes || []).push({ x: p.x, z: p.z + 0.5, hx: 1.6, hz: 4.2 }); const sp = BW(lx + 2.0, lf + 4.5); signPost(scene, sp.x, 0, sp.z, Math.PI, plainSign(['RETURN', 'TROLLEYS', 'HERE'], { w: 128, h: 128, bg: '#0c5a37', fg: '#ffd21f', border: '#ffd21f' }), 0.7, 0.7, 2.0, { name: 'TROLLEY SIGN' }); } };
-  shelter(-22, 70, 6, true); shelter(22, 70, 3, true); shelter(12, 96, 2, true);
-  // a few parked cars
-  for (const [lx, lf, yaw] of [[-29.2, 60.5, 0], [-26.6, 60.5, Math.PI], [26.6, 60.5, 0], [-18.8, 86.5, 0], [29.2, 86.5, Math.PI], [-31.8, 86.5, 0], [21.2, 60.5, Math.PI]]) { const car = makeCar(pick(r, ['hatch', 'estate', 'van']), null, Math.floor(r() * 1e6)); const p = BW(lx, lf); car.group.position.set(p.x, 0.03, p.z); car.group.rotation.y = yaw; scene.add(car.group); const idx = W.cars.length; W.cars.push({ car, x: p.x, y: 0, z: p.z, yaw, alarm: 0, rock: 0 }); staticBox(p.x, 0.7, p.z, car.W / 2, 0.6, car.L / 2, yaw, { kind: 'car', name: 'PARKED CAR', car: idx }); W.nearTargets.push({ x: p.x, z: p.z, r: car.L / 2, kind: 'PARKED CAR', box: { hx: car.W / 2, hz: car.L / 2, yaw } }); }
+  const returnSign = plainSign(['RETURN', 'TROLLEYS', 'HERE'], { w: 128, h: 128, bg: '#0c5a37', fg: '#ffd21f', border: '#ffd21f' });
+  W.finishes = [];
+  const shelter = (lx, lf, n) => {
+    const centre = BW(lx, lf), F = frame(centre.x, 0.03, centre.z, 0);
+    for (const sx of [-1.4, 1.4]) for (const sz of [-4, 4]) {
+      bx(L, F, 0.1, 2.4, 0.1, sx, 1.2, sz, 0x9a9da2);
+      colBox(F, 0, 0.1, 2.4, 0.1, sx, 1.2, sz, { kind: 'wall', name: 'TROLLEY SHELTER POST' });
+    }
+    bx(L, F, 3.0, 0.08, 8.4, 0, 2.45, 0, 0x0c5a37); bx(L, F, 0.06, 0.5, 8.4, -1.4, 2.15, 0, 0xffd21f);
+    colBox(F, 0, 3, 0.08, 8.4, 0, 2.45, 0, { kind: 'wall', name: 'TROLLEY SHELTER ROOF' });
+    const cartStart = 2.5 - (n - 1) * 0.34;
+    for (let k = 0; k < n; k++) {
+      const t = tmpl.clone(); t.position.copy(wp(F, 0, 0.5, -(cartStart + k * 0.34)));
+      t.rotation.y = Math.PI; DECOR.add(t, 'bottom');
+    }
+    colBox(F, 0, 0.57, 0.76, 1.02 + (n - 1) * 0.34, 0, 0.59, -(cartStart + 2.5) / 2, { kind: 'wall', name: 'PARKED TROLLEYS' });
+    const entry = BW(lx, lf - 1.65);
+    W.finishes.push({ x: entry.x, z: entry.z, hx: 1.35, hz: 2.45 });
+    const p = BW(lx + 2.1, lf - 3.8);
+    signPost(scene, p.x, 0.03, p.z, Math.PI, returnSign, 0.7, 0.7, 1.9, { name: 'TROLLEY SIGN' });
+  };
+  shelter(-22, 70, 6); shelter(22, 70, 3); shelter(12, 96, 2);
+  // Cars centred in marked bays, with alternating rows facing their aisle.
+  for (const [lx, lf, yaw] of [[-32.7, 60.75, 0], [-27.5, 60.75, 0], [27.1, 60.75, 0], [-22.3, 86.75, 0], [29.7, 86.75, 0], [-32.7, 86.75, 0], [24.5, 99.75, Math.PI]]) {
+    const p = BW(lx, lf), car = makeCar(pick(r, ['hatch', 'estate', 'van']), null, Math.floor(r() * 1e6));
+    placeParkedCar(scene, car, p.x, p.z, yaw, () => 0.03);
+  }
   // car park lamps
   for (const [lx, lf] of [[-14, 62], [14, 62], [-14, 88], [14, 88], [0, 75]]) { const p = BW(lx, lf); cy(L, null, 0.1, 7, p.x, 3.5, p.z, 0x8c9096); bx(L, null, 0.6, 0.15, 0.3, p.x, 7, p.z, 0x6a6e74); staticCyl(p.x, 3.5, p.z, 0.12, 3.5, { kind: 'pole', name: 'LAMP POST' }); W.nearTargets.push({ x: p.x, z: p.z, r: 0.25, kind: 'LAMP POST' }); }
   // bus stop on Station Road
@@ -444,9 +550,9 @@ function bottomScenery(scene) {
     bx(L, dock, 0.3, 5, 10, side * 2.8, 2.5, 0, 0x323238);
     colBox(dock, 0, 0.3, 7, 10, side * 2.8, 3.3, 0, { kind: 'wall', name: 'RAILWAY BRIDGE' });
   }
-  const fence = (lx0, lf0, lx1, lf1) => { const a = BW(lx0, lf0), b = BW(lx1, lf1), len = Math.hypot(b.x - a.x, b.z - a.z), cx = (a.x + b.x) / 2, cz = (a.z + b.z) / 2, yaw = Math.atan2(b.x - a.x, b.z - a.z), F = frame(cx, 0, cz, yaw); tbox(sb('bot', 'hedge'), F, 1.4, 4.35, len, 0, 2.17, 0, 0xffffff, 1.2); staticBox(cx, 2.35, cz, 0.7, 2.4, len / 2, yaw, { kind: 'hedge', name: 'HEDGE' }); };
+  const fence = (lx0, lf0, lx1, lf1) => { const a = BW(lx0, lf0), b = BW(lx1, lf1), len = Math.hypot(b.x - a.x, b.z - a.z), cx = (a.x + b.x) / 2, cz = (a.z + b.z) / 2, yaw = Math.atan2(b.x - a.x, b.z - a.z), F = frame(cx, 0, cz, yaw); tbox(sb('bot', 'hedge'), F, 1.4, 4.35, len, 0, 2.17, 0, 0xffffff, 1.2); staticBox(cx, 2.17, cz, 0.7, 2.175, len / 2, yaw, { kind: 'hedge', name: 'HEDGE' }); };
   fence(BOT.lx0 + 1, 16, BOT.lx0 + 1, BOT.lf1 - 1); fence(BOT.lx1 - 1, 16, BOT.lx1 - 1, BOT.lf1 - 1); fence(BOT.lx0 + 1, BOT.lf1 - 1, BOT.lx1 - 1, BOT.lf1 - 1);
-  const edge = (lx0, lx1) => { const a = BW(lx0, BOT.lf0 + 0.3), b = BW(lx1, BOT.lf0 + 0.3), len = Math.abs(b.x - a.x), cx = (a.x + b.x) / 2; tbox(brick, frame(cx, 0, a.z, Math.PI / 2), 0.3, 1.0, len, 0, 0.5, 0, 0xffffff); staticBox(cx, 0.6, a.z, len / 2, 0.6, 0.15, 0, { kind: 'wall', name: 'WALL' }); };
+  const edge = (lx0, lx1) => { const a = BW(lx0, BOT.lf0 + 0.3), b = BW(lx1, BOT.lf0 + 0.3), len = Math.abs(b.x - a.x), cx = (a.x + b.x) / 2; tbox(brick, frame(cx, 0, a.z, Math.PI / 2), 0.3, 1.0, len, 0, 0.5, 0, 0xffffff); staticBox(cx, 0.5, a.z, len / 2, 0.5, 0.15, 0, { kind: 'wall', name: 'WALL' }); };
   edge(BOT.lx0 + 1, -10.5); edge(10.5, BOT.lx1 - 1);
 }
 
@@ -454,7 +560,7 @@ function bottomScenery(scene) {
 function placePickups() {
   // The remaining shopping, placed on the hill.
   const add = (k, x, y, z) => W.pickups.push({ k, x, y, z });
-  { const p = P(136, 0, 1.7); add('loo', p.x, p.y, p.z); } // road hump on the hill
+  { const p = P(136, -1.04, 1.17); add('loo', p.x, p.y, p.z); } // road hump on the hill
   { const p = P(PLANK.s + PLANK.length / 2 - 0.4, PLANK.d, PLANK.height + 0.45); add('tampons', p.x, p.y, p.z); } // on the plank ramp itself
   // pineapple: on the roundabout island (placed with the island); gnome: off the car transporter (extras)
 }
@@ -462,6 +568,13 @@ function placePickups() {
 // ---------------- pedestrians ----------------
 function placePeds() {
   W.peds.push({ kind: 'lollipop', s: 181, d: -1.8 });
+}
+
+function clearBinSites() {
+  const posts = W.wobblers.map(w => w.obj.position);
+  for (const target of W.nearTargets) if (target.kind === 'LAMP POST' || target.kind === 'BELISHA BEACON') posts.push(target);
+  W.dyn = W.dyn.filter(prop => prop.type !== 'bin' ||
+    posts.every(post => (post.x - prop.x) ** 2 + (post.z - prop.z) ** 2 > 0.58 ** 2));
 }
 
 export function buildScenery(scene) {
@@ -477,5 +590,6 @@ export function buildScenery(scene) {
   bottomScenery(scene);
   placePickups();
   placePeds();
+  clearBinSites();
   DECOR.flush(scene);
 }

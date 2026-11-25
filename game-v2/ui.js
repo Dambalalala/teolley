@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { fmt } from './util.js';
-import { GRUMBLETON, SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=roadworks-graffiti';
+import { DEPARTURES, GRUMBLETON, SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=grumbleton-audit';
 const $ = id => document.getElementById(id);
 const NOTE = '<svg class="px" viewBox="0 0 8 9" width="16" height="18" aria-hidden="true"><path d="M3 0h3v1h-3zM3 1h1v1h-1zM5 1h2v1h-2zM3 2h1v1h-1zM6 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM1 5h3v1h-3zM0 6h4v1h-4zM0 7h4v1h-4zM1 8h2v1h-2z"/></svg>';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -8,14 +8,17 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 export class UI {
   constructor() {
     this.cur = null;
-    $('bAgain').addEventListener('click', () => C.game.toBriefing());
-    $('bTrolleys').addEventListener('click', () => C.game.toSelect());
-    $('bStartRun').addEventListener('click', () => C.game.startRun());
-    $('bBriefBack').addEventListener('click', () => C.game.toSelect());
-    $('briefLevel').textContent = GRUMBLETON.name;
-    $('briefList').innerHTML = this.listHTML();
+    const menus = {
+      bPlay: 'levels', bLevelBack: 'title', bLevelPlay: 'select', bSelBack: 'levels',
+      bPauseLevels: 'levels', bResultsLevels: 'levels', bTrolleys: 'select',
+    };
+    for (const [id, screen] of Object.entries(menus)) {
+      $(id).addEventListener('click', () => { C.audio.init(); C.audio.sfx('click'); C.game.toMenu(screen); });
+    }
+    $('bAgain').addEventListener('click', () => C.game.startRun());
+    $('levelShopping').textContent = SHOPPING_LIST.map(key => LIST_NAMES[key]).join(' · ');
     $('bResume').addEventListener('click', () => this.resume());
-    $('bRestart').addEventListener('click', () => C.game.toBriefing());
+    $('bRestart').addEventListener('click', () => C.game.startRun());
     $('select').addEventListener('pointerdown', () => C.audio.init()); // sound can only start after a touch or a key
     $('bMute').addEventListener('click', () => { C.audio.init(); this.toggleMute(); });
     $('bPause').addEventListener('click', () => this.pause());
@@ -23,19 +26,22 @@ export class UI {
   }
   show(name) {
     this.cur = name;
-    $('select').classList.toggle('hidden', name !== 'select');
-    $('briefing').classList.toggle('hidden', name !== 'briefing');
-    $('results').classList.toggle('hidden', name !== 'results');
-    $('pause').classList.toggle('hidden', name !== 'pause');
+    for (const screen of ['title', 'levels', 'select', 'results', 'pause']) $(screen).classList.toggle('hidden', name !== screen);
     $('hudBtns').classList.toggle('hidden', !(name === 'hud' || name === 'pause'));
-    if (name === 'briefing' || name === 'results') {
-      $(name === 'briefing' ? 'bBriefBack' : 'bTrolleys').classList.toggle('hidden', !C.game.hasTrolleyChoice());
-    }
+    if (name === 'levels') { this.levelCards(); $('levels').scrollTop = 0; }
+    if (name === 'results') $('bTrolleys').classList.toggle('hidden', !C.game.hasTrolleyChoice());
     this.refreshTouch();
-    if (name === 'select') { C.game.state = 'select'; C.select.show(); try { document.activeElement && document.activeElement.blur(); } catch (e) {} }
-    if (name === 'briefing') { $('briefing').scrollTop = 0; $('bStartRun').focus({ preventScroll: true }); }
-    if (name === 'hud') $('gl').focus({ preventScroll: true });
-    if (name === 'results') $('bAgain').focus({ preventScroll: true });
+    if (name === 'select') C.select.show();
+    const focus = { title: 'bPlay', levels: 'bLevelPlay', select: 'bSelDone', hud: 'gl', pause: 'bResume', results: 'bAgain' };
+    $(focus[name])?.focus({ preventScroll: true });
+  }
+  levelCards() {
+    const progress = C.game.progress, count = TASKS.filter(task => progress.goals[task.id]).length;
+    $('levelProgress').textContent = `${count}/${TASKS.length} goals`;
+    $('levelBest').textContent = `Best ${fmt(progress.best)}`;
+    $('levelGoals').innerHTML = TASKS.map(task => `<li${progress.goals[task.id] ? ' class="done"' : ''}>${esc(task.label)}${progress.goals[task.id] ? '<span class="sr-only"> (complete)</span>' : ''}</li>`).join('');
+    $('airportRequirement').textContent = C.game.save.levels[DEPARTURES.id].unlocked
+      ? 'Goal requirement met' : `Complete ${DEPARTURES.requiredGoals} goals in ${GRUMBLETON.name}`;
   }
   refreshTouch() { const on = C.touch && (this.cur === 'hud'); $('touch').classList.toggle('hidden', !on); document.querySelectorAll('.only-keys').forEach(e => e.classList.toggle('hidden', !!C.touch)); }
   listHTML(R) {
@@ -47,7 +53,7 @@ export class UI {
     });
     return `<section><h3>Shopping list</h3><ul>${items.join('')}</ul></section><section><h3>Challenges</h3><ul>${tasks.join('')}</ul></section>`;
   }
-  pause() { const G = C.game; if (!(G.state === 'run' || G.state === 'push') || G.paused) return; G.paused = true; C.input.release(); C.audio.alarm(false); $('pauseList').innerHTML = this.listHTML(G.run); this.show('pause'); setTimeout(() => { try { $('bResume').focus({ preventScroll: true }); } catch (e) {} }, 30); }
+  pause() { const G = C.game; if (!(G.state === 'run' || G.state === 'push') || G.paused) return; G.paused = true; C.input.release(); C.audio.alarm(false); $('pauseList').innerHTML = this.listHTML(G.run); this.show('pause'); }
   resume() {
     C.game.paused = false;
     C.input.release();

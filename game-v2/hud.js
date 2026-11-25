@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, fmt } from './util.js';
-import { SHOPPING_LIST, LIST_NAMES } from './game.js?v=roadworks-graffiti';
+import { SHOPPING_LIST, LIST_NAMES } from './game.js?v=grumbleton-audit';
 
 // All three fonts are drawn on an 8-pixel grid, so sizes stay at multiples of 8 and every glyph is placed on a whole
 // device pixel; that keeps the letters as hard-edged as the rest of the game.
@@ -74,7 +74,7 @@ export class HUD {
     // score / best
     this.text('SCORE', xPad, yPad + 6, 'l', 16, PAPER);
     this.text(fmt(R.score + R.taskPts), xPad, yPad + (small ? 30 : 34), 'd', small ? 24 : 32, null, 'left', { metal: GOLD });
-    this.text('BEST ' + fmt(G.save.best), xPad, yPad + (small ? 58 : 66), 'l', 16, PAPER);
+    this.text('BEST ' + fmt(G.progress.best), xPad, yPad + (small ? 58 : 66), 'l', 16, PAPER);
     // Show shopping progress once the first list item has been picked up.
     let comboY = yPad + 80;
     if (SHOPPING_LIST.some(k => R.got[k])) {

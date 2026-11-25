@@ -1,12 +1,12 @@
 import { C, G, ig, ALL } from './core.js';
 import { clamp, TAU, angDiff } from './util.js';
-import { makeBin, makeCone, makeBarrier, makePicket, makeHeras, makePallet, makePot, makeCompost, makePane, makePerson, makeDuck, makeBus } from './models.js?v=stop-sign-splash';
-import { BOT } from './world.js?v=stop-sign-splash';
+import { makeBin, makeCone, makeBarrier, makePicket, makeHeras, makePallet, makePot, makeCompost, makePane, makePerson, makeDuck, makeBus } from './models.js?v=grumbleton-audit';
+import { BOT } from './world.js?v=grumbleton-audit';
 const T = C.T;
 
 const SPEC = {
-  bin: { shape: ['cuboid', 0.3, 0.5, 0.37], mass: 11, name: 'WHEELIE BIN', pts: 150 },
-  cone: { shape: ['cylinder', 0.34, 0.26], mass: 0.45, name: 'TRAFFIC CONE', pts: 50 },
+  bin: { shape: ['cuboid', 0.3, 0.5, 0.37], off: -0.03, mass: 11, name: 'WHEELIE BIN', pts: 150 },
+  cone: { shape: ['cylinder', 0.34, 0.26], off: -0.02, mass: 0.45, name: 'TRAFFIC CONE', pts: 50 },
   barrier: { shape: ['cuboid', 0.95, 0.42, 0.22], off: -0.09, far: 180,  mass: 8, name: 'ROADWORKS BARRIER', pts: 100 },
   picket: { shape: ['cuboid', 1.2, 0.45, 0.05], far: 160,  mass: 6, name: 'PICKET FENCE', pts: 150, fixed: true },
   heras: { shape: ['cuboid', 1.7, 1.0, 0.25], far: 220,  mass: 14, name: 'SITE FENCE', pts: 120 },
@@ -57,7 +57,7 @@ export class Props {
       this.instances.set(key, batch);
     }
     if (!batch) C.scene.add(mesh);
-    const q = new T.Quaternion().setFromEuler(new T.Euler(0, d.yaw || 0, 0));
+    const q = new T.Quaternion().setFromEuler(new T.Euler(0, d.yaw || 0, d.roll || 0, 'YXZ'));
     const bd = (S.fixed ? R.RigidBodyDesc.fixed() : R.RigidBodyDesc.dynamic().setSleeping(true).setCcdEnabled(false)).setTranslation(d.x, d.y, d.z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }).setAngularDamping(0.3).setLinearDamping(0.1);
     const body = C.phys.createRigidBody(bd);
     const sh = S.shape; let cd = sh[0] === 'cylinder' ? R.ColliderDesc.cylinder(sh[1], sh[2]) : R.ColliderDesc.cuboid(d.type === 'picket' ? (d.w || 2.4) / 2 : sh[1], sh[2], sh[3]);
@@ -105,7 +105,7 @@ export class Props {
     for (const pd of this.peds) this.resetPed(pd);
     for (const dk of this.ducks) { dk.state = 'swim'; dk.mesh.visible = true; dk.mesh.scale.set(1, 1, 1); dk.t = Math.random() * 10; dk.y = 0; }
     this.ducksGone = false;
-    for (const c of C.world.cars) { c.alarm = 0; c.rock = 0; c.car.ind.material.opacity = 0; c.car.ind.visible = false; c.car.body.rotation.set(0, 0, 0); }
+    for (const c of C.world.cars) { c.alarm = 0; c.car.ind.material.opacity = 0; c.car.ind.visible = false; }
     for (const w of C.world.wobblers) { w.a = 0; w.v = 0; w.obj.rotation.x = 0; w.obj.rotation.z = 0; }
     const B = this.bus;
     B.lx = BOT.lx0 - 6; B.wait = 0; B.stopped = false;
@@ -218,7 +218,7 @@ export class Props {
     else this.placeBus(false);
   }
   placeBus(reset) {
-    const B = this.bus, p = C.world.botToWorld(B.lx, 10.2, this.worldPoint);
+    const B = this.bus, p = C.world.botToWorld(B.lx, 12.7, this.worldPoint);
     p.y = 0.03;
     if (reset) { B.body.setTranslation(p, true); B.body.setRotation(B.rotation, true); }
     B.body.setNextKinematicTranslation(p);
@@ -226,13 +226,13 @@ export class Props {
     B.x = p.x; B.z = p.z;
   }
   // ---------------- cars, signs ----------------
-  alarm(idx) { const c = C.world.cars[idx]; if (!c) return false; const first = c.alarm <= 0; c.alarm = 7; c.rock = 1; return first; }
+  alarm(idx) { const c = C.world.cars[idx]; if (!c) return false; const first = c.alarm <= 0; c.alarm = 7; return first; }
   wobble(i, dir) { const w = C.world.wobblers[i]; if (!w) return; w.v += clamp(dir, -6, 6); }
   update(dt, t, active) {
     if (active) this.updatePeds(dt, t);
     this.updateDucks(dt, t, active);
     if (!active) return;
-    for (const c of C.world.cars) { if (c.alarm > 0) { c.alarm -= dt; c.car.ind.material.opacity = Math.sin(t * 12) > 0 ? 0.85 : 0; if (c.alarm <= 0) c.car.ind.material.opacity = 0; c.car.ind.visible = c.car.ind.material.opacity > 0; } if (c.rock > 0) { c.rock = Math.max(0, c.rock - dt * 0.7); c.car.body.rotation.z = Math.sin(t * 9) * 0.05 * c.rock; } }
+    for (const c of C.world.cars) { if (c.alarm > 0) { c.alarm -= dt; c.car.ind.material.opacity = Math.sin(t * 12) > 0 ? 0.85 : 0; if (c.alarm <= 0) c.car.ind.material.opacity = 0; c.car.ind.visible = c.car.ind.material.opacity > 0; } }
     this.refreshAlarm();
     for (const w of C.world.wobblers) { if (w.a === 0 && w.v === 0) continue; w.v += (-w.a * 60 - w.v * 3.2) * dt; w.a += w.v * dt; if (Math.abs(w.a) < 0.002 && Math.abs(w.v) < 0.01) { w.a = 0; w.v = 0; } w.obj.rotation.x = w.a; }
     for (const b of C.world.blink || []) b.visible = Math.sin(t * 5.2) > -0.2;
@@ -280,7 +280,7 @@ export class Props {
     const B = this.bus;
     B.b.group.position.copy(B.body.translation());
     B.b.group.quaternion.copy(B.rotation);
-    B.b.group.visible = B.lx > BOT.lx0 && B.lx < BOT.lx1;
+    B.b.group.visible = B.lx + B.b.L / 2 > BOT.lx0 && B.lx - B.b.L / 2 < BOT.lx1;
   }
   syncInstances({ props, packed, meshes }) {
     let count = 0, upload = false;

@@ -1,10 +1,11 @@
 import { C, G, ig, ALL } from './core.js';
 import { TAU, clamp, lerp, sstep, rng, Batch, GEO, M, FM, frame, bx, vnoise } from './util.js';
-import { TX, ctex } from './textures.js?v=grumbleton-polish';
+import { TX, ctex } from './textures.js?v=grumbleton-audit';
 const T = C.T;
 
 // ============ the road: centreline, elevation and cross-section ============
 export const RA_S = 420;            // roundabout centre (arc length)
+export const RA_ENTRY = 15.5;
 export const ZEBRA_S = 180;
 const HUMP_HALF_LENGTH = 0.9;
 export const S_END = 782;           // where the hill road meets the bottom junction
@@ -225,7 +226,17 @@ function buildCorridor(scene) {
       if (s === ss[0]) B.quad([ax, lo, az], [bx2, lo, bz], [bx2, yb, bz], [ax, ya, az], 0xbdb9ae); else B.quad([bx2, lo, bz], [ax, lo, az], [ax, ya, az], [bx2, yb, bz], 0xbdb9ae);
     }
   }
-  for (let s = -2; s < S_END; s += 6) { const R2 = roadAt(s + 3, {}); for (const side of [-1, 1]) { const d = side * (R2.w + 15.6), y = prof(s + 3, d); staticBox(R2.x + R2.rx * d, y + 2, R2.z + R2.rz * d, 0.3, 4, 3.2, -R2.th, { kind: 'wall', name: 'FENCE' }); } }
+  for (const side of [-1, 1]) for (let s = 0; s < S_END; s += 6) {
+    const edge = a => P(a, side * (roadW(a) + 15.6));
+    const a = edge(s), b = edge(Math.min(s + 6, S_END));
+    const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2, z = (a.z + b.z) / 2;
+    const length = Math.hypot(b.x - a.x, b.z - a.z), yaw = yawTo(a.x - b.x, a.z - b.z);
+    const pitch = Math.atan2(b.y - a.y, length), F = frame(x, y, z, yaw, pitch), wood = sb(chunkOf(s), 'wood');
+    bx(wood, F, 0.16, 2.1, length + 0.035, 0, 1, 0, 0x9a8b73);
+    bx(wood, F, 0.24, 2.18, 0.18, 0, 1.02, length / 2, 0x796b58);
+    const centre = new T.Vector3(0, 1, 0).applyMatrix4(F);
+    staticBox(centre.x, centre.y, centre.z, 0.08, 1.05, (length + 0.035) / 2, yaw, { kind: 'wall', name: 'FENCE' }, pitch);
+  }
   const R = C.RAPIER;
   const desc = R.ColliderDesc.trimesh(new Float32Array(phys.p), new Uint32Array(phys.i));
   finishCol(desc, { kind: 'ground' }, { friction: 0.8, rest: 0.05 });
@@ -247,7 +258,7 @@ function buildMarkings(scene) {
   const WHITE = 0xf2f2ee, YEL = 0xe7b727;
   const zigLength = 1.979, zigGap = 0.15, giveWay = 2.8;
   const terminal = giveWay + 0.1 + 8 * zigLength + 9 * zigGap + 0.1;
-  const crossingFrom = ZEBRA_S - terminal - 0.25, crossingTo = ZEBRA_S + terminal + 0.25, entry = 15.5;
+  const crossingFrom = ZEBRA_S - terminal - 0.25, crossingTo = ZEBRA_S + terminal + 0.25, entry = RA_ENTRY;
   // Centre-line module is 2 m of paint, 4 m clear. Reverse that near hazards.
   const centre = (from, to, warning = false) => {
     for (let s = from; s < to; s += 6) {
@@ -311,7 +322,10 @@ function buildMarkings(scene) {
   // Single broken give-way line at each roundabout entry, on the left of travel.
   for (const side of [-1, 1]) {
     const s = RA_S + side * entry, w = roadW(s);
-    for (let d = 0.2; d + 0.6 < w - 0.17; d += 1.2) markStrip(s - 0.1, s + 0.1, side * (d + 0.3), 0.6, WHITE);
+    for (let d = 0.2; d < w - 0.3; d += 1.2) {
+      const dash = Math.min(0.6, w - 0.17 - d);
+      markStrip(s - 0.15, s + 0.15, side * (d + dash / 2), dash, WHITE);
+    }
   }
   // Speed camera calibration marks give the player a visible cue on the approach.
   for (let s = 558; s <= 568; s++) markStrip(s - 0.04, s + 0.04, -1.8, 1.4, WHITE);
@@ -350,7 +364,7 @@ function buildPotholes(scene) {
 }
 
 // ============ the bottom plaza (heightfield) ============
-export const BOT = { lf0: 2, lf1: 136, lx0: -48, lx1: 48, res: 1 };
+export const BOT = { lf0: 2, lf1: 136, lx0: -48, lx1: 48 };
 let BE = null;
 export function botToWorld(lx, lf, out = {}) { if (!BE) BE = roadAt(780, {}); out.x = BE.x + lx; out.z = BE.z - lf; return out; }
 export function worldToBot(x, z, out = {}) { if (!BE) BE = roadAt(780, {}); out.lx = x - BE.x; out.lf = BE.z - z; return out; }
@@ -365,19 +379,8 @@ export function botH(lx, lf) {
   return h;
 }
 function buildBottom(scene) {
-  const MM = mats(), R = C.RAPIER;
-  const nx = Math.round((BOT.lx1 - BOT.lx0) / BOT.res), nf = Math.round((BOT.lf1 - BOT.lf0) / BOT.res);
-  // physics: Rapier heightfield, rows along local z, columns along local x, column-major
-  const heights = new Float32Array((nx + 1) * (nf + 1));
-  // world z decreases as lf increases, so row i (z from -0.5 to +0.5) maps to lf from lf1 down to lf0
-  for (let j = 0; j <= nx; j++) for (let i = 0; i <= nf; i++) {
-    const lx = BOT.lx0 + j * BOT.res, lf = BOT.lf1 - i * BOT.res; heights[i + j * (nf + 1)] = botH(lx, lf);
-  }
-  const c0 = botToWorld((BOT.lx0 + BOT.lx1) / 2, (BOT.lf0 + BOT.lf1) / 2);
-  const hd = R.ColliderDesc.heightfield(nf, nx, heights, { x: BOT.lx1 - BOT.lx0, y: 1, z: BOT.lf1 - BOT.lf0 }).setTranslation(c0.x, 0, c0.z);
-  finishCol(hd, { kind: 'ground' }, { friction: 0.8, rest: 0.05 });
-  W.botHeights = { heights, nx, nf };
-  // Grass and the pond bed share the base mesh. The pavement and car park sit just above it.
+  const MM = mats();
+  // Use the same triangles for the visible grass, pond bed and physics.
   const step = 2, gx = Math.round((BOT.lx1 - BOT.lx0) / step), gf = Math.round((BOT.lf1 - BOT.lf0) / step);
   const pos = [], uv = [], colr = [], idx = [];
   for (let i = 0; i <= gf; i++) for (let j = 0; j <= gx; j++) {
@@ -389,6 +392,7 @@ function buildBottom(scene) {
   for (let i = 0; i < gf; i++) for (let j = 0; j < gx; j++) { const a = i * (gx + 1) + j, b = a + 1, c = a + gx + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new T.Float32BufferAttribute(colr, 3)); g.setIndex(idx); g.computeVertexNormals();
   const ground = new T.Mesh(g, MM.grass); ground.receiveShadow = true; scene.add(ground);
+  staticMeshCol(g, { kind: 'ground', name: 'BOTTOM PLAZA' }, { friction: 0.8, rest: 0.05 });
   // flat overlays
   const flat = (mat, lx0, lx1, lf0, lf1, uvs, lift = 0.02) => {
     const B = sb('bot', mat); const a = botToWorld(lx0, lf0), b = botToWorld(lx1, lf0), c = botToWorld(lx1, lf1), d = botToWorld(lx0, lf1);
@@ -401,8 +405,13 @@ function buildBottom(scene) {
   const MB = sb('bot', 'mark'), WHITE = 0xf2f2ee, YEL = 0xf2c81f;
   const mq = (lx0, lx1, lf0, lf1, c, lift = 0.05) => { const a = botToWorld(lx0, lf0), b = botToWorld(lx1, lf0), cc = botToWorld(lx1, lf1), d = botToWorld(lx0, lf1); MB.quad([a.x, lift, a.z], [b.x, lift, b.z], [cc.x, lift, cc.z], [d.x, lift, d.z], c); };
   for (let x = BOT.lx0 + 8; x < BOT.lx1 - 8; x += 6) mq(x, x + 2.5, 9.95, 10.05, WHITE);
-  mq(-30, -18, 5.6, 7.2, YEL); // bus stop box edge
-  for (let f = 58; f < 100; f += 13) for (let x = -34; x <= 34; x += 2.6) { if (Math.abs(x) < 4) continue; mq(x - 0.05, x + 0.05, f, f + 5, WHITE); }
+  mq(-34, -20, 14.58, 14.7, YEL);
+  mq(-34, -33.88, 11.12, 14.7, YEL); mq(-20.12, -20, 11.12, 14.7, YEL);
+  for (let x = -34; x < -20; x += 2) mq(x, x + 1, 11.12, 11.24, YEL);
+  for (let f = 58; f < 100; f += 13) for (let b = 0; b <= 26; b++) {
+    const x = -34 + b * 2.6;
+    if (Math.abs(x) >= 4) mq(x - 0.05, x + 0.05, f, f + 5.5, WHITE);
+  }
   // pond water
   const wg = new T.CircleGeometry(1, 40); wg.rotateX(-Math.PI / 2);
   const wtex = TX.water; wtex.repeat.set(4, 3);

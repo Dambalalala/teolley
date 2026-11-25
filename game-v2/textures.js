@@ -109,7 +109,17 @@ export function warnSign(kind) {
     if (kind === 'works') { g.beginPath(); g.arc(56, 50, 5, 0, 7); g.fill(); g.beginPath(); g.moveTo(56, 56); g.lineTo(60, 76); g.lineTo(52, 92); g.moveTo(60, 76); g.lineTo(68, 92); g.moveTo(57, 62); g.lineTo(74, 70); g.stroke(); g.beginPath(); g.moveTo(74, 70); g.lineTo(82, 92); g.stroke(); g.fillRect(76, 90, 18, 4); g.beginPath(); g.moveTo(40, 92); g.lineTo(48, 82); g.lineTo(52, 92); g.fill(); }
     else if (kind === 'humps') { g.beginPath(); g.moveTo(34, 88); g.lineTo(46, 88); g.quadraticCurveTo(64, 54, 82, 88); g.lineTo(94, 88); g.stroke(); }
     else if (kind === 'children') { for (const [x, s] of [[52, 1], [76, 0.85]]) { g.beginPath(); g.arc(x, 52 + (1 - s) * 10, 6 * s, 0, 7); g.fill(); g.beginPath(); g.moveTo(x, 60); g.lineTo(x, 80); g.lineTo(x - 7 * s, 94); g.moveTo(x, 80); g.lineTo(x + 7 * s, 94); g.moveTo(x - 8 * s, 66); g.lineTo(x + 8 * s, 70); g.stroke(); } }
-    else if (kind === 'roundabout') { g.lineWidth = 6; for (let i = 0; i < 3; i++) { const a = i * 2.094 - 1.2; g.beginPath(); g.arc(64, 72, 18, a, a + 1.4); g.stroke(); const ex = 64 + Math.cos(a + 1.4) * 18, ey = 72 + Math.sin(a + 1.4) * 18; g.beginPath(); g.arc(ex, ey, 5, 0, 7); g.fill(); } }
+    else if (kind === 'roundabout') {
+      g.lineWidth = 5.5; g.lineCap = 'butt';
+      for (let i = 0; i < 3; i++) {
+        const start = -Math.PI / 2 + i * Math.PI * 2 / 3, end = start + 1.35;
+        g.beginPath(); g.arc(64, 74, 16, start, end); g.stroke();
+        const nx = Math.cos(end), ny = Math.sin(end), x = 64 + 16 * nx, y = 74 + 16 * ny;
+        g.beginPath(); g.moveTo(x + 7 * nx + 3 * ny, y + 7 * ny - 3 * nx);
+        g.lineTo(x - 8 * ny, y + 8 * nx); g.lineTo(x - 7 * nx + 3 * ny, y - 7 * ny - 3 * nx);
+        g.closePath(); g.fill();
+      }
+    }
     else if (kind === 'ducks') { g.beginPath(); g.ellipse(64, 78, 22, 11, 0, 0, 7); g.fill(); g.beginPath(); g.arc(82, 60, 8, 0, 7); g.fill(); g.fillRect(88, 58, 12, 4); }
   });
 }
@@ -117,7 +127,15 @@ export function giveWay() {
   return signTex(128, 116, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#d0202a'; g.beginPath(); g.moveTo(4, 6); g.lineTo(124, 6); g.lineTo(64, 112); g.closePath(); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(22, 16); g.lineTo(106, 16); g.lineTo(64, 90); g.closePath(); g.fill(); g.fillStyle = '#111'; g.textAlign = 'center'; g.font = `700 17px ${FONT}`; g.fillText('GIVE', 64, 36); g.fillText('WAY', 64, 54); });
 }
 export function chevron() {
-  return signTex(128, 64, (g, w, h) => { fill(g, w, h, '#111'); g.strokeStyle = '#fff'; g.lineWidth = 9; for (let x = 18; x < 128; x += 36) { g.beginPath(); g.moveTo(x, 10); g.lineTo(x + 18, 32); g.lineTo(x, 54); g.stroke(); } });
+  return signTex(128, 64, (g, w, h) => { fill(g, w, h, '#111'); g.strokeStyle = '#fff'; g.lineWidth = 9; for (let x = 16; x < 120; x += 36) { g.beginPath(); g.moveTo(x + 18, 10); g.lineTo(x, 32); g.lineTo(x + 18, 54); g.stroke(); } });
+}
+export function cameraSign() {
+  return signTex(128, 128, (g, w, h) => {
+    fill(g, w, h, '#111'); g.fillStyle = '#fff'; g.fillRect(5, 5, 118, 118);
+    g.fillStyle = '#111'; g.fillRect(30, 48, 61, 38); g.fillRect(40, 41, 20, 8); g.fillRect(90, 53, 11, 25);
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(64, 67, 14, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#111'; g.beginPath(); g.arc(64, 67, 8.5, 0, Math.PI * 2); g.fill();
+  });
 }
 export function fascia(text, o = {}) {
   const w = o.w || 512, h = o.h || 96;

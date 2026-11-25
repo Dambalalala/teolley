@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, sstep, Batch, frame, bx, cy } from './util.js';
-import { W, roadAt, prof, sb, chunkOf, staticBox, staticMeshCol, TOP, botToWorld, botH } from './world.js?v=stop-sign-splash';
+import { W, roadAt, prof, sb, chunkOf, staticBox, staticMeshCol, TOP, botToWorld, botH } from './world.js?v=grumbleton-audit';
 const T = C.T;
 
 // ---------------- speed bump in the Spendwells car park ----------------
@@ -34,12 +34,12 @@ function transporter() {
     // riding surface: two steel tracks with a darker channel down the middle
     const q = (d0, d1, c) => { const quad = [at(va, d0, ha), at(va, d1, ha), at(vb, d1, hb), at(vb, d0, hb)]; metal.quad(...quad, c); CB.quad(...quad, c); };
     q(dl, dc - 0.35, 0x8e959c); q(dc - 0.35, dc + 0.35, 0x5d6268); q(dc + 0.35, dr, 0x8e959c);
-    // sides: thin plates under the edges, and a solid side all the way down for the collider so nothing slips under
+    // The steel skirts and the side colliders use the same profile.
     for (const [d, sgn] of [[dl, -1], [dr, 1]]) {
-      const top = [at(va, d, ha), at(vb, d, hb)], low = [at(va, d, ha - 0.14), at(vb, d, hb - 0.14)];
-      if (sgn < 0) metal.quad(low[0], low[1], top[1], top[0], 0x3c4046); else metal.quad(top[0], top[1], low[1], low[0], 0x3c4046);
-      const g0 = [at(va, d, -0.05), at(vb, d, -0.05)];
-      if (vb < Lt - 3.2) { if (sgn < 0) CB.quad(g0[0], g0[1], top[1], top[0]); else CB.quad(top[0], top[1], g0[1], g0[0]); }
+      const top = [at(va, d, ha), at(vb, d, hb)];
+      const low = vb < Lt - 3.2 ? [at(va, d, -0.05), at(vb, d, -0.05)] : [at(va, d, ha - 0.14), at(vb, d, hb - 0.14)];
+      const side = sgn < 0 ? [low[0], low[1], top[1], top[0]] : [top[0], top[1], low[1], low[0]];
+      metal.quad(...side, 0x3c4046); CB.quad(...side);
     }
   }
   // the end of the deck
@@ -65,10 +65,9 @@ function transporter() {
   // colliders for the cab and the chassis (the deck and sides have their own)
   const box = (v0, v1, h0, h1, hw, name) => { const vm = (v0 + v1) / 2, c = new T.Vector3(0, (h0 + h1) / 2, -vm).applyMatrix4(F); staticBox(c.x, c.y, c.z, hw, (h1 - h0) / 2, (v1 - v0) / 2, -Rm.th, { kind: 'wall', name }, pitch); };
   box(Lt - 3.1, Lt - 0.15, 0, 2.42, 1.18, 'LORRY CAB'); box(8.0, Lt - 3.1, 0, 1.05, 1.15, 'LORRY');
-  // the driver, waiting on the pavement
   W.nearTargets.push({ x: (pr[0] + pf[0]) / 2, z: (pr[2] + pf[2]) / 2, r: 9, kind: 'LORRY', box: { hx: 1.25, hz: Lt / 2, yaw: -Rm.th } });
-  // a couple of things to collect on the way off the end
-  for (const [dv, hh, k] of [[5, 3.0, 'gnome']]) { const p = at(Lt + dv, dc, hAt(Lt) + hh - 2.75); W.pickups.push({ k, x: p[0], y: p[1] + 0.5, z: p[2] }); }
+  const pickup = Lt * 0.65, [x, y, z] = at(pickup, dc + 0.15, hAt(pickup) + 0.92);
+  W.pickups.push({ k: 'gnome', x, y, z, reach: 1.08 });
 }
 
 // ---------------- embankments round Harrison's car park ----------------

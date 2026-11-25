@@ -1,6 +1,6 @@
 import { C, G, ig, ALL } from './core.js';
 import { clamp, lerp, angDiff, TAU, sstep } from './util.js';
-import { makeTrolley, TD, VARIANTS } from './models.js?v=stop-sign-splash';
+import { makeTrolley, TD, VARIANTS } from './models.js?v=grumbleton-audit';
 const T = C.T;
 
 // Per-trolley handling. Push is self-propulsion (m/s^2) up to pushV; crr is rolling resistance, drag is air drag.

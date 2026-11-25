@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { Batch, GEO, M, FM, bx, cy, seg, lam, rng, pick, TAU, clamp } from './util.js';
-import { TX, labelTex, signTex } from './textures.js?v=grumbleton-polish';
+import { TX, labelTex, signTex } from './textures.js?v=grumbleton-audit';
 const T = C.T;
 
 // ======================= THE TROLLEY =======================
@@ -300,7 +300,7 @@ function carParts(kind) {
     pane(G, ws0, ws1, 0.047, cw - 0.3, 0.18, 0.93, GLASS);
     if (est) pane(G, rear[2], rear[3], 0.047, cw - 0.34, 0.05, 0.5, GLASS); else pane(G, rear[2], rear[3], 0.047, cw - 0.34, 0.08, 0.86, GLASS);
     P.glass = tumble(G.geometry(), 0.9, rY + 0.04, 0.13);
-    P.dims = { L, W, H: est ? 1.5 : 1.45 };
+    P.dims = { L, W, H: est ? 1.5 : 1.45, wheelX: W / 2 - 0.13, wheelZ: wz };
     P.trim = (B, c) => {
       for (const sx of [-1, 1]) {
         B.add(GEO.box, M(sx * 0.6, 0.6, -L / 2 + 0.05, 0, 0, 0, 0.32, 0.12, 0.1), 0xfff2c8);                 // headlamps
@@ -326,7 +326,7 @@ function carParts(kind) {
     windows(G, [[[uIn(1.4), 1.4], [uIn(1.98), 1.98], [-1.02, 1.98], [-1.02, 1.4]]], W + 0.012, GLASS);
     pane(G, [-2.06, 1.32], [-1.7, 2.04], 0.047, W - 0.4, 0.08, 0.93, GLASS);
     P.glass = tumble(G.geometry(), 1.3, 2.3, 0.05);
-    P.dims = { L, W, H: 2.3 };
+    P.dims = { L, W, H: 2.3, wheelX: W / 2 - 0.15, wheelZ: 1.6 };
     P.trim = (B) => {
       for (const sx of [-1, 1]) {
         B.add(GEO.box, M(sx * 0.68, 0.98, -L / 2 + 0.05, 0, 0, 0, 0.3, 0.15, 0.1), 0xfff2c8);
@@ -363,7 +363,7 @@ function carParts(kind) {
   }
   CAR_GEO[kind] = P; return P;
 }
-function tyre(B, x, y, z, r, w) { cy(B, null, r, w, x, y, z, 0x1c1c1e, 14, 0, 0, Math.PI / 2); cy(B, null, r * 0.58, w + 0.01, x, y, z, 0xb8bcc4, 10, 0, 0, Math.PI / 2); cy(B, null, r * 0.2, w + 0.02, x, y, z, 0x6a6e76, 6, 0, 0, Math.PI / 2); }
+function tyre(B, x, y, z, r, w) { cy(B, null, r, w, x, y, z, 0x1c1c1e, 8, 0, 0, Math.PI / 2); cy(B, null, r * 0.58, w + 0.01, x, y, z, 0xb8bcc4, 10, 0, 0, Math.PI / 2); cy(B, null, r * 0.2, w + 0.02, x, y, z, 0x6a6e76, 6, 0, 0, Math.PI / 2); }
 function wheel4(B, x, z, r) { for (const sx of [-1, 1]) for (const sz of [-1, 1]) tyre(B, sx * x, r, sz * z, r, 0.21); }
 export function makeCar(kind, color, seed = 1) {
   const r = rng(seed), c = color != null ? color : pick(r, CARCOLS), P = carParts(kind === 'van' || kind === 'robin' || kind === 'estate' ? kind : 'hatch'), B = new Batch();
@@ -373,7 +373,7 @@ export function makeCar(kind, color, seed = 1) {
   // hazard lamps that flash when the alarm goes off
   const IB = new Batch(); for (const [lx, ly, lz] of P.lamps) for (const sx of [-1, 1]) IB.add(GEO.box, M(sx * lx, ly, lz, 0, 0, 0, 0.2, 0.13, 0.1), 0xffa21f);
   const ind = new T.Mesh(IB.geometry(), new T.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0 })); ind.visible = false; m.add(ind);
-  return { group: g, body: m, ind, L: P.dims.L, W: P.dims.W, H: P.dims.H };
+  return { group: g, ind, shell: P.body, ...P.dims };
 }
 let BUS_GEO = null;
 export function makeBus() {

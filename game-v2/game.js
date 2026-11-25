@@ -1,10 +1,11 @@
 import { C } from './core.js';
 import { clamp, lerp, angDiff } from './util.js';
-import { ITEMS, VARIANTS } from './models.js?v=stop-sign-splash';
-import { Trolley } from './trolley.js?v=stop-sign-splash';
+import { ITEMS, VARIANTS } from './models.js?v=grumbleton-audit';
+import { Trolley } from './trolley.js?v=grumbleton-audit';
 
 const SAVE_KEY = 'trolley-save-v1';
-export const GRUMBLETON = { name: 'Grumbleton', unlock: 'demon' };
+export const GRUMBLETON = { id: 'grumbleton', name: 'Grumbleton', unlock: 'demon' };
+export const DEPARTURES = { id: 'departures', name: 'Departures', requiredGoals: 4 };
 // the list each run starts with
 export const SHOPPING_LIST = ['pineapple', 'gnome', 'milk', 'tampons', 'loo'];
 export const LIST_NAMES = { pineapple: 'Pineapple', gnome: 'Garden gnome', milk: 'Milk', tampons: 'Tampons', loo: 'Loo roll' };
@@ -18,19 +19,26 @@ export const TASKS = [
 const SPIN_NAMES = ['', '180', '360', '540', '720', '900', '1080'];
 // the only messages the game prints, each at most once a run
 const QUIPS = { lost: 'UNEXPECTED ITEM IN BAGGING AREA' };
+const levelProgress = unlocked => ({ best: 0, goals: {}, runs: 0, unlocked });
 
 export class Game {
   constructor() {
     this.state = 'loading'; this.paused = false;
-    this.save = { best: 0, unlocked: { dave: true }, sel: 'dave', muted: false, runs: 0 };
+    this.save = { unlocked: { dave: true }, sel: 'dave', muted: false,
+      levels: { [GRUMBLETON.id]: levelProgress(true), [DEPARTURES.id]: levelProgress(false) } };
     try {
       const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
       if (saved && typeof saved === 'object') {
         const unlocked = this.save.unlocked;
         for (const key of Object.keys(VARIANTS)) if (saved.unlocked?.[key] === true) unlocked[key] = true;
         if (Object.hasOwn(unlocked, saved.sel)) this.save.sel = saved.sel;
-        if (Number.isFinite(saved.best) && saved.best >= 0) this.save.best = saved.best;
-        if (Number.isSafeInteger(saved.runs) && saved.runs >= 0) this.save.runs = saved.runs;
+        const previous = saved.levels?.[GRUMBLETON.id] ?? saved;
+        if (Number.isFinite(previous.best) && previous.best >= 0) this.progress.best = previous.best;
+        if (Number.isSafeInteger(previous.runs) && previous.runs >= 0) this.progress.runs = previous.runs;
+        for (const task of TASKS) if (previous.goals?.[task.id] === true) this.progress.goals[task.id] = true;
+        // The previous save only recorded the return challenge through its reward.
+        if (!saved.levels && unlocked[GRUMBLETON.unlock]) this.progress.goals.return = true;
+        this.updateLevelUnlocks();
         this.save.muted = saved.muted === true;
       }
     } catch (e) { /* Storage may be unavailable in embedded browsers. */ }
@@ -40,7 +48,11 @@ export class Game {
     this.onCollision = this.onCollision.bind(this);
     this.resetRun();
   }
+  get progress() { return this.save.levels[GRUMBLETON.id]; }
   persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.save)); } catch (e) {} }
+  updateLevelUnlocks() {
+    this.save.levels[DEPARTURES.id].unlocked = Object.keys(this.progress.goals).length >= DEPARTURES.requiredGoals;
+  }
   hasTrolleyChoice() { return Object.keys(this.save.unlocked).length > 1; }
   resetRun() {
     this.run = { got: {}, done: {}, cones: 0, score: 0, taskPts: 0, time: 0, dist: 0, maxSpeed: 0, maxMph: 0, items: {}, lost: 0, broken: 0, brokenBy: {}, peds: 0, nearMisses: 0, wheels: 0, bestCombo: 0, airMax: 0, tricks: 0, ducks: false, end: null, flags: {}, speedCam: false };
@@ -58,6 +70,11 @@ export class Game {
     const R = this.run; if (R.done[id] || !(this.state === 'run' || this.state === 'push' || (id === 'return' && this.state === 'over'))) return;
     const task = TASKS.find(t => t.id === id);
     R.done[id] = true;
+    if (!this.progress.goals[id]) {
+      this.progress.goals[id] = true;
+      this.updateLevelUnlocks();
+      this.persist();
+    }
     R.taskPts += task.pts;
     C.audio.sfx('kaching');
     this.say(task.short, { kind: 'cheer', dur: id === 'return' ? 3 : 2 });
@@ -285,15 +302,13 @@ export class Game {
     const key = this.save.unlocked[this.save.sel] ? this.save.sel : 'dave';
     if (!C.trolley || C.trolley.key !== key) { if (C.trolley) C.trolley.dispose(); C.trolley = new Trolley(key); }
   }
-  toSelect() {
-    this.state = 'select'; this.paused = false; this.slowmo = 0; this.msgs = []; this.pops = []; this.ensureTrolley(); this.resetWorld();
-    C.ui.show('select');
-  }
-  toBriefing() {
-    if (this.state === 'select') C.camera.userData.snap = true;
-    this.state = 'briefing'; this.paused = false; this.slowmo = 0;
-    C.input.release(); C.audio.alarm(false);
-    C.ui.show('briefing');
+  toMenu(screen) {
+    C.select.close(false);
+    this.state = screen; this.paused = false; this.slowmo = 0;
+    this.ensureTrolley(); this.resetWorld(); this.resetRun();
+    this.msgs = []; this.pops = [];
+    C.audio.alarm(false);
+    C.ui.show(screen);
   }
   resetWorld() {
     C.input.release(); C.props.reset(); C.shopping.reset(); C.fx.clear();
@@ -325,16 +340,16 @@ export class Game {
     const taskPoints = TASKS.reduce((sum, task) => sum + (R.done[task.id] ? task.pts : 0), 0);
     const total = R.score + (R.basketPts ?? 0) * 2 + (R.end === 'pond' ? 1500 : 0)
       + Math.round(R.dist * 2) + taskPoints + Math.round(Math.max(0, R.maxMph - 30) * 40);
-    const prevBest = this.save.best, newBest = total > prevBest;
-    if (newBest) this.save.best = total;
+    const progress = this.progress, newBest = total > progress.best;
+    if (newBest) progress.best = total;
     const unlocked = [];
     const reward = GRUMBLETON.unlock;
     if (R.end === 'returned' && !this.save.unlocked[reward]) {
       this.save.unlocked[reward] = true;
       unlocked.push(VARIANTS[reward].name);
     }
-    this.save.runs++; this.persist();
-    C.ui.receipt({ R, total, newBest, best: this.save.best, unlocked });
+    progress.runs++; this.persist();
+    C.ui.receipt({ R, total, newBest, best: progress.best, unlocked });
     C.ui.show('results');
   }
 }

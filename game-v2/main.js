@@ -1,19 +1,19 @@
 import RAPIER from './rapier.js';
 import { C } from './core.js';
-import { buildTextures } from './textures.js?v=grumbleton-polish';
-import { buildWorldBase, flushStatics } from './world.js?v=stop-sign-splash';
-import { buildScenery } from './scenery.js?v=carpark-graffiti';
-import { buildExtras } from './extras.js?v=stop-sign-splash';
+import { buildTextures } from './textures.js?v=grumbleton-audit';
+import { buildWorldBase, flushStatics } from './world.js?v=grumbleton-audit';
+import { buildScenery } from './scenery.js?v=grumbleton-audit';
+import { buildExtras } from './extras.js?v=grumbleton-audit';
 import { FX } from './fx.js?v=stop-sign-splash';
-import { Props } from './props.js?v=carpark-graffiti';
-import { Shopping } from './shopping.js?v=pond-pickup';
+import { Props } from './props.js?v=grumbleton-audit';
+import { Shopping } from './shopping.js?v=grumbleton-audit';
 import { Audio } from './audio.js?v=stop-sign-splash';
-import { Game } from './game.js?v=roadworks-graffiti';
-import { Input } from './input.js?v=grumbleton-receipt';
+import { Game } from './game.js?v=grumbleton-audit';
+import { Input } from './input.js?v=grumbleton-audit';
 import { Cam } from './camera.js?v=carpark-graffiti';
-import { HUD } from './hud.js?v=roadworks-graffiti';
-import { UI } from './ui.js?v=roadworks-graffiti';
-import { Select } from './select.js?v=stop-sign-splash';
+import { HUD } from './hud.js?v=grumbleton-audit';
+import { UI } from './ui.js?v=grumbleton-audit';
+import { Select } from './select.js?v=grumbleton-audit';
 import { makeContactShadow } from './shadows.js?v=grumbleton-polish';
 
 const T = C.T, $ = id => document.getElementById(id);
@@ -88,7 +88,7 @@ async function boot() {
   C.fx = new FX(); C.props = new Props(); C.shopping = new Shopping(); C.audio = new Audio(); C.game = new Game();
   C.audio.muted = !!C.game.save.muted;
   C.input = new Input(); C.cam = new Cam(camera); C.hud = new HUD($('hud')); C.ui = new UI(); C.select = new Select();
-  C.game.toSelect();
+  C.game.toMenu('title');
   C.phys.updateSceneQueries();
   let width = 0, height = 0, pixelRatio = 0, quality = 1, frameTime = 16.7, qualityTime = 0, resizePending = false;
   let last = 0, acc = 0, gameAcc = 0, audioAcc = 0, contextLost = false, dirty = true, previousScreen;
@@ -137,7 +137,8 @@ async function boot() {
     } else { qualityTime = 0; frameTime = 16.7; }
     if (!skipRender) {
       const screen = game.paused ? 'pause' : game.state;
-      if (dirty || previousScreen !== screen || (screen !== 'pause' && screen !== 'briefing' && screen !== 'results')) {
+      const still = screen === 'title' || screen === 'levels' || screen === 'pause' || screen === 'results';
+      if (dirty || previousScreen !== screen || !still) {
         render(dt);
         dirty = false; previousScreen = screen;
       }
@@ -147,7 +148,7 @@ async function boot() {
   }
   function step(dtR) {
     const game = C.game;
-    if (game.paused || game.state === 'results' || game.state === 'briefing') return;
+    if (game.paused || game.state === 'results' || game.state === 'title' || game.state === 'levels') return;
     if (game.state === 'select') {
       C.props.update(dtR, C.time, false);
       return;
@@ -193,7 +194,7 @@ async function boot() {
   let skipRender = false;
   function render(dtR) {
     const tr = C.trolley, game = C.game;
-    const frozen = game.paused || game.state === 'results' || game.state === 'briefing';
+    const frozen = game.paused || game.state === 'results' || game.state === 'title' || game.state === 'levels';
     const drawDt = frozen ? 0 : dtR;
     const snap = camera.userData.snap;
     const blend = snap ? 1 : acc / DT;
