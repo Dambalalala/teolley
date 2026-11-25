@@ -22,11 +22,16 @@ export class Input {
       if (ui === 'results') {
         const onButton = e.target?.tagName === 'BUTTON';
         if (!e.repeat && (e.code === 'KeyR' || (!onButton && (e.code === 'Enter' || e.code === 'Space')))) {
-          e.preventDefault(); G.startRun();
+          e.preventDefault(); G.toBriefing();
         } else if (!e.repeat && e.code === 'KeyT') G.toSelect();
         return;
       }
-      if (G.paused) { if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); C.ui.resume(); } else if (e.code === 'KeyR') { C.ui.resume(); G.startRun(); } return; }
+      if (ui === 'briefing') {
+        if (e.repeat && (e.code === 'Enter' || e.code === 'Space')) e.preventDefault();
+        if (!e.repeat && e.code === 'Escape') { e.preventDefault(); G.toSelect(); }
+        return;
+      }
+      if (G.paused) { if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); C.ui.resume(); } else if (!e.repeat && e.code === 'KeyR') G.toBriefing(); return; }
       if (G.state === 'over' && e.code !== 'KeyR' && e.code !== 'KeyM') return;
       if (map[e.code] && (!e.repeat || this.keys.has(e.code))) {
         e.preventDefault();
@@ -38,7 +43,7 @@ export class Input {
         if (!e.repeat) this.hopQ = true;
       }
       if (e.repeat) return;
-      if (e.code === 'KeyR') G.startRun();
+      if (e.code === 'KeyR') G.toBriefing();
       else if (e.code === 'KeyP' || e.code === 'Escape') C.ui.pause();
       else if (e.code === 'KeyM') C.ui.toggleMute();
     });

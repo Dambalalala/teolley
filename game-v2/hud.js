@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, fmt } from './util.js';
-import { SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=level-unlocks';
+import { SHOPPING_LIST, LIST_NAMES } from './game.js?v=grumbleton-polish';
 
 // All three fonts are drawn on an 8-pixel grid, so sizes stay at multiples of 8 and every glyph is placed on a whole
 // device pixel; that keeps the letters as hard-edged as the rest of the game.
@@ -73,12 +73,11 @@ export class HUD {
     const xPad = pad + left, yPad = pad + top, width = W - left - right, mid = left + width / 2;
     // score / best
     this.text('SCORE', xPad, yPad + 6, 'l', 16, PAPER);
-    this.text(fmt(R.score), xPad, yPad + (small ? 30 : 34), 'd', small ? 24 : 32, null, 'left', { metal: GOLD });
+    this.text(fmt(R.score + R.taskPts), xPad, yPad + (small ? 30 : 34), 'd', small ? 24 : 32, null, 'left', { metal: GOLD });
     this.text('BEST ' + fmt(G.save.best), xPad, yPad + (small ? 58 : 66), 'l', 16, PAPER);
-    // Full checklist at the start, then highlight the shopping items as they are collected.
-    const cardA = C.touch ? 0 : st === 'push' ? 1 : st === 'run' ? clamp((4.5 - R.time) / 0.8, 0, 1) : 0;
-    let listBottom = yPad + 70;
-    if (cardA < 1) { // the list lights up as you get things, like S-K-A-T-E
+    // Show shopping progress once the first list item has been picked up.
+    let comboY = yPad + 80;
+    if (SHOPPING_LIST.some(k => R.got[k])) {
       let x = xPad, y = yPad + (small ? 76 : 84); g.font = `16px ${FACE.l}`;
       for (const k of SHOPPING_LIST) {
         const lab = LIST_NAMES[k].toUpperCase(), w = Math.ceil(this.measure(lab)) + 14, on = R.got[k];
@@ -87,14 +86,14 @@ export class HUD {
         this.text(lab, x + 7, y + 10, 'l', 16, on ? '#16161a' : 'rgba(246,242,231,.6)', 'left', { shadow: false });
         x += w + 6;
       }
-      listBottom = y + 36;
+      comboY = y + 32;
     }
     // time: top centre, or under the buttons on a narrow screen
     const ticks = Math.floor(R.time * 10), mm = Math.floor(ticks / 600), ss = (ticks % 600 / 10).toFixed(1).padStart(4, '0');
     if (narrow) this.text(`${mm}:${ss}`, W - pad - right, top + 66, 'd', 16, PAPER, 'right');
     else this.text(`${mm}:${ss}`, mid, yPad + 14, 'd', 24, PAPER, 'center');
     // combo
-    const cb = G.combo, cy = narrow ? listBottom + 14 : C.touch ? listBottom - 8 : yPad + 80;
+    const cb = G.combo, cy = comboY;
     const comboSize = small || H < 440 ? 24 : 32;
     if (cb.list.length) {
       const shown = cb.list.slice(-4), live = Object.values(cb.live);
@@ -119,7 +118,6 @@ export class HUD {
     const speedSize = width < 375 ? 24 : small ? 32 : 40;
     this.text(String(mph), mid, H - bottom - pad - (small ? 36 : 48), 'd', speedSize, null, 'center', { metal: mph > 30 ? HOT : STEEL });
     this.text('MPH', mid, H - bottom - pad - 8, 'l', 16, PAPER, 'center');
-    if (cardA > 0) this.listCard(R, xPad, yPad + (small ? 72 : 84), W, H, cardA);
     if (G.flash > 0 && !this.motion.matches) { g.fillStyle = `rgba(255,255,255,${G.flash * 0.5})`; g.fillRect(0, 0, W, H); }
   }
   message(m, W, H, small) {
@@ -132,28 +130,4 @@ export class HUD {
     this.text(m.text, W / 2, y, 'b', size, m.kind === 'cheer' ? '#ffd21f' : PAPER, 'center', { shadow: false });
     g.globalAlpha = 1;
   }
-  // today's list: down the left on a tall screen; on a short one, a wide compact card across the top
-  listCard(R, x, y, W, H, a) {
-    const g = this.g, wide = H < 560 && W >= 540, lh = wide ? 22 : 24, sc = wide ? 3 : 2, tc = wide ? 2 : 1;
-    const sw = wide ? 124 : 132, tw = wide ? 264 : 256, sRows = Math.ceil(SHOPPING_LIST.length / sc), tRows = Math.ceil(TASKS.length / tc);
-    const w = Math.max(sc * sw, tc * tw) + 20, h = 32 + sRows * lh + 12 + tRows * lh + 2;
-    if (wide) { x = Math.round(W / 2 - w / 2); y = 60; }
-    g.globalAlpha = a;
-    g.fillStyle = 'rgba(246,242,231,.95)'; this.rect(x, y, w, h); g.fillStyle = 'rgba(0,0,0,.35)'; this.rect(x + w, y + 8, 8, h); this.rect(x + 8, y + h, w, 8);
-    this.text("TODAY'S LIST", x + 12, y + 18, 'l', 16, '#16161a', 'left', { bold: true, shadow: false });
-    SHOPPING_LIST.forEach((k, i) => { const cx = x + 12 + (i % sc) * sw, cy = y + 44 + Math.floor(i / sc) * lh; this.tickBox(cx, cy, R.got[k]); this.text(LIST_NAMES[k], cx + 24, cy, 'b', 16, '#16161a', 'left', { shadow: false }); });
-    const y0 = y + 44 + sRows * lh + 10; g.fillStyle = 'rgba(22,22,26,.25)'; this.rect(x + 12, y0 - 14, w - 24, 2);
-    TASKS.forEach((t, i) => {
-      const cx = x + 12 + Math.floor(i / tRows) * tw, cy = y0 + (i % tRows) * lh;
-      this.tickBox(cx, cy, R.done[t.id]); this.text(t.id === 'cones' && !R.done.cones && R.cones ? `${t.label} (${R.cones})` : t.label, cx + 24, cy, 'b', 16, '#16161a', 'left', { shadow: false });
-    });
-    g.globalAlpha = 1;
-  }
-  // a 16px pixel-art box, ticked in green when done
-  tickBox(x, y, done) {
-    const g = this.g, p = 2, X = x, Y = y - 8;
-    g.fillStyle = '#16161a'; this.rect(X, Y, 16, p); this.rect(X, Y + 14, 16, p); this.rect(X, Y, p, 16); this.rect(X + 14, Y, p, 16);
-    if (done) { g.fillStyle = '#1f8a3a'; for (const [cx, cy, w] of [[6, 2, 1], [5, 3, 2], [1, 4, 1], [4, 4, 2], [1, 5, 4], [2, 6, 2]]) this.rect(X + cx * p, Y + cy * p, w * p, p); }
-  }
-
 }

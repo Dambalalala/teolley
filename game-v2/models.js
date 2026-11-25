@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { Batch, GEO, M, FM, bx, cy, seg, lam, rng, pick, TAU, clamp } from './util.js';
-import { TX, labelTex, signTex } from './textures.js';
+import { TX, labelTex, signTex } from './textures.js?v=grumbleton-polish';
 const T = C.T;
 
 // ======================= THE TROLLEY =======================

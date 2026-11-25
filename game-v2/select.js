@@ -1,8 +1,7 @@
 import { C } from './core.js';
 import { clamp, lerp, sstep, fmt } from './util.js';
-import { makeTrolley, VARIANTS } from './models.js';
-import { trolleyStats } from './trolley.js';
-import { GRUMBLETON } from './game.js?v=level-unlocks';
+import { makeTrolley, VARIANTS } from './models.js?v=grumbleton-polish';
+import { trolleyStats } from './trolley.js?v=grumbleton-polish';
 const T = C.T, $ = id => document.getElementById(id);
 
 // Trolley select: each trolley waits somewhere ordinary in the world and the camera goes to it.
@@ -28,7 +27,7 @@ const ease = t => t * t * t * (t * (t * 6 - 15) + 10);
 
 export class Select {
   constructor() {
-    this.open = false; this.S = null; this.models = []; this.idx = 0;
+    this.open = false; this.S = []; this.models = []; this.previews = new Map(); this.idx = 0;
     this.pos = new T.Vector3(); this.look = new T.Vector3(); this.focus = new T.Vector3(); this.tw = null; this.fade = 0; this.t = 0;
     this.light = { ...LIGHT.neutral };
     this.targetPos = new T.Vector3(); this.targetLook = new T.Vector3();
@@ -48,14 +47,17 @@ export class Select {
     sel.addEventListener('pointercancel', () => { swipe = null; });
   }
   build() {
-    if (this.S) return;
-    this.S = stops();
-    for (const st of this.S) {
+    this.S = stops().filter(st => C.game.save.unlocked[st.key]);
+    this.models = this.S.map(st => {
+      const preview = this.previews.get(st.key);
+      if (preview) return preview;
       const m = makeTrolley(st.key), s = VARIANTS[st.key].scale; m.root.position.set(st.at.x, st.at.y + 0.5 * s + 0.01, st.at.z); m.root.rotation.y = st.yaw;
       if (st.key === 'pensioner') m.wheels[0].pivot.rotation.y = 0.6; // the wonky one
       else m.wheels.forEach((w, i) => { if (i < 2) w.pivot.rotation.y = (i ? -0.15 : 0.25); });
-      m.root.visible = false; C.scene.add(m.root); m.root.traverse(o => { if (o.isMesh) o.castShadow = true; }); this.models.push(m);
-    }
+      m.root.visible = false; C.scene.add(m.root); m.root.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      this.previews.set(st.key, m);
+      return m;
+    });
   }
   show() {
     this.build(); this.open = true;
@@ -77,12 +79,12 @@ export class Select {
     G.ensureTrolley(); C.trolley.vis.root.visible = true;
   }
   confirm() {
-    const st = this.S[this.idx]; C.audio.init();
-    if (!C.game.save.unlocked[st.key]) { C.audio.sfx('sting'); const l = $('selLock'); l.classList.remove('nudge'); void l.offsetWidth; l.classList.add('nudge'); return; }
-    C.audio.sfx('click'); this.close(true); C.game.startRun();
+    if (!this.open) return;
+    C.audio.init();
+    C.audio.sfx('click'); this.close(true); C.game.toBriefing();
   }
   step(d) {
-    if (!this.open) return;
+    if (!this.open || this.S.length < 2) return;
     const n = this.S.length, from = this.idx; this.idx = (this.idx + d + n) % n;
     C.audio.sfx('click');
     const a = this.S[from], b = this.S[this.idx];
@@ -136,17 +138,13 @@ export class Select {
     C.scene.fog.color.setHex(L.fog); C.scene.fog.near = L.near; C.scene.fog.far = L.far;
   }
   panel() {
-    const st = this.S[this.idx], V = VARIANTS[st.key], un = !!C.game.save.unlocked[st.key], S = trolleyStats(st.key);
+    const st = this.S[this.idx], V = VARIANTS[st.key], S = trolleyStats(st.key);
     $('selName').textContent = V.name; $('selBlurb').textContent = V.blurb;
     $('selStats').innerHTML = [['Speed', S.speed], ['Stability', S.stability], ['Handling', S.handling]].map(([n, v]) =>
       `<div class="sst"><span>${n}</span><span class="segs" role="img" aria-label="${n} ${v} out of 10">${'<i class="on"></i>'.repeat(v)}${'<i></i>'.repeat(10 - v)}</span></div>`).join('');
-    const lock = $('selLock');
-    lock.classList.toggle('hidden', un);
-    if (un) lock.textContent = '';
-    else if (st.key === GRUMBLETON.unlock) lock.textContent = `Return the trolley in ${GRUMBLETON.name} to unlock.`;
-    else lock.textContent = 'Unlocks in a later level.';
-    $('bSelDone').disabled = !un;
     const best = C.game.save.best; $('bestLine').textContent = best ? `BEST ${fmt(best)}` : '';
-    $('selIdx').textContent = `${this.idx + 1} / ${this.S.length}`;
+    const count = this.S.length;
+    for (const id of ['selPrev', 'selIdx', 'selNext', 'selKeys']) $(id).classList.toggle('hidden', count < 2);
+    $('selIdx').textContent = `${this.idx + 1} / ${count}`;
   }
 }

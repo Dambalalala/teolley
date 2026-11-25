@@ -1,6 +1,6 @@
 import { C, G, ig, ALL } from './core.js';
 import { clamp, lerp, angDiff, TAU, sstep } from './util.js';
-import { makeTrolley, TD, VARIANTS } from './models.js';
+import { makeTrolley, TD, VARIANTS } from './models.js?v=grumbleton-polish';
 const T = C.T;
 
 // Per-trolley handling. Push is self-propulsion (m/s^2) up to pushV; crr is rolling resistance, drag is air drag.
@@ -182,8 +182,13 @@ export class Trolley {
       const vx = v.x + w.y * rz - w.z * ry, vy = v.y + w.z * rx - w.x * rz, vz = v.z + w.x * ry - w.y * rx;
       const lx = vx * rtx + vy * rty + vz * rtz, lf = vx * fwx + vy * fwy + vz * fwz, vp = Math.hypot(lx, lf);
       if (vp > 0.05) { const tgt = Math.atan2(lx, lf), rate = vp / (TD.trail * s * 2.5); const dphi = angDiff(tgt, W.phi); W.phi += clamp(dphi, -rate * dt, rate * dt); }
-      // sticky caster: now and then one jams at an angle for a moment
-      if (W.stick > 0) W.stick -= dt; else if (vp > 2 && Math.random() < dt * 0.12 * wob) { W.stick = 0.25 + Math.random() * 0.45; W.stickA = (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35); }
+      // A healthy caster rolls cleanly at push-off speed. Damage can still make it stick.
+      const jamChance = sstep(7, 14, vp) + 0.5 * dmg;
+      if (W.stick > 0) W.stick -= dt;
+      else if (vp > 2 && jamChance > 0 && Math.random() < dt * 0.12 * wob * jamChance) {
+        W.stick = 0.25 + Math.random() * 0.45;
+        W.stickA = (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35);
+      }
       if (P.badWheel === W.i && vp > 1 && W.stick <= 0 && Math.random() < dt * 0.25) { W.stick = 0.25 + Math.random() * 0.3; W.stickA = 0.3 * (Math.random() < 0.75 ? 1 : -1); }
       const shimmy = wob * (0.015 + 0.06 * sstep(3, 15, vp)) * Math.sin(t * TAU * (4 + vp * 0.45) + W.i * 1.7) * (W.hp < 0.6 ? 2.5 : 1);
       W.phiEff = W.phi + shimmy + (W.stick > 0 ? W.stickA : 0);

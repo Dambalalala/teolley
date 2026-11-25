@@ -1,6 +1,6 @@
 import { C, G, ig, ALL } from './core.js';
 import { TAU } from './util.js';
-import { ITEMS, makeItemMesh } from './models.js';
+import { ITEMS, makeItemMesh } from './models.js?v=grumbleton-polish';
 const T = C.T;
 
 // Floating pickups along the route, and the shopping that physically rattles about in the basket.

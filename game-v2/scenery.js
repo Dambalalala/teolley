@@ -1,9 +1,9 @@
 import { C } from './core.js';
 import { TAU, clamp, sstep, rng, pick, Batch, GEO, M, FM, frame, bx, cy, seg, Baker } from './util.js';
 const DECOR = new Baker();
-import { TX, signTex, plainSign, limitSign, warnSign, giveWay, chevron, fascia, textFit } from './textures.js';
-import { W, RA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js?v=car-park-exit';
-import { makeTrolley, makeCar } from './models.js';
+import { TX, signTex, plainSign, limitSign, warnSign, giveWay, chevron, fascia, textFit } from './textures.js?v=grumbleton-polish';
+import { W, RA_S, ZEBRA_S, S_END, roadAt, prof, P, hasHouse, sb, chunkOf, staticBox, staticCyl, staticHull, staticMeshCol, mats, yawTo, TOP, POND, botToWorld, botH, BOT } from './world.js?v=grumbleton-polish';
+import { makeTrolley, makeCar } from './models.js?v=grumbleton-polish';
 const T = C.T;
 const _v = new T.Vector3();
 const tp = (F, x, y, z) => { _v.set(x, y, z); if (F) _v.applyMatrix4(F); return [_v.x, _v.y, _v.z]; };
@@ -49,15 +49,15 @@ function lampPost(s, side, chunk) {
 const DOORS = [0xb3202a, 0x1f3f8a, 0x1f5a36, 0x1c1c20, 0xf2c81f, 0x6a2a6a, 0x2a8a8a, 0xf4f2ea];
 const RENDERS = [0xf2ead8, 0xdfe8ee, 0xf0dcdc, 0xe8eedc, 0xf6e8c8];
 function house(F, yaw, r, chunk, kind) {
-  const wd = 5.2, ht = 6.0, dp = 8, low = -1.2;
+  const wd = 5.05, ht = 6.0, dp = 8, low = -1.2;
   const wallKind = kind || pick(r, ['brick', 'brick', 'brick', 'brickY', 'render']);
   const tint = wallKind === 'render' ? pick(r, RENDERS) : 0xffffff;
   const WB = sb(chunk, wallKind), L = sb(chunk, 'lam'), G = sb(chunk, 'glass'), RF = sb(chunk, r() < 0.8 ? 'roof' : 'tile');
   tbox(WB, F, wd, ht - low, dp, 0, (ht + low) / 2, -dp / 2, tint, 1.2);
   RF.add(GEO.prism, FM(F, 0, ht, -dp / 2, 0, Math.PI / 2, 0, dp + 0.7, 2.4, wd + 0.03), 0xffffff, [3, 2]);
   bx(L, F, wd + 0.03, 0.12, 0.14, 0, ht - 0.02, 0.38, 0x2a2a2e); // gutter
-  tbox(WB, F, 0.9, 1.6, 0.7, wd / 2, ht + 1.9, -dp / 2, tint, 1.2);
-  for (let k = 0; k < 3; k++) cy(L, F, 0.08, 0.36, wd / 2 - 0.25 + k * 0.25, ht + 2.86, -dp / 2, 0xb5603a, 8);
+  tbox(WB, F, 0.8, 1.6, 0.7, wd / 2 - 0.44, ht + 1.85, -dp / 2, tint, 1.2);
+  for (const dx of [0.28, 0.6]) cy(L, F, 0.085, 0.32, wd / 2 - dx, ht + 2.76, -dp / 2, 0xb5603a, 6);
   // bay window
   tbox(WB, F, 2.2, 3.0, 0.75, -1.15, 1.5 + low / 2 - 0.2, 0.375, tint, 1.2);
   bx(L, F, 2.24, 0.12, 0.79, -1.15, 0.85, 0.38, 0xf2f2ee);
@@ -73,39 +73,32 @@ function house(F, yaw, r, chunk, kind) {
     bx(L, F, 1.2, 1.4, 0.1, x, 4.2, 0.02, 0xf2f2ee); G.quad(tp(F, x - 0.5, 3.6, 0.075), tp(F, x + 0.5, 3.6, 0.075), tp(F, x + 0.5, 4.8, 0.075), tp(F, x - 0.5, 4.8, 0.075), 0xffffff);
     bx(L, F, 0.06, 1.2, 0.04, x, 4.2, 0.09, 0xf2f2ee); bx(L, F, 1.3, 0.1, 0.18, x, 3.47, 0.08, 0xd8d4c8);
   }
-  if (r() < 0.3) { cy(L, F, 0.3, 0.05, 2.0, 5.2, 0.15, 0x9a9da2, 12, Math.PI / 2 - 0.3, 0.4, 0); }
-  if (r() < 0.35) bx(L, F, 0.35, 0.45, 0.12, -2.2, 5.3, 0.06, pick(r, [0x1f5abf, 0xf2c81f, 0xd2202a]));
-  if (r() < 0.25) { cy(L, F, 0.25, 0.2, 0.6, 2.4, 0.4, 0x3a3a3e, 8); for (let k = 0; k < 4; k++) L.add(GEO.ico, FM(F, 0.6 + Math.cos(k) * 0.15, 2.32, 0.4 + Math.sin(k) * 0.15, 0, 0, 0, 0.12, 0.12, 0.12), pick(r, [0xd2486a, 0xf2c94a, 0x8a5ad2, 0x4c8a3a])); }
   // collider for the body and bay
   colBox(F, yaw, wd, ht - low, dp, 0, (ht + low) / 2, -dp / 2, { kind: 'house', name: 'HOUSE' });
   colBox(F, yaw, 2.2, 2.9, 0.75, -1.15, 1.2, 0.375, { kind: 'house', name: 'BAY WINDOW' });
 }
-function frontGarden(F, yaw, r, chunk, s, side) {
+const GARDEN_FRONT = ['wall', 'hedge', 'wall', 'wall', 'hedge', 'picket'];
+function frontGarden(F, yaw, chunk, style) {
   const wd = 5.2, gz = 4.0, L = sb(chunk, 'lam');
-  const style = pick(r, ['wall', 'wall', 'wall', 'hedge', 'picket', 'rail']);
   // path to the front door
   const PV = sb(chunk, 'pave'); PV.quad(tp(F, 0.95, 0.02, gz), tp(F, 1.95, 0.02, gz), tp(F, 1.95, 0.02, 0.45), tp(F, 0.95, 0.02, 0.45), 0xffffff, [0, 0, 0.6, 2]);
   const seg2 = (x0, x1) => {
     const w = x1 - x0, cx = (x0 + x1) / 2;
     if (style === 'wall') { tbox(sb(chunk, 'brick'), F, w, 0.72, 0.24, cx, 0.2, gz - 0.12, 0xffffff, 1.2); bx(L, F, w + 0.02, 0.07, 0.3, cx, 0.6, gz - 0.12, 0xc8c4b8); colBox(F, yaw, w, 0.8, 0.24, cx, 0.24, gz - 0.12, { kind: 'wall', name: 'GARDEN WALL' }); }
     else if (style === 'hedge') { tbox(sb(chunk, 'hedge'), F, w, 1.15, 0.7, cx, 0.42, gz - 0.38, 0xffffff, 1.0); colBox(F, yaw, w, 1.2, 0.7, cx, 0.45, gz - 0.38, { kind: 'hedge', name: 'HEDGE' }); }
-    else if (style === 'rail') { bx(L, F, w, 0.35, 0.22, cx, 0.05, gz - 0.12, 0xbdb9ae); for (let x = x0 + 0.06; x < x1; x += 0.13) cy(L, F, 0.012, 0.7, x, 0.55, gz - 0.12, 0x1c1c1e, 6); bx(L, F, w, 0.04, 0.04, cx, 0.85, gz - 0.12, 0x1c1c1e); colBox(F, yaw, w, 1.0, 0.22, cx, 0.35, gz - 0.12, { kind: 'wall', name: 'RAILINGS' }); }
     else { const c = wp(F, cx, 0.42, gz - 0.12); W.dyn.push({ type: 'picket', x: c.x, y: c.y, z: c.z, yaw, w }); }
   };
   seg2(-wd / 2, 0.9); seg2(2.0, wd / 2);
-  if (r() < 0.45) { const c = wp(F, -1.6 + r() * 0.8, 0.55, gz - 0.9); W.dyn.push({ type: 'bin', x: c.x, y: c.y, z: c.z, yaw: yaw + (r() - 0.5) * 0.4, lid: pick(r, [0x2a2a2c, 0x2a6a3a, 0x2a4aa0, 0x6a4a2a]) }); }
-  r(); // (was a garden gnome; kept the draw so the rest of the street stays the same)
-  if (r() < 0.08) { const c = wp(F, 2.3, 0, gz - 0.6); signPost(C.scene, c.x, c.y, c.z, yaw + Math.PI, plainSign(['FOR SALE', 'GRIMLEY & SONS'], { bg: '#f2f2ee', fg: '#c81e1e', border: '#1d3d8f', w: 192, h: 128 }), 0.8, 0.55, 1.5, { name: 'ESTATE AGENT SIGN' }); }
 }
 function terraces(scene) {
   const r = rng(42);
   for (const side of [-1, 1]) for (const [a, b] of W.houses[side < 0 ? 'L' : 'R']) {
-    for (let s = a + 2.6; s < b - 2.5; s += 5.2) {
+    for (let s = a + 2.6, n = side < 0 ? 0 : 3; s < b - 2.5; s += 5.2, n++) {
       if (side < 0 && s > 473 && s < 482) { shopFront(scene, s, side); continue; }
       if (side > 0 && s > 492 && s < 503) { pubFront(scene, s, side); continue; }
       const R = roadAt(s, {}), d = side * (R.w + 6.2), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d) - 0.01;
       const yaw = yawTo(-side * R.rx, -side * R.rz), F = frame(x, y, z, yaw), chunk = chunkOf(s);
-      house(F, yaw, r, chunk); frontGarden(F, yaw, r, chunk, s, side);
+      house(F, yaw, r, chunk); frontGarden(F, yaw, chunk, GARDEN_FRONT[n % GARDEN_FRONT.length]);
     }
   }
 }
@@ -149,10 +142,10 @@ function street(scene) {
     const n = 1 + Math.floor(r() * 2.4);
     for (let i = 0; i < n; i++) { const R = roadAt(s + i * 0.75, {}), d = side * (R.w + 0.6), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'bin', x, y: prof(s + i * 0.75, d) + 0.55, z, yaw: yawTo(-side * R.rx, -side * R.rz) + (r() - 0.5) * 0.3, lid: pick(r, [0x2a2a2c, 0x2a2a2c, 0x2a6a3a, 0x2a4aa0, 0x6a4a2a]) }); }
   }
-  // zebra crossing: belisha beacons, bollards
+  // One Belisha beacon at each end of the crossing.
   W.blink = [];
-  for (const side of [-1, 1]) for (const ds of [-2.0, 2.0]) {
-    const s = 180 + ds, R = roadAt(s, {}), d = side * (R.w + 0.35), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d), L = sb(chunkOf(s), 'lam');
+  for (const side of [-1, 1]) {
+    const s = ZEBRA_S + side * 1.75, R = roadAt(s, {}), d = side * (R.w + 0.35), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d), L = sb(chunkOf(s), 'lam');
     for (let i = 0; i < 6; i++) cy(L, null, 0.06, 0.4, x, y + 0.2 + i * 0.4, z, i % 2 ? 0xf2f2ee : 0x1c1c1e, 8);
     const globe = new T.Mesh(new T.SphereGeometry(0.17, 12, 8), new T.MeshBasicMaterial({ color: 0xffa21f })); globe.position.set(x, y + 2.55, z); scene.add(globe); W.blink.push(globe);
     staticCyl(x, y + 1.25, z, 0.07, 1.25, { kind: 'pole', name: 'BELISHA BEACON' });
@@ -350,7 +343,7 @@ function topScenery(scene) {
   const r = rng(77);
   for (const [x, z, yaw] of [[-30, 17, 0], [-27.3, 17, Math.PI], [30, 33, 0], [19, 17, Math.PI], [-35, 33, 0], [27.4, 17, 0]]) { const car = makeCar(pick(r, ['hatch', 'estate', 'hatch']), null, Math.floor(r() * 1e6)); car.group.position.set(x, y, z); car.group.rotation.y = yaw; scene.add(car.group); const idx = W.cars.length; W.cars.push({ car, x, y, z, yaw, alarm: 0, rock: 0 }); staticBox(x, y + 0.7, z, car.W / 2, 0.6, car.L / 2, yaw, { kind: 'car', name: 'PARKED CAR', car: idx }); W.nearTargets.push({ x, z, r: car.L / 2, kind: 'PARKED CAR', box: { hx: car.W / 2, hz: car.L / 2, yaw } }); }
   // perimeter: low wall with railings, open at the exit
-  const wall = (x0, z0, x1, z1) => { const len = Math.hypot(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, yaw = Math.atan2(x1 - x0, z1 - z0), F = frame(cx, y, cz, yaw); tbox(sb('top', 'brick'), F, 0.3, 0.9, len, 0, 0.45, 0, 0xffffff); for (let k = -len / 2 + 0.2; k < len / 2; k += 0.25) cy(L, F, 0.012, 0.7, 0, 1.25, k, 0x1c1c1e, 6); bx(L, F, 0.04, 0.04, len, 0, 1.6, 0, 0x1c1c1e); staticBox(cx, y + 0.8, cz, 0.15, 0.8, len / 2, yaw, { kind: 'wall', name: 'CAR PARK WALL' }); };
+  const wall = (x0, z0, x1, z1) => { const len = Math.hypot(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, yaw = Math.atan2(x1 - x0, z1 - z0), F = frame(cx, y, cz, yaw); tbox(sb('top', 'brick'), F, 0.3, 0.9, len, 0, 0.45, 0, 0xffffff); for (let k = -len / 2 + 0.2; k < len / 2; k += 0.52) bx(L, F, 0.027, 0.7, 0.027, 0, 1.25, k, 0x1c1c1e); bx(L, F, 0.04, 0.04, len, 0, 1.6, 0, 0x1c1c1e); staticBox(cx, y + 0.8, cz, 0.15, 0.8, len / 2, yaw, { kind: 'wall', name: 'CAR PARK WALL' }); };
   wall(TOP.x0, 0.2, -5.95, 0.2); wall(5.95, 0.2, TOP.x1, 0.2); wall(TOP.x0, 0.2, TOP.x0, 62); wall(TOP.x1, 0.2, TOP.x1, 62);
 }
 
@@ -388,10 +381,21 @@ function bottomScenery(scene) {
     W.pond = { x: pc.x, z: pc.z, rx: POND.rx, rz: POND.rz, water: POND.water };
     W.ducks = []; for (let k = 0; k < 9; k++) { const a = r() * TAU, rr = r() * 0.7; W.ducks.push({ lx: POND.lx + Math.cos(a) * POND.rx * rr, lf: POND.lf + Math.sin(a) * POND.rz * rr, drake: k % 3 !== 0 }); }
   }
-  // boundary around the bottom
-  const fence = (lx0, lf0, lx1, lf1) => { const a = BW(lx0, lf0), b = BW(lx1, lf1), len = Math.hypot(b.x - a.x, b.z - a.z), cx = (a.x + b.x) / 2, cz = (a.z + b.z) / 2, yaw = Math.atan2(b.x - a.x, b.z - a.z), F = frame(cx, 2.5, cz, yaw); tbox(sb('bot', 'hedge'), F, 1.4, 2.2, len, 0, 1.0, 0, 0xffffff, 1.2); staticBox(cx, 3.5, cz, 0.7, 3, len / 2, yaw, { kind: 'hedge', name: 'HEDGE' }); };
-  fence(BOT.lx0 + 1, 1, BOT.lx0 + 1, BOT.lf1 - 1); fence(BOT.lx1 - 1, 1, BOT.lx1 - 1, BOT.lf1 - 1); fence(BOT.lx0 + 1, BOT.lf1 - 1, BOT.lx1 - 1, BOT.lf1 - 1);
-  const edge = (lx0, lx1) => { const a = BW(lx0, 0.8), b = BW(lx1, 0.8), len = Math.abs(b.x - a.x), cx = (a.x + b.x) / 2; tbox(sb('bot', 'brick'), frame(cx, 0, a.z, Math.PI / 2), 0.3, 1.0, len, 0, 0.5, 0, 0xffffff); staticBox(cx, 0.6, a.z, len / 2, 0.6, 0.15, 0, { kind: 'wall', name: 'WALL' }); };
+  // Tuck Station Road behind brick bridges where the bus enters and leaves.
+  const brick = sb('bot', 'brick');
+  for (const side of [-1, 1]) {
+    const dock = bf(side * 45, 10);
+    for (const lf of [-5.7, 5.7]) {
+      tbox(brick, dock, 6, 5, 1.6, 0, 2.5, lf, 0xffffff);
+      colBox(dock, 0, 6, 5, 1.6, 0, 2.5, lf, { kind: 'wall', name: 'RAILWAY BRIDGE' });
+    }
+    tbox(brick, dock, 6, 0.65, 13, 0, 5.325, 0, 0xffffff);
+    bx(L, dock, 0.3, 5, 10, side * 2.8, 2.5, 0, 0x323238);
+    colBox(dock, 0, 0.3, 7, 10, side * 2.8, 3.3, 0, { kind: 'wall', name: 'RAILWAY BRIDGE' });
+  }
+  const fence = (lx0, lf0, lx1, lf1) => { const a = BW(lx0, lf0), b = BW(lx1, lf1), len = Math.hypot(b.x - a.x, b.z - a.z), cx = (a.x + b.x) / 2, cz = (a.z + b.z) / 2, yaw = Math.atan2(b.x - a.x, b.z - a.z), F = frame(cx, 0, cz, yaw); tbox(sb('bot', 'hedge'), F, 1.4, 4.35, len, 0, 2.17, 0, 0xffffff, 1.2); staticBox(cx, 2.35, cz, 0.7, 2.4, len / 2, yaw, { kind: 'hedge', name: 'HEDGE' }); };
+  fence(BOT.lx0 + 1, 16, BOT.lx0 + 1, BOT.lf1 - 1); fence(BOT.lx1 - 1, 16, BOT.lx1 - 1, BOT.lf1 - 1); fence(BOT.lx0 + 1, BOT.lf1 - 1, BOT.lx1 - 1, BOT.lf1 - 1);
+  const edge = (lx0, lx1) => { const a = BW(lx0, BOT.lf0 + 0.3), b = BW(lx1, BOT.lf0 + 0.3), len = Math.abs(b.x - a.x), cx = (a.x + b.x) / 2; tbox(brick, frame(cx, 0, a.z, Math.PI / 2), 0.3, 1.0, len, 0, 0.5, 0, 0xffffff); staticBox(cx, 0.6, a.z, len / 2, 0.6, 0.15, 0, { kind: 'wall', name: 'WALL' }); };
   edge(BOT.lx0 + 1, -10.5); edge(10.5, BOT.lx1 - 1);
 }
 

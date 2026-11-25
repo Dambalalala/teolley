@@ -1,19 +1,20 @@
 import RAPIER from './rapier.js';
 import { C } from './core.js';
-import { buildTextures } from './textures.js';
-import { buildWorldBase, flushStatics } from './world.js?v=car-park-exit';
-import { buildScenery } from './scenery.js?v=car-park-exit';
-import { buildExtras } from './extras.js?v=car-park-exit';
+import { buildTextures } from './textures.js?v=grumbleton-polish';
+import { buildWorldBase, flushStatics } from './world.js?v=grumbleton-polish';
+import { buildScenery } from './scenery.js?v=grumbleton-polish';
+import { buildExtras } from './extras.js?v=grumbleton-polish';
 import { FX } from './fx.js';
-import { Props } from './props.js';
-import { Shopping } from './shopping.js';
+import { Props } from './props.js?v=grumbleton-polish';
+import { Shopping } from './shopping.js?v=grumbleton-polish';
 import { Audio } from './audio.js';
-import { Game } from './game.js?v=level-unlocks';
-import { Input } from './input.js?v=start-controls';
+import { Game } from './game.js?v=grumbleton-polish';
+import { Input } from './input.js?v=grumbleton-polish';
 import { Cam } from './camera.js';
-import { HUD } from './hud.js?v=level-unlocks';
-import { UI } from './ui.js?v=level-unlocks';
-import { Select } from './select.js?v=level-unlocks';
+import { HUD } from './hud.js?v=grumbleton-polish';
+import { UI } from './ui.js?v=grumbleton-polish';
+import { Select } from './select.js?v=grumbleton-polish';
+import { makeContactShadow } from './shadows.js?v=grumbleton-polish';
 
 const T = C.T, $ = id => document.getElementById(id);
 function fail(msg) { $('loading').classList.add('hidden'); const e = $('err'); e.textContent = msg; e.classList.remove('hidden'); }
@@ -36,15 +37,18 @@ async function boot() {
   const context = canvas.getContext('webgl2', options) || canvas.getContext('webgl', options);
   if (!context) return fail('Trolley needs WebGL. Try opening it in an up-to-date browser with hardware acceleration enabled.');
   const renderer = C.renderer = new T.WebGLRenderer({ canvas, context, ...options });
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap;
+  renderer.shadowMap.enabled = !touchy;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
   const scene = C.scene = new T.Scene();
   scene.fog = new T.Fog(0xd5dee6, 140, 900);
   const camera = C.camera = new T.PerspectiveCamera(62, 1, 0.1, 4000);
   const hemi = new T.HemisphereLight(0xd8e6f4, 0x7a8a5a, 0.72); scene.add(hemi);
-  const sun = new T.DirectionalLight(0xfff0d8, 0.78); sun.castShadow = true;
-  const shadowRadius = touchy ? 24 : 32;
-  sun.shadow.mapSize.setScalar(touchy ? 1024 : 2048);
+  const sun = new T.DirectionalLight(0xfff0d8, 0.78); sun.castShadow = !touchy;
+  const shadowRadius = 32;
+  sun.shadow.mapSize.setScalar(2048);
   Object.assign(sun.shadow.camera, { left: -shadowRadius, right: shadowRadius, top: shadowRadius, bottom: -shadowRadius, near: 22, far: 198 }); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.position.set(55, 78, 30);
   scene.add(sun); scene.add(sun.target); C.lights = { hemi, sun }; const SUN = new T.Vector3(0.55, 0.78, 0.3).normalize();
   // light-space axes for snapping the shadow camera to whole texels
   const LR = new T.Vector3().crossVectors(new T.Vector3(0, 1, 0), SUN).normalize(), LU = new T.Vector3().crossVectors(SUN, LR).normalize(), TEX = 2 * shadowRadius / sun.shadow.mapSize.x, snapP = new T.Vector3();
@@ -77,6 +81,7 @@ async function boot() {
         (offset.lengthSq() < (range + bounds.radius) ** 2 && view.intersectsSphere(bounds));
     }
   }
+  const contactShadow = touchy ? makeContactShadow(scene) : null;
   C.fx = new FX(); C.props = new Props(); C.shopping = new Shopping(); C.audio = new Audio(); C.game = new Game();
   C.audio.muted = !!C.game.save.muted;
   C.input = new Input(); C.cam = new Cam(camera); C.hud = new HUD($('hud')); C.ui = new UI(); C.select = new Select();
@@ -126,7 +131,7 @@ async function boot() {
     } else { qualityTime = 0; frameTime = 16.7; }
     if (!skipRender) {
       const screen = game.paused ? 'pause' : game.state;
-      if (dirty || previousScreen !== screen || (screen !== 'pause' && screen !== 'results')) {
+      if (dirty || previousScreen !== screen || (screen !== 'pause' && screen !== 'briefing' && screen !== 'results')) {
         render(dt);
         dirty = false; previousScreen = screen;
       }
@@ -136,7 +141,7 @@ async function boot() {
   }
   function step(dtR) {
     const game = C.game;
-    if (game.paused || game.state === 'results') return;
+    if (game.paused || game.state === 'results' || game.state === 'briefing') return;
     if (game.state === 'select') {
       C.props.update(dtR, C.time, false);
       return;
@@ -168,7 +173,7 @@ async function boot() {
   let skipRender = false;
   function render(dtR) {
     const tr = C.trolley, game = C.game;
-    const frozen = game.paused || game.state === 'results';
+    const frozen = game.paused || game.state === 'results' || game.state === 'briefing';
     const drawDt = frozen ? 0 : dtR;
     const snap = camera.userData.snap;
     const blend = snap ? 1 : acc / DT;
@@ -178,10 +183,16 @@ async function boot() {
     updateVisibility(drawDt, snap || skipRender);
     C.props.sync(drawDt);
     C.shopping.sync();
-    const p = game.state === 'select' ? C.select.focus : tr.vis.root.position;
-    const a = Math.round(p.dot(LR) / TEX) * TEX, b = Math.round(p.dot(LU) / TEX) * TEX, c = p.dot(SUN);
-    snapP.copy(LR).multiplyScalar(a).addScaledVector(LU, b).addScaledVector(SUN, c);
-    sun.position.copy(snapP).addScaledVector(SUN, 120); sun.target.position.copy(snapP);
+    const selecting = game.state === 'select';
+    if (contactShadow) {
+      const root = selecting ? C.select.models[C.select.idx].root : tr.vis.root;
+      contactShadow(root, selecting, !selecting && tr.submerged);
+    } else {
+      const p = selecting ? C.select.focus : tr.vis.root.position;
+      const a = Math.round(p.dot(LR) / TEX) * TEX, b = Math.round(p.dot(LU) / TEX) * TEX, c = p.dot(SUN);
+      snapP.copy(LR).multiplyScalar(a).addScaledVector(LU, b).addScaledVector(SUN, c);
+      sun.position.copy(snapP).addScaledVector(SUN, 120); sun.target.position.copy(snapP);
+    }
     const W = C.world;
     W.sky.position.copy(camera.position);
     W.clouds.position.set(camera.position.x * 0.9, 0, camera.position.z * 0.9);
@@ -196,7 +207,7 @@ async function boot() {
     audioAcc += dt;
     if (audioAcc >= 1 / 30) {
       const tr = C.trolley, game = C.game, p = tr.vis.root.position, W = C.world;
-      const active = game.state !== 'select' && game.state !== 'results' && !game.paused;
+      const active = (game.state === 'push' || game.state === 'run' || game.state === 'over') && !game.paused;
       let bump = 0;
       for (const wheel of tr.wheels) bump += Math.abs(wheel.comp - 0.01) * 20;
       const L = active ? W.locate(p.x, p.z, roadPosition) : roadPosition;
@@ -211,7 +222,7 @@ async function boot() {
   // Expose automation tools only when explicitly enabled.
   if (!new URLSearchParams(window.location.search).has('debug')) return;
   window.__trolley = {
-    get: () => { const tr = C.trolley, p = tr.pos(), v = tr.vel(), L = C.world.locate(p.x, p.z, {}); return { x: p.x, y: p.y, z: p.z, vx: v.x, vy: v.y, vz: v.z, speed: tr.speed(), mph: tr.speed() * 2.237, s: L.s, d: L.d, up: tr.up, wheels: tr.nWheels, touching: tr.touching, state: C.game.state, score: C.game.run.score, combo: C.game.combo.list.map(e => e.name), mult: C.game.combo.mult, basket: C.shopping.inBasket().length, hp: { b: tr.hp.basket, h: tr.hp.handle, w: tr.wheels.map(w => +w.hp.toFixed(2)) }, end: C.game.run.end, msgs: C.game.msgs.map(m => m.text), broken: C.game.run.broken, near: C.game.run.nearMisses, air: tr.airT, time: C.game.run.time, dist: C.game.run.dist }; },
+    get: () => { const tr = C.trolley, p = tr.pos(), v = tr.vel(), L = C.world.locate(p.x, p.z, {}); return { x: p.x, y: p.y, z: p.z, vx: v.x, vy: v.y, vz: v.z, speed: tr.speed(), mph: tr.speed() * 2.237, s: L.s, d: L.d, up: tr.up, wheels: tr.nWheels, touching: tr.touching, state: C.game.state, score: C.game.run.score + C.game.run.taskPts, combo: C.game.combo.list.map(e => e.name), mult: C.game.combo.mult, basket: C.shopping.inBasket().length, hp: { b: tr.hp.basket, h: tr.hp.handle, w: tr.wheels.map(w => +w.hp.toFixed(2)) }, end: C.game.run.end, msgs: C.game.msgs.map(m => m.text), broken: C.game.run.broken, near: C.game.run.nearMisses, air: tr.airT, time: C.game.run.time, dist: C.game.run.dist }; },
     keys: k => { for (const n of ['push', 'brake', 'left', 'right']) C.input.k[n] = !!(k && k[n]); if (k && k.hop) C.input.hopQ = true; if (k && k.tap) C.input.pushQ = true; },
     start: () => C.game.startRun(),
     place: (s, d, yawOff = 0, h = 0.6) => { const tr = C.trolley, R = C.world.roadAt(s, {}), P = C.world.P(s, d); tr.reset({ x: P.x, y: P.y + h, z: P.z, yaw: -R.th + yawOff }); C.camera.userData.snap = true; },

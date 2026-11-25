@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#8fa6b8">
 <link rel="icon" href="data:,">
 <script defer src="vendor/three-r128.min.js"></script>
-<link rel="modulepreload" href="game-v2/main.js?v=level-unlocks">
+<link rel="modulepreload" href="game-v2/main.js?v=grumbleton-polish">
 <style>
 /* pixel fonts for everything on screen; Bungee and Barlow are only used for signs painted in the world */
 @font-face{font-family:'Press Start 2P';font-style:normal;font-weight:400;font-display:block;src:url(fonts/press-start-2p-latin-400-normal.woff2) format('woff2')}
@@ -72,20 +72,40 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 .segs{display:grid;grid-template-columns:repeat(10,clamp(9px, 3.6vw, 16px));gap:3px}
 .segs i{height:12px;background:rgba(246,242,231,.22);box-shadow:inset 0 -4px 0 rgba(0,0,0,.18)}
 .segs i.on{background:var(--yellow);box-shadow:inset 0 -4px 0 #c47a0a,inset 0 4px 0 #fff1a6}
-.selLock{font-size:16px;line-height:1.5;color:#ffc2a0;text-shadow:2px 2px 0 rgba(0,0,0,.7)}
 .selNav{display:flex;align-items:center;gap:clamp(6px, 3vw, 12px);flex-wrap:wrap}
 .selIdx{font-family:var(--label);font-size:16px;line-height:1;min-width:56px;text-align:center}
 .selNav .btn{margin-left:8px}
 .best{font-family:var(--label);font-size:16px;line-height:1;color:var(--yellow);text-shadow:2px 2px 0 rgba(0,0,0,.6)}
 .selKeys{font-size:16px;line-height:1;opacity:.85;text-shadow:2px 2px 0 rgba(0,0,0,.6)}
 #fade{position:fixed;inset:0;background:#0c0c0e;opacity:0;pointer-events:none;z-index:4}
-.nudge{animation:nudge .3s steps(4)}
-@keyframes nudge{0%,100%{transform:none}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 
 .btn{font-family:var(--display);font-size:16px;line-height:1;text-transform:uppercase;padding:12px 16px;background:var(--yellow);color:var(--ink);border:4px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
 .btn.alt{background:var(--paper)}
 .btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
 .btn:disabled{opacity:.45;cursor:default;box-shadow:none;transform:none}
+
+#briefing{align-items:center;justify-content:safe center;overflow:auto;touch-action:pan-y;overscroll-behavior:contain;background:rgba(22,22,26,.72)}
+.briefCard{width:min(100%,560px);flex:none;background:var(--paper);color:var(--ink);border-top:8px solid var(--yellow);padding:clamp(12px,3vw,24px);box-shadow:6px 6px 0 rgba(0,0,0,.48)}
+.briefCard h2{font:400 clamp(16px,5vw,24px)/1.2 var(--display);text-transform:uppercase}
+.briefCard header{display:flex;align-items:baseline;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;margin-bottom:10px}
+.briefBrand{font:700 16px/1 var(--label);color:#286347}
+.briefCard .plist{box-shadow:none;min-width:0;padding:0;font-size:16px;line-height:1.125;background:transparent}
+.briefCard .plist section{border-top:2px dashed #969184;padding-top:10px}
+.briefCard .plist section+section{margin-top:12px}
+.briefCard .plist ul{column-gap:12px}
+.briefCard .plist li{min-height:22px;padding:2px 0}
+.briefCard .plist li span{min-width:0;overflow-wrap:break-word}
+.plist section+section ul{grid-template-columns:1fr}
+.briefCard small{margin-left:auto;flex:none;color:#286347;font:700 16px/1 var(--label)}
+.briefCard p{font-size:16px;line-height:1.25;margin:12px 0}
+.briefCard .row{justify-content:flex-end;gap:8px 12px}
+.briefCard .btn{font-size:clamp(10px,3.2vw,16px);padding:10px 12px;min-height:44px}
+@media (min-width:660px) and (max-height:520px){
+  .briefCard{width:min(100%,680px);padding:14px 18px}
+  .briefCard .plist{display:grid;grid-template-columns:1fr 1.6fr;gap:20px}
+  .briefCard .plist section+section{margin-top:0}
+  .briefCard .plist section:first-child ul{grid-template-columns:1fr}
+}
 
 #results{align-items:center;justify-content:safe center;background:rgba(22,22,26,.6);overflow-y:auto;touch-action:pan-y}
 .receipt{width:min(400px,92vw);max-height:calc(100% - 96px);overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.25;padding:20px 20px 24px;box-shadow:8px 8px 0 rgba(0,0,0,.45);-webkit-mask:linear-gradient(#000 calc(100% - 8px),transparent 0) top/100% 100% no-repeat,linear-gradient(90deg,#000 50%,transparent 0) bottom/16px 8px repeat-x;mask:linear-gradient(#000 calc(100% - 8px),transparent 0) top/100% 100% no-repeat,linear-gradient(90deg,#000 50%,transparent 0) bottom/16px 8px repeat-x}
@@ -94,19 +114,25 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 .receipt .head{font-family:var(--label);font-weight:700;font-size:16px;text-align:center;margin:8px 0 4px;text-transform:uppercase}
 .receipt hr{border:0;border-top:2px dashed #6b6b6b;margin:6px 0}
 .receipt .ln{display:flex;justify-content:space-between;gap:12px}
-.receipt .ln span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.receipt .ln span:first-child{min-width:0;overflow-wrap:anywhere}
+.receipt .ln span:last-child{white-space:nowrap}
+.receipt .detail{font-size:.9em;color:#555}
 .receipt .tot{font-family:var(--display);font-size:16px;line-height:2}
 .receipt .neg{color:#9a1d1d}
 .receipt .new{font-family:var(--label);font-weight:700;text-align:center;background:var(--yellow);margin:8px -6px;padding:4px}
 .receipt .stamp{font-family:var(--display);font-size:16px;line-height:1.5;color:#b3221b;border:4px solid #b3221b;text-align:center;padding:8px;margin:12px auto 4px;width:max-content;max-width:100%;opacity:.9}
 .resbtns{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;justify-content:center}
+@media (max-width:420px){
+  .resbtns{gap:12px}
+  .resbtns .btn{font-size:12px;padding:9px 12px;min-height:44px}
+}
 
 #pause{align-items:center;justify-content:safe center;gap:16px;overflow:auto;touch-action:pan-y;background:rgba(22,22,26,.6)}
 #pause h2{font-family:var(--display);font-weight:400;font-size:32px;--fp:4px;text-transform:uppercase;margin-bottom:8px}
 .plist{background:var(--paper);color:var(--ink);padding:16px 20px 12px;min-width:min(320px,90vw);font-size:16px;line-height:1.5;box-shadow:8px 8px 0 rgba(0,0,0,.4)}
 .plist h3{font-family:var(--label);font-size:16px;font-weight:700;line-height:1;margin-bottom:8px}
 .plist ul{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:0 24px}
-.plist ul.tasks{grid-template-columns:1fr;border-top:2px solid rgba(22,22,26,.22);margin-top:8px;padding-top:8px}
+.plist section+section{border-top:2px solid rgba(22,22,26,.22);margin-top:8px;padding-top:8px}
 .plist li{display:flex;align-items:center;gap:8px}
 .plist li::before{content:"";width:16px;height:16px;flex:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%2316161a' d='M0 0h8v1H0zM0 7h8v1H0zM0 1h1v6H0zM7 1h1v6H7z'/%3E%3C/svg%3E") 0 0/100% 100%}
 .plist li.done{color:#4a4a52}
@@ -153,7 +179,8 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
   #pause{gap:8px}
   #pause h2{font-size:24px;--fp:3px;margin:0}
   .plist{padding:8px 16px;line-height:1.25}
-  .plist ul.tasks{grid-template-columns:1fr 1fr;gap:0 24px;margin-top:4px;padding-top:4px}
+  #pause .plist section+section{margin-top:4px;padding-top:4px}
+  #pause .plist section+section ul{grid-template-columns:1fr 1fr;gap:0 24px}
   .receipt{max-height:calc(100% - 80px)}
   .resbtns{margin-top:8px}
 }
@@ -161,7 +188,7 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 @media (max-width:369px){#selName{font-size:16px;--fp:2px}.selNav .btn{padding-inline:12px}.selIdx{min-width:46px}}
 #gl{touch-action:none;outline:none}
 .touch .key-hint{display:none}
-@media (prefers-reduced-motion:reduce){.nudge{animation:none}}
+.touch #selKeys{display:none}
 </style>
 </head>
 <body>
@@ -183,7 +210,6 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
     <h2 id="selName" class="metal"></h2>
     <p id="selBlurb"></p>
     <div class="selStats" id="selStats"></div>
-    <p id="selLock" class="selLock hidden"></p>
     <div class="selNav">
       <button id="selPrev" class="hb" aria-label="Previous trolley"><svg class="px" viewBox="0 0 5 9" width="10" height="18"><path d="M4 0h1v1h-1zM3 1h2v1h-2zM2 2h3v1h-3zM1 3h4v1h-4zM0 4h5v1h-5zM1 5h4v1h-4zM2 6h3v1h-3zM3 7h2v1h-2zM4 8h1v1h-1z"/></svg></button>
       <span id="selIdx" class="selIdx"></span>
@@ -191,7 +217,16 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
       <button id="bSelDone" class="btn">Go</button>
     </div>
     <p class="best" id="bestLine"></p>
-    <p class="selKeys only-keys">A / D to browse, Enter to go</p>
+    <p class="selKeys" id="selKeys">A / D to browse · Enter for the list</p>
+  </div>
+</div>
+
+<div id="briefing" class="screen hidden" role="dialog" aria-labelledby="briefLevel">
+  <div class="briefCard">
+    <header><h2 id="briefLevel"></h2><span class="briefBrand">SPENDWELLS</span></header>
+    <div class="plist" id="briefList"></div>
+    <p>Link stunts for a combo. Keep your shopping in the basket for a bonus.</p>
+    <div class="row"><button id="bBriefBack" class="btn alt">Trolleys</button><button id="bStartRun" class="btn">Start run</button></div>
   </div>
 </div>
 
@@ -220,6 +255,6 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 <div id="loading"><span>FETCHING A TROLLEY<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>
 <div id="err" class="hidden"></div>
 
-<script type="module" src="game-v2/main.js?v=level-unlocks"></script>
+<script type="module" src="game-v2/main.js?v=grumbleton-polish"></script>
 </body>
 </html>

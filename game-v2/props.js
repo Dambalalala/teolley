@@ -1,6 +1,7 @@
 import { C, G, ig, ALL } from './core.js';
 import { clamp, TAU, angDiff } from './util.js';
-import { makeBin, makeCone, makeBarrier, makePicket, makeHeras, makePallet, makePot, makeCompost, makePane, makePerson, makeDuck, makeBus } from './models.js';
+import { makeBin, makeCone, makeBarrier, makePicket, makeHeras, makePallet, makePot, makeCompost, makePane, makePerson, makeDuck, makeBus } from './models.js?v=grumbleton-polish';
+import { BOT } from './world.js?v=grumbleton-polish';
 const T = C.T;
 
 const SPEC = {
@@ -66,7 +67,7 @@ export class Props {
     for (const c of C.world.cars) { c.alarm = 0; c.rock = 0; c.car.ind.material.opacity = 0; c.car.ind.visible = false; c.car.body.rotation.set(0, 0, 0); }
     for (const w of C.world.wobblers) { w.a = 0; w.v = 0; w.obj.rotation.x = 0; w.obj.rotation.z = 0; }
     const B = this.bus;
-    B.lx = -125; B.wait = 0; B.stopped = false;
+    B.lx = BOT.lx0 - 6; B.wait = 0; B.stopped = false;
     this.placeBus(true);
     C.audio?.alarm(false);
   }
@@ -162,7 +163,7 @@ export class Props {
     const body = C.phys.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(0, -60, 0));
     const col = C.phys.createCollider(R.ColliderDesc.cuboid(1.25, 2.1, 5.4).setTranslation(0, 2.15, 0).setFriction(0.5).setCollisionGroups(ig(G.GROUND, ALL)), body);
     C.colInfo.set(col.handle, { kind: 'bus', name: 'THE NUMBER 37' });
-    this.bus = { b, body, lx: -125, wait: 0, stopped: false,
+    this.bus = { b, body, lx: BOT.lx0 - 6, wait: 0, stopped: false,
       rotation: { x: 0, y: -Math.SQRT1_2, z: 0, w: Math.SQRT1_2 } };
     this.placeBus(true);
   }
@@ -172,7 +173,7 @@ export class Props {
     const prev = B.lx;
     B.lx += 8.5 * dt;
     if (prev < -27 && B.lx >= -27 && !B.stopped) { B.wait = 3.5; B.stopped = true; }
-    if (B.lx > 130) { B.lx = -130; B.wait = 5; B.stopped = false; this.placeBus(true); }
+    if (B.lx > BOT.lx1 + 6) { B.lx = BOT.lx0 - 6; B.wait = 5; B.stopped = false; this.placeBus(true); }
     else this.placeBus(false);
   }
   placeBus(reset) {
@@ -227,5 +228,6 @@ export class Props {
     const B = this.bus;
     B.b.group.position.copy(B.body.translation());
     B.b.group.quaternion.copy(B.rotation);
+    B.b.group.visible = B.lx > BOT.lx0 && B.lx < BOT.lx1;
   }
 }

@@ -1,12 +1,15 @@
 import { C, G, ig, ALL } from './core.js';
 import { TAU, clamp, lerp, sstep, rng, Batch, GEO, M, FM, frame, bx, vnoise } from './util.js';
-import { TX, ctex } from './textures.js';
+import { TX, ctex } from './textures.js?v=grumbleton-polish';
 const T = C.T;
 
 // ============ the road: centreline, elevation and cross-section ============
 export const RA_S = 420;            // roundabout centre (arc length)
+export const ZEBRA_S = 180;
+const HUMP_HALF_LENGTH = 0.9;
 export const S_END = 782;           // where the hill road meets the bottom junction
 const KERB = 0.13, PAVE = 2.2, CROWN = 0.07;
+const kerbHeight = s => lerp(0.018, KERB, sstep(1.6, 3.2, Math.abs(s - ZEBRA_S)));
 export const W = {
   KERB, PAVE,
   bumps: [72, 136, 226, 516, 652],
@@ -58,7 +61,7 @@ const gardenH = (s, side) => (hasHouse(s, side) ? 0.30 : 0.16);
 export function humpAt(s, ad, w) {
   if (ad > w - 0.35) return 0;
   const edge = sstep(w - 0.35, w - 0.75, ad);
-  for (const b of W.bumps) { const u = (s - b) / 0.9; if (Math.abs(u) < 1) { const c = Math.cos(u * Math.PI / 2); return 0.085 * c * c * edge; } }
+  for (const b of W.bumps) { const u = (s - b) / HUMP_HALF_LENGTH; if (Math.abs(u) < 1) { const c = Math.cos(u * Math.PI / 2); return 0.085 * c * c * edge; } }
   return 0;
 }
 const PR = { x: 0, z: 0, th: 0, y: 0, w: 0, rx: 0, rz: 0, fx: 0, fz: 0 };
@@ -66,7 +69,7 @@ const PR = { x: 0, z: 0, th: 0, y: 0, w: 0, rx: 0, rz: 0, fx: 0, fz: 0 };
 export function prof(s, d) {
   const R = roadAt(s, PR), w = R.w, ad = Math.abs(d);
   if (ad <= w) return R.y + CROWN * sstep(0, 10, s) * (1 - (ad / w) * (ad / w)) * (3.6 / w) + humpAt(s, ad, w);
-  if (ad <= w + PAVE) return R.y + KERB + 0.03 * (ad - w) / PAVE;
+  if (ad <= w + PAVE) return R.y + kerbHeight(s) + 0.03 * (ad - w) / PAVE;
   return R.y + gardenH(s, Math.sign(d));
 }
 // world position on the corridor
@@ -149,6 +152,7 @@ function sampleList() {
   const L = new Set([-TOP.z0]);
   for (let s = 1; s <= S_END + 0.01; s += 2) L.add(+s.toFixed(3));
   for (const b of W.bumps) for (let u = -1.2; u <= 1.21; u += 0.15) L.add(+(b + u).toFixed(3));
+  for (let i = -8; i <= 8; i++) L.add(ZEBRA_S + i * 0.4);
   for (let s = 395; s <= 446; s += 1) L.add(s);
   for (let s = 752; s <= S_END; s += 1) L.add(s);
   return [...L].sort((a, b) => a - b);
@@ -163,15 +167,15 @@ function buildCorridor(scene) {
   // lanes: list of d (with explicit y overrides) across the road, left to right
   const lanes = [
     { mat: 'grass', pts: (w, s) => [[-w - 16, null], [-w - PAVE, null]], uv: (d, s, w) => [d / 5, s / 5] },
-    { mat: 'kerb', pts: (w, s) => [[-w - PAVE, gardenH(s, -1)], [-w - PAVE, KERB + 0.03]], uv: (d, s, w, j) => [s / 1, j * 0.2] },
+    { mat: 'kerb', pts: (w, s) => [[-w - PAVE, gardenH(s, -1)], [-w - PAVE, kerbHeight(s) + 0.03]], uv: (d, s, w, j) => [s / 1, j * 0.2] },
     { mat: 'pave', pts: (w, s) => [[-w - PAVE, null], [-w - 0.15, null]], uv: (d, s, w) => [(Math.abs(d) - w) / 1.8, s / 1.8] },
-    { mat: 'kerb', pts: (w, s) => [[-w - 0.15, KERB], [-w, KERB]], uv: (d, s, w, j) => [s / 1, j * 0.25] },
-    { mat: 'kerb', pts: (w, s) => [[-w, KERB], [-w, 0]], uv: (d, s, w, j) => [s / 1, 0.25 + j * 0.2] },
+    { mat: 'kerb', pts: (w, s) => [[-w - 0.15, kerbHeight(s)], [-w, kerbHeight(s)]], uv: (d, s, w, j) => [s / 1, j * 0.25] },
+    { mat: 'kerb', pts: (w, s) => [[-w, kerbHeight(s)], [-w, 0]], uv: (d, s, w, j) => [s / 1, 0.25 + j * 0.2] },
     { mat: 'road', pts: (w, s) => { const a = []; for (let j = 0; j <= 10; j++) a.push([-w + 2 * w * j / 10, null]); return a; }, uv: (d, s, w) => [d / 4, s / 4] },
-    { mat: 'kerb', pts: (w, s) => [[w, 0], [w, KERB]], uv: (d, s, w, j) => [s / 1, 0.25 + j * 0.2] },
-    { mat: 'kerb', pts: (w, s) => [[w, KERB], [w + 0.15, KERB]], uv: (d, s, w, j) => [s / 1, j * 0.25] },
+    { mat: 'kerb', pts: (w, s) => [[w, 0], [w, kerbHeight(s)]], uv: (d, s, w, j) => [s / 1, 0.25 + j * 0.2] },
+    { mat: 'kerb', pts: (w, s) => [[w, kerbHeight(s)], [w + 0.15, kerbHeight(s)]], uv: (d, s, w, j) => [s / 1, j * 0.25] },
     { mat: 'pave', pts: (w, s) => [[w + 0.15, null], [w + PAVE, null]], uv: (d, s, w) => [(Math.abs(d) - w) / 1.8, s / 1.8] },
-    { mat: 'kerb', pts: (w, s) => [[w + PAVE, KERB + 0.03], [w + PAVE, gardenH(s, 1)]], uv: (d, s, w, j) => [s / 1, j * 0.2] },
+    { mat: 'kerb', pts: (w, s) => [[w + PAVE, kerbHeight(s) + 0.03], [w + PAVE, gardenH(s, 1)]], uv: (d, s, w, j) => [s / 1, j * 0.2] },
     { mat: 'grass', pts: (w, s) => [[w + PAVE, null], [w + 16, null]], uv: (d, s, w) => [d / 5, s / 5] },
   ];
   // chunked render meshes
@@ -227,30 +231,89 @@ function buildCorridor(scene) {
 }
 
 // ============ road markings ============
-function markQuad(s0, s1, d0, d1, color, lift = 0.017) {
-  const steps = Math.max(1, Math.ceil((s1 - s0) / 1.0));
+function markStrip(s0, s1, d0, width0, color, { end = d0, width = width0, step = 1, lift = 0.019 } = {}) {
+  const steps = Math.ceil((s1 - s0) / step - 1e-8);
+  const point = (s, d) => { const p = P(s, d, lift); return [p.x, p.y, p.z]; };
   for (let k = 0; k < steps; k++) {
-    const sa = s0 + (s1 - s0) * k / steps, sb2 = s0 + (s1 - s0) * (k + 1) / steps;
-    const B = sb(chunkOf(sa), 'mark'), A = roadAt(sa, {}), Bq = roadAt(sb2, {});
-    const pt = (R, s, d) => [R.x + R.rx * d, prof(s, d) + lift, R.z + R.rz * d];
-    B.quad(pt(A, sa, d0), pt(A, sa, d1), pt(Bq, sb2, d1), pt(Bq, sb2, d0), color);
+    const a = k / steps, b = (k + 1) / steps;
+    const sa = lerp(s0, s1, a), sz = lerp(s0, s1, b);
+    const da = lerp(d0, end, a), dz = lerp(d0, end, b);
+    const wa = lerp(width0, width, a) / 2, wz = lerp(width0, width, b) / 2;
+    sb(chunkOf(sa), 'mark').quad(point(sa, da - wa), point(sa, da + wa), point(sz, dz + wz), point(sz, dz - wz), color);
   }
 }
 function buildMarkings(scene) {
-  const WHITE = 0xf2f2ee, YEL = 0xf2c81f;
-  for (let s = 6; s < 772; s += 6) { if (s > 392 && s < 448) continue; if (s > 172 && s < 190) continue; markQuad(s, s + 2, -0.05, 0.05, WHITE); }
-  const dbl = [[2, 40], [160, 200], [380, 400], [440, 460], [736, 772]];
-  for (const [a, b] of dbl) for (const side of [-1, 1]) for (const off of [0.22, 0.36]) {
-    for (let s = a; s < b; s += 4) { const w = roadW(s); const d = side * (w - off); markQuad(s, Math.min(b, s + 4), d - 0.05, d + 0.05, YEL); }
+  const WHITE = 0xf2f2ee, YEL = 0xe7b727;
+  const zigLength = 1.979, zigGap = 0.15, giveWay = 2.8;
+  const terminal = giveWay + 0.1 + 8 * zigLength + 9 * zigGap + 0.1;
+  const crossingFrom = ZEBRA_S - terminal - 0.25, crossingTo = ZEBRA_S + terminal + 0.25, entry = 15.5;
+  // Centre-line module is 2 m of paint, 4 m clear. Reverse that near hazards.
+  const centre = (from, to, warning = false) => {
+    for (let s = from; s < to; s += 6) {
+      const end = Math.min(to, s + (warning ? 4 : 2));
+      const overHump = W.bumps.some(b => s < b + HUMP_HALF_LENGTH && end > b - HUMP_HALF_LENGTH);
+      markStrip(s, end, 0, 0.1, WHITE, { step: overHump ? 0.15 : 1 });
+    }
+  };
+  for (const [from, to] of [[6, crossingFrom], [crossingTo, RA_S - entry], [RA_S + entry, 772]]) {
+    const hazards = W.bumps.filter(s => s > from && s < to).map(s => [s - 14, s + 14]);
+    if (from === crossingTo) hazards.push([RA_S - 46, to]);
+    if (from > RA_S) hazards.unshift([from, RA_S + 46]);
+    let s = from;
+    for (const [a, b] of hazards) {
+      centre(s, a);
+      centre(a, b, true);
+      s = b;
+    }
+    centre(s, to);
   }
-  // zebra crossing with zig-zags
-  const zs = 180, w0 = roadW(zs);
-  for (let d = -w0 + 0.3; d < w0 - 0.3; d += 1.0) markQuad(zs - 1.6, zs + 1.6, d, d + 0.5, WHITE, 0.018);
-  for (const [a, b] of [[164, 177], [183, 196]]) for (const d0 of [-w0 + 0.3, 0, w0 - 0.3]) {
-    for (let s = a; s < b; s += 1.0) { const k = Math.floor((s - a)) % 2; markQuad(s, s + 1, d0 + (k ? -0.15 : 0.15) - 0.05, d0 + (k ? -0.15 : 0.15) + 0.05, WHITE, 0.018); }
+  // Double yellows track the kerb and stop clear of the crossing controls.
+  for (const [a, b] of [[2, 40], [148, crossingFrom - 1], [crossingTo + 1, 206], [380, 402], [438, 460], [736, 772]]) {
+    for (const side of [-1, 1]) for (const off of [0.15, 0.35]) {
+      for (let s = a; s < b; s++) {
+        const end = Math.min(b, s + 1);
+        markStrip(s, end, side * (roadW(s) - off), 0.1, YEL, { end: side * (roadW(end) - off) });
+      }
+    }
   }
-  // give way dashes at the roundabout entries
-  for (const [s, dir] of [[RA_S - 15.5, -1], [RA_S + 15.5, 1]]) { const w = roadW(s); for (let d = 0; d < w - 0.3; d += 0.9) { const dd = dir < 0 ? -d - 0.6 : d; markQuad(s - 0.15, s + 0.15, dd, dd + 0.6, WHITE, 0.018); } }
+  // Two Diagram 1062 triangles on the approaching half of each lane.
+  for (const s of W.bumps) {
+    for (const d of [-2.53, -1.02]) markStrip(s - HUMP_HALF_LENGTH, s, d, 0.75, WHITE, { width: 0.005, step: 0.15 });
+    for (const d of [1.02, 2.53]) markStrip(s, s + HUMP_HALF_LENGTH, d, 0.005, WHITE, { width: 0.75, step: 0.15 });
+  }
+  // Zebra stripes, dotted give-way lines and eight zigzags in each row.
+  const half = roadW(ZEBRA_S);
+  for (let d = -3; d <= 3; d += 1.2) markStrip(ZEBRA_S - 1.6, ZEBRA_S + 1.6, d, 0.6, WHITE);
+  for (const side of [-1, 1]) {
+    const line = ZEBRA_S + side * giveWay, edge = ZEBRA_S + side * terminal;
+    for (let d = -3; d <= 3; d++) markStrip(line - 0.1, line + 0.1, d, 0.5, WHITE);
+    for (const d of [-half + 0.36, 0, half - 0.36]) {
+      markStrip(edge - 0.1, edge + 0.1, d, 0.6, WHITE);
+      for (let i = 0; i < 8; i++) {
+        const from = giveWay + 0.1 + zigGap + i * (zigLength + zigGap);
+        const a = ZEBRA_S + side * from, b = a + side * zigLength;
+        const offset = (d > 0 ? 1 : -1) * (i % 2 ? -0.25 : 0.25) * side;
+        markStrip(Math.min(a, b), Math.max(a, b), d + offset, 0.1, WHITE, { end: d - offset });
+      }
+    }
+  }
+  const blister = ctex(32, 32, g => {
+    g.fillStyle = '#a75648'; g.fillRect(0, 0, 32, 32);
+    for (const x of [4, 12, 20, 28]) for (const y of [4, 12, 20, 28]) {
+      g.fillStyle = '#864238'; g.fillRect(x - 2, y - 1, 5, 4);
+      g.fillStyle = '#b66555'; g.fillRect(x - 2, y - 2, 4, 4);
+    }
+  });
+  blister.repeat.set(3, 10);
+  const tactile = new T.MeshLambertMaterial({ map: blister, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  for (const side of [-1, 1]) roadDecal(scene, tactile, ZEBRA_S, side * (half + 0.64), 0.96, 3.2);
+  // Single broken give-way line at each roundabout entry, on the left of travel.
+  for (const side of [-1, 1]) {
+    const s = RA_S + side * entry, w = roadW(s);
+    for (let d = 0.2; d + 0.6 < w - 0.17; d += 1.2) markStrip(s - 0.1, s + 0.1, side * (d + 0.3), 0.6, WHITE);
+  }
+  // Speed camera calibration marks give the player a visible cue on the approach.
+  for (let s = 558; s <= 568; s++) markStrip(s - 0.04, s + 0.04, -1.8, 1.4, WHITE);
   // SLOW painted on the road (one textured decal each)
   const slowTex = ctex(256, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#f2f2ee'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 110px "Barlow Condensed",Arial Narrow,Arial'; g.fillText('SLOW', w / 2, h / 2 + 6); }, { clamp: true });
   const slowMat = new T.MeshLambertMaterial({ map: slowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
@@ -286,7 +349,7 @@ function buildPotholes(scene) {
 }
 
 // ============ the bottom plaza (heightfield) ============
-export const BOT = { lf0: -4, lf1: 140, lx0: -112, lx1: 112, res: 1 };
+export const BOT = { lf0: 2, lf1: 136, lx0: -48, lx1: 48, res: 1 };
 let BE = null;
 export function botToWorld(lx, lf) { if (!BE) BE = roadAt(780, {}); return { x: BE.x + lx, z: BE.z - lf }; }
 export function worldToBot(x, z) { if (!BE) BE = roadAt(780, {}); return { lx: x - BE.x, lf: BE.z - z }; }
@@ -296,7 +359,8 @@ export function botH(lx, lf) {
   const pu = (lx - POND.lx) / POND.rx, pv = (lf - POND.lf) / POND.rz, pr = Math.sqrt(pu * pu + pv * pv);
   if (pr < 1.25) h -= 1.5 * (1 - sstep(0.55, 1.12, pr));
   // gentle banks at the edges
-  const e = Math.min(lx - BOT.lx0, BOT.lx1 - lx, BOT.lf1 - lf); h += 2.5 * (1 - sstep(0, 10, e));
+  const edge = Math.min(lx - BOT.lx0, BOT.lx1 - lx, BOT.lf1 - lf);
+  h += 2.5 * (1 - sstep(0, 6, edge)) * sstep(17.5, 24, lf);
   return h;
 }
 function buildBottom(scene) {
@@ -329,8 +393,8 @@ function buildBottom(scene) {
     const B = sb('bot', mat); const a = botToWorld(lx0, lf0), b = botToWorld(lx1, lf0), c = botToWorld(lx1, lf1), d = botToWorld(lx0, lf1);
     B.quad([a.x, lift, a.z], [b.x, lift, b.z], [c.x, lift, c.z], [d.x, lift, d.z], 0xffffff, [lx0 / uvs, lf0 / uvs, lx1 / uvs, lf1 / uvs]);
   };
-  flat('road', BOT.lx0 + 6, BOT.lx1 - 6, 5, 15, 4, 0.03);
-  flat('pave', BOT.lx0 + 6, BOT.lx1 - 6, 2, 5, 1.8, 0.05); flat('pave', BOT.lx0 + 6, BOT.lx1 - 6, 15, 17.5, 1.8, 0.05);
+  flat('road', BOT.lx0, BOT.lx1, 5, 15, 4, 0.03);
+  flat('pave', BOT.lx0, BOT.lx1, 2, 5, 1.8, 0.05); flat('pave', BOT.lx0, BOT.lx1, 15, 17.5, 1.8, 0.05);
   flat('tarmac', -36, 36, 54, 104, 4, 0.03); flat('pave', -36, 36, 104, 108, 1.8, 0.05);
   // markings
   const MB = sb('bot', 'mark'), WHITE = 0xf2f2ee, YEL = 0xf2c81f;
@@ -389,11 +453,12 @@ function buildBackdrop(scene) {
   const g2 = g.toNonIndexed(); g2.computeVertexNormals();
   const m = new T.Mesh(g2, new T.MeshLambertMaterial({ vertexColors: true })); m.userData.background = true; scene.add(m);
   W.backdropH = heightAt;
-  // rows of terraces filling the town either side of the hill road
+  // A single row of low-detail rooflines behind each side of the playable street.
   const r = rng(31);
-  for (const off of [32, 48, 64, 82, 104]) for (const side of [-1, 1]) {
-    for (let s = 30; s < 800; s += 14 + r() * 10) {
-      if (Math.abs(s - RA_S) < 40 && off < 50) continue;
+  const off = 35;
+  for (const side of [-1, 1]) {
+    for (let s = 30; s < 770; s += 16 + r() * 9) {
+      if (Math.abs(s - RA_S) < 40) continue;
       const R = roadAt(s, {}), d = side * (off + R.w - 3.6 + r() * 4), x = R.x + R.rx * d, z = R.z + R.rz * d;
       { const b = worldToBot(x, z); if (b.lf > -14 && Math.abs(b.lx) < 150) continue; } // keep the town back from Station Road
       const h = Math.max(heightAt(x, z) + 6, ELEV(s) - 0.5 - (off - 30) * 0.05), len = 10 + r() * 14, yaw = -R.th;
@@ -402,7 +467,7 @@ function buildBackdrop(scene) {
       const c = [0x8f4a35, 0x9a5a3e, 0xc19a68, 0xe8e0d0, 0x7a4030][Math.floor(r() * 5)];
       bx(BB, F, 7.5, 6, len, 0, 3, 0, c);
       BR.add(GEO.prism, FM(F, 0, 6, 0, 0, 0, 0, 8, 2.2, len + 0.3), 0xffffff, [4, 2]);
-      for (let k = -len / 2 + 2; k < len / 2; k += 4.2) bx(BB, F, 0.6, 1.2, 0.7, 0, 7.6, k, c);
+      bx(BB, F, 0.6, 1.2, 0.7, 0, 7.6, -len / 4, c);
     }
   }
   // church with a spire, a gasholder and some wind turbines on the far hills
@@ -445,7 +510,7 @@ function buildSky(scene) {
 export function groundY(x, z) {
   if (z > TOP.z0 && x > TOP.x0 && x < TOP.x1 && z < TOP.z1) return TOP.y;
   const b = worldToBot(x, z);
-  if (b.lf > 2 && b.lf < BOT.lf1 && b.lx > BOT.lx0 && b.lx < BOT.lx1) return botH(b.lx, b.lf) + (W.bermH ? W.bermH(b.lx, b.lf) : 0);
+  if (b.lf >= BOT.lf0 && b.lf < BOT.lf1 && b.lx > BOT.lx0 && b.lx < BOT.lx1) return botH(b.lx, b.lf) + (W.bermH ? W.bermH(b.lx, b.lf) : 0);
   const L = locate(x, z, {}); return prof(L.s, L.d);
 }
 

@@ -19,21 +19,32 @@ function speckle(g, w, h, seed, n, cols, size = 1) {
 }
 function fill(g, w, h, c) { g.fillStyle = c; g.fillRect(0, 0, w, h); }
 
+function asphalt(seed, base, aggregate) {
+  return ctex(128, 128, (g, w, h) => {
+    fill(g, w, h, base);
+    // Keep the aggregate low contrast so the road stays even under moving mipmaps.
+    speckle(g, w, h, seed, 700, ['rgba(22,24,25,.10)', 'rgba(208,204,194,.08)'], 2.6);
+    speckle(g, w, h, seed + 1, 3800, aggregate, 0.95);
+  });
+}
+
 const TX = {};
 export function buildTextures() {
-  TX.asphalt = ctex(128, 128, (g, w, h) => {
-    fill(g, w, h, '#5b5e63');
-    speckle(g, w, h, 1, 2600, ['#4c4f54', '#666a70', '#55585c', '#70737a', '#47494d'], 1.2);
-    const r = rng(7); g.strokeStyle = 'rgba(30,30,34,.55)'; g.lineWidth = 1;
-    for (let i = 0; i < 5; i++) { g.beginPath(); let x = r() * w, y = r() * h; g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (r() - 0.5) * 24; y += (r() - 0.3) * 18; g.lineTo(x, y); } g.stroke(); }
-  });
-  TX.tarmac = ctex(128, 128, (g, w, h) => { fill(g, w, h, '#4a4d52'); speckle(g, w, h, 2, 2200, ['#43464a', '#53565b', '#3e4044', '#5a5d62'], 1.1); });
+  TX.asphalt = asphalt(1, '#595b5d', ['#444647', '#656664', '#797771', '#6c6c6a', '#4c4d4b']);
+  TX.tarmac = asphalt(12, '#494b4d', ['#3e4041', '#575859', '#62615e', '#484949']);
   TX.pavement = ctex(128, 128, (g, w, h) => {
-    fill(g, w, h, '#aeaca5'); speckle(g, w, h, 3, 1600, ['#a3a19a', '#b8b6af', '#9c9a93', '#c0beb8'], 1.3);
-    const r = rng(9);
-    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${r() * 0.07})`; g.fillRect(i * 42.7, j * 42.7, 42.7, 42.7); }
-    g.strokeStyle = '#85837c'; g.lineWidth = 1.5; for (let k = 0; k <= 3; k++) { g.beginPath(); g.moveTo(k * 42.7, 0); g.lineTo(k * 42.7, h); g.stroke(); g.beginPath(); g.moveTo(0, k * 42.7); g.lineTo(w, k * 42.7); g.stroke(); }
-    g.fillStyle = 'rgba(40,40,40,.35)'; g.beginPath(); g.arc(30, 96, 3, 0, 7); g.fill(); g.beginPath(); g.arc(101, 52, 2, 0, 7); g.fill(); // chewing gum
+    fill(g, w, h, '#8e8b82');
+    const r = rng(9), colours = ['#b0aea6', '#a9a7a0', '#b3b0a7', '#a6a49d'];
+    for (let y = 0; y < h; y += 32) {
+      for (let x = 0; x < w; x += 32) {
+        g.fillStyle = colours[Math.floor(r() * colours.length)];
+        g.fillRect(x + 1, y + 1, 31, 31);
+        g.fillStyle = 'rgba(242,239,229,.27)';
+        g.fillRect(x + 1, y + 1, 31, 1);
+        g.fillRect(x + 1, y + 2, 1, 30);
+      }
+    }
+    speckle(g, w, h, 3, 1600, ['rgba(93,89,81,.16)', 'rgba(240,236,225,.21)'], 1.1);
   });
   TX.kerb = ctex(64, 32, (g, w, h) => { fill(g, w, h, '#c6c2b7'); speckle(g, w, h, 4, 300, ['#b5b1a6', '#d2cec4'], 1); g.fillStyle = '#8f8b82'; for (let x = 0; x < w; x += 32) g.fillRect(x, 0, 1, h); });
   const brick = (base, seed) => ctex(128, 128, (g, w, h) => {

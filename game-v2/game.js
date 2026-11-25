@@ -1,7 +1,7 @@
 import { C } from './core.js';
-import { clamp, fmt, lerp, angDiff } from './util.js';
-import { ITEMS, VARIANTS } from './models.js';
-import { Trolley } from './trolley.js';
+import { clamp, lerp, angDiff } from './util.js';
+import { ITEMS, VARIANTS } from './models.js?v=grumbleton-polish';
+import { Trolley } from './trolley.js?v=grumbleton-polish';
 
 const SAVE_KEY = 'trolley-save-v1';
 export const GRUMBLETON = { name: 'Grumbleton', unlock: 'demon' };
@@ -11,9 +11,9 @@ export const LIST_NAMES = { pineapple: 'Pineapple', gnome: 'Garden gnome', milk:
 export const TASKS = [
   { id: 'list', label: 'Get everything on the list', short: 'SHOPPING LIST', pts: 1000 },
   { id: 'cones', label: 'Knock over 10 traffic cones', short: '10 CONES', n: 10, pts: 500 },
-  { id: 'camera', label: 'Get flashed by the speed camera', short: 'SPEED CAMERA', pts: 500 },
-  { id: 'lollipop', label: 'Run over the lollipop lady', short: 'LOLLIPOP LADY', pts: 700 },
-  { id: 'return', label: 'Return the trolley', short: 'TROLLEY RETURNED', pts: 0 },
+  { id: 'camera', label: 'Trip the speed camera (over 30 mph)', short: 'SPEED CAMERA', pts: 500 },
+  { id: 'lollipop', label: 'Bump into the lollipop lady', short: 'LOLLIPOP LADY', pts: 700 },
+  { id: 'return', label: 'Return the trolley at Harrisons', short: 'TROLLEY RETURNED', pts: 5000 },
 ];
 const SPIN_NAMES = ['', '180', '360', '540', '720', '900', '1080'];
 // the only messages the game prints, each at most once a run
@@ -39,7 +39,7 @@ export class Game {
   }
   persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.save)); } catch (e) {} }
   resetRun() {
-    this.run = { got: {}, done: {}, cones: 0, score: 0, time: 0, dist: 0, maxSpeed: 0, maxMph: 0, items: {}, itemPts: 0, lost: 0, broken: 0, brokenBy: {}, peds: 0, nearMisses: 0, wheels: 0, bestCombo: 0, airMax: 0, tricks: 0, ducks: false, end: null, flags: {}, speedCam: false };
+    this.run = { got: {}, done: {}, cones: 0, score: 0, taskPts: 0, time: 0, dist: 0, maxSpeed: 0, maxMph: 0, items: {}, lost: 0, broken: 0, brokenBy: {}, peds: 0, nearMisses: 0, wheels: 0, bestCombo: 0, airMax: 0, tricks: 0, ducks: false, end: null, flags: {}, speedCam: false };
     this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} };
     this.collectTimes = []; this.chain = { n: 0, t: -9 }; this.lastHit = { t: -9, x: 0, z: 0 };
     this.near = new Map(); this.stillT = 0; this.tiltT = 0; this.wetT = 0; this.wetN = 0; this.overT = 0; this.trail = []; this.trailT = 0;
@@ -54,6 +54,7 @@ export class Game {
     const R = this.run; if (R.done[id] || !(this.state === 'run' || this.state === 'push' || (id === 'return' && this.state === 'over'))) return;
     const task = TASKS.find(t => t.id === id);
     R.done[id] = true;
+    R.taskPts += task.pts;
     C.audio.sfx('kaching');
     this.say(task.short, { kind: 'cheer', dur: id === 'return' ? 3 : 2 });
   }
@@ -85,14 +86,14 @@ export class Game {
     const R = this.run, active = this.state === 'run' || this.state === 'push';
     switch (type) {
       case 'collect': {
-        const I = ITEMS[d.k]; R.items[d.k] = (R.items[d.k] || 0) + 1; R.itemPts += I.pts;
+        const I = ITEMS[d.k]; R.items[d.k] = (R.items[d.k] || 0) + 1;
         C.audio.sfx(I.bargain ? 'beep2' : 'beep');
         this.addCombo(I.name, I.pts); if (active) this.listTick(d.k);
         const t = C.time; this.collectTimes = this.collectTimes.filter(x => t - x < 4.5); this.collectTimes.push(t);
         if (this.collectTimes.length >= 3) this.countCombo('spree', 'SHOPPING ×' + this.collectTimes.length, 150);
         break;
       }
-      case 'lost': R.lost++; if (active) this.quip('lost'); C.audio.sfx('item'); break;
+      case 'lost': if (active) { R.lost++; this.quip('lost'); C.audio.sfx('item'); } break;
       case 'recollect': this.addCombo(ITEMS[d.k].name + ' AGAIN', 40); C.audio.sfx('beep'); break;
       case 'kerb': C.audio.sfx('kerb', clamp(d.v / 8, 0.3, 1.2)); if (d.v > 5.5 && active) this.addCombo('KERB', 80); this.shake = Math.max(this.shake, Math.min(0.5, d.v * 0.04)); break;
       case 'hop': C.audio.sfx('hop'); break;
@@ -171,20 +172,20 @@ export class Game {
     this.shake = Math.max(0, this.shake - dt * 1.8); this.flash = Math.max(0, this.flash - dt * 3);
     if (this.state !== 'push' && this.state !== 'run' && this.state !== 'over') return;
     const R = this.run, p = tr.pos(), v = tr.vel(), sp = Math.hypot(v.x, v.y, v.z), mph = sp * 2.237, W = C.world;
-    if (this.state === 'push') { this.pushT -= dt; if (this.pushT <= 0 || p.z < 4) this.beginRun(); }
-    if (this.state === 'run') R.time += dt;
-    if (this.lastPos) { const d = Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.z); if (d < 5) R.dist += d; } this.lastPos = { x: p.x, z: p.z };
-    if (this.state !== 'over') { R.maxSpeed = Math.max(R.maxSpeed, sp); R.maxMph = Math.max(R.maxMph, mph); }
     if (this.state === 'over') {
       this.overT -= dt;
       if (this.overT <= 0) this.showResults();
       return;
     }
+    if (this.state === 'push') { this.pushT -= dt; if (this.pushT <= 0 || p.z < 4) this.beginRun(); }
+    if (this.state === 'run') R.time += dt;
+    if (this.lastPos) { const d = Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.z); if (d < 5) R.dist += d; } this.lastPos = { x: p.x, z: p.z };
+    R.maxSpeed = Math.max(R.maxSpeed, sp); R.maxMph = Math.max(R.maxMph, mph);
     // where are we on the hill?
     const L = W.locate(p.x, p.z, {}), s = L.s;
     // speed
     if (mph > 30 && tr.nWheels > 0) this.liveCombo('speed', 'SPEEDING', 55, dt); else this.endLive('speed');
-    if (W.speedCam && !R.speedCam && Math.abs(s - W.speedCam.s) < 2.5 && mph > 30) { R.speedCam = true; this.flash = 1; C.audio.sfx('flash'); this.addCombo(`SPEED CAMERA ${Math.round(mph)} MPH`, 400); this.task('camera'); }
+    if (W.speedCam && !R.speedCam && Math.abs(s - W.speedCam.s) < 2.5 && mph > 30 && Math.abs(L.d) < W.roadAt(s).w) { R.speedCam = true; this.flash = 1; C.audio.sfx('flash'); this.addCombo(`SPEED CAMERA ${Math.round(mph)} MPH`, 400); this.task('camera'); }
     // air and landing
     const air = tr.nWheels === 0 && !tr.touching;
     if (air) {
@@ -250,10 +251,15 @@ export class Game {
     const key = this.save.unlocked[this.save.sel] ? this.save.sel : 'dave';
     if (!C.trolley || C.trolley.key !== key) { if (C.trolley) C.trolley.dispose(); C.trolley = new Trolley(key); }
   }
-  // the front screen is trolley select; choosing one starts a run
   toSelect() {
     this.state = 'select'; this.paused = false; this.slowmo = 0; this.msgs = []; this.pops = []; this.ensureTrolley(); this.resetWorld();
     C.ui.show('select');
+  }
+  toBriefing() {
+    if (this.state === 'select') C.camera.userData.snap = true;
+    this.state = 'briefing'; this.paused = false; this.slowmo = 0;
+    C.input.release(); C.audio.alarm(false);
+    C.ui.show('briefing');
   }
   resetWorld() {
     C.input.release(); C.props.reset(); C.shopping.reset(); C.fx.clear();
@@ -273,6 +279,7 @@ export class Game {
   endRun(why) {
     if (this.state !== 'run' && this.state !== 'push') return;
     const R = this.run; R.end = why; this.state = 'over'; this.overT = why === 'returned' ? 2.2 : 2.6;
+    R.basketPts = C.shopping.inBasket().reduce((pts, it) => pts + ITEMS[it.k].pts, 0);
     this.endLive('speed'); this.endLive('two'); this.endLive('scrape');
     this.msgs = [];
     if (why === 'crash' || why === 'void') { this.loseCombo(); C.audio.sfx('crash'); this.slowmo = 1.4; this.say(QUIPS.lost, { dur: 2.6, now: true }); }
@@ -281,17 +288,13 @@ export class Game {
   }
   showResults() {
     const R = this.run, tr = C.trolley; this.state = 'results'; C.audio.alarm(false);
-    const lines = []; let total = R.score;
-    const inBasket = C.shopping.inBasket(); const delivered = {}; let dpts = 0; for (const it of inBasket) { delivered[it.k] = (delivered[it.k] || 0) + 1; dpts += ITEMS[it.k].pts; }
     const bonus = [];
-    if (dpts > 0) bonus.push(['SHOPPING DELIVERED ×2', dpts * 2]);
-    if (R.end === 'returned') bonus.push(['TROLLEY RETURNED', 5000]);
+    if (R.basketPts > 0) bonus.push(['IN THE BASKET ×2', R.basketPts * 2]);
     if (R.end === 'pond') bonus.push(['FOUND IN POND', 1500]);
     bonus.push(['DISTANCE ' + Math.round(R.dist) + ' M', Math.round(R.dist * 2)]);
-    for (const t of TASKS) if (R.done[t.id] && t.pts) bonus.push([t.short, t.pts]);
+    for (const t of TASKS) if (R.done[t.id]) bonus.push([t.short, t.pts]);
     if (R.maxMph > 30) bonus.push(['SPEEDING (' + Math.round(R.maxMph) + ' MPH)', Math.round((R.maxMph - 30) * 40)]);
-    for (const b of bonus) total += b[1];
-    total = Math.max(0, Math.round(total));
+    const total = R.score + bonus.reduce((sum, [, value]) => sum + value, 0);
     const prevBest = this.save.best, newBest = total > prevBest;
     if (newBest) this.save.best = total;
     const unlocked = [];
@@ -301,7 +304,7 @@ export class Game {
       unlocked.push(VARIANTS[reward].name);
     }
     this.save.runs++; this.persist();
-    C.ui.receipt({ R, total, bonus, delivered, newBest, best: this.save.best, unlocked, trolley: VARIANTS[tr.key].name });
+    C.ui.receipt({ R, total, bonus, newBest, best: this.save.best, unlocked, trolley: VARIANTS[tr.key].name });
     C.ui.show('results');
   }
 }
