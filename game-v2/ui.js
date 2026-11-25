@@ -1,7 +1,6 @@
 import { C } from './core.js';
 import { fmt } from './util.js';
-import { ITEMS } from './models.js?v=stop-sign-splash';
-import { GRUMBLETON, SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=stop-sign-splash';
+import { GRUMBLETON, SHOPPING_LIST, LIST_NAMES, TASKS } from './game.js?v=grumbleton-receipt';
 const $ = id => document.getElementById(id);
 const NOTE = '<svg class="px" viewBox="0 0 8 9" width="16" height="18" aria-hidden="true"><path d="M3 0h3v1h-3zM3 1h1v1h-1zM5 1h2v1h-2zM3 2h1v1h-1zM6 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM1 5h3v1h-3zM0 6h4v1h-4zM0 7h4v1h-4zM1 8h2v1h-2z"/></svg>';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -29,6 +28,9 @@ export class UI {
     $('results').classList.toggle('hidden', name !== 'results');
     $('pause').classList.toggle('hidden', name !== 'pause');
     $('hudBtns').classList.toggle('hidden', !(name === 'hud' || name === 'pause'));
+    if (name === 'briefing' || name === 'results') {
+      $(name === 'briefing' ? 'bBriefBack' : 'bTrolleys').classList.toggle('hidden', !C.game.hasTrolleyChoice());
+    }
     this.refreshTouch();
     if (name === 'select') { C.game.state = 'select'; C.select.show(); try { document.activeElement && document.activeElement.blur(); } catch (e) {} }
     if (name === 'briefing') { $('briefing').scrollTop = 0; $('bStartRun').focus({ preventScroll: true }); }
@@ -56,39 +58,23 @@ export class UI {
   toggleMute() { const S = C.game.save; S.muted = !S.muted; C.game.persist(); C.audio.setMuted(S.muted); this.setMuteBtn(); }
   setMuteBtn() { const m = C.game && C.game.save.muted; $('bMute').setAttribute('aria-pressed', String(!!m)); $('bMute').innerHTML = m ? '×' : NOTE; }
   receipt(d) {
-    const R = d.R, L = [], ln = (a, b, cls = '') => L.push(`<div class="ln ${cls}"><span>${esc(a)}</span><span>${esc(b)}</span></div>`);
+    const R = d.R;
     const head = { returned: 'TROLLEY RETURNED', pond: 'TROLLEY FOUND IN POND', crash: 'TROLLEY ABANDONED', stopped: 'TROLLEY GAVE UP', void: 'TROLLEY LOST TO THE VOID' }[R.end] || 'RUN OVER';
-    const now = new Date();
-    L.push(`<div class="shop">SPENDWELLS</div><div class="c">Hill Road, Grumbleton<br>Tel 01632 960 018</div><hr>`);
-    L.push(`<div class="head">${esc(head)}</div><div class="c">Trolley: ${esc(d.trolley)}</div><hr>`);
-    ln('TOTAL', fmt(d.total), 'tot');
-    ln('BEST', fmt(d.best));
-    if (d.newBest) L.push(`<div class="new">NEW BEST SCORE</div>`);
-    L.push('<hr>');
-    L.push('<div class="head">SHOPPING SCANNED</div>');
-    const items = Object.entries(R.items);
-    for (const [k, n] of items) ln(ITEMS[k].name, `×${n}`);
-    if (!items.length) ln('NO SHOPPING', '—');
-    if (R.lost) ln(`SHOPPING LOST ×${R.lost}`, '—', 'neg');
-    if (R.end === 'returned') ln('TROLLEY DEPOSIT REFUNDED', '£1.00');
-    L.push('<hr><div class="head">POINTS</div>');
-    if (R.bestCombo) ln('BEST COMBO (INCLUDED)', fmt(R.bestCombo), 'detail');
-    if (R.nearMisses) ln(`NEAR MISSES ×${R.nearMisses}`, '', 'detail');
-    const br = Object.entries(R.brokenBy).sort((a, b) => b[1] - a[1]).slice(0, 4);
-    for (const [n, c] of br) ln(`${n} ×${c}`, '', 'detail');
-    ln('TRICKS & COMBOS', fmt(R.score));
-    for (const [n, v] of d.bonus) ln(n, fmt(v));
     const listCount = SHOPPING_LIST.filter(k => R.got[k]).length;
-    ln(`LIST ${listCount}/${SHOPPING_LIST.length}`, '');
-    L.push('<hr>');
-    const ticks = Math.floor(R.time * 10);
-    ln('TOP SPEED', Math.round(R.maxMph) + ' MPH'); ln('TIME', `${Math.floor(ticks / 600)}:${(ticks % 600 / 10).toFixed(1).padStart(4, '0')}`); ln('LONGEST AIR', R.airMax.toFixed(2) + ' S');
-    if (R.wheels) ln('WHEELS LOST', String(R.wheels), 'neg');
-    L.push('<hr>');
-    ln('LOYALTY POINTS EARNED', fmt(Math.floor(d.total / 100)));
-    L.push(`<div class="c">SERVED BY: DAVE<br>${now.toLocaleDateString('en-GB')} ${now.toTimeString().slice(0, 5)}<br>Thank you for shopping with us</div>`);
-    for (const u of d.unlocked) L.push(`<div class="stamp">UNLOCKED: ${esc(u)}</div>`);
-    $('receipt').innerHTML = L.join('');
-    $('receipt').scrollTop = 0;
+    const shopping = listCount === SHOPPING_LIST.length ? 'Complete' : `${listCount} / ${SHOPPING_LIST.length}`;
+    const receipt = $('receipt');
+    receipt.innerHTML = `
+      <div class="shop">SPENDWELLS</div><p class="head">${esc(head)}</p><hr>
+      <div class="receiptScore${d.newBest ? ' new' : ''}">
+        <h2>${d.newBest ? 'New high score' : 'High score'}</h2><strong>${fmt(d.best)}</strong>
+      </div>
+      <hr><dl>
+        <div><dt>This run</dt><dd>${fmt(d.total)}</dd></div>
+        <div><dt>Shopping list</dt><dd>${shopping}</dd></div>
+        <div><dt>Top speed</dt><dd>${Math.round(R.maxMph)} mph</dd></div>
+      </dl>
+      ${R.end === 'returned' ? '<p class="refund">£1 deposit refunded</p>' : ''}
+      ${d.unlocked.map(name => `<p class="stamp">${esc(name)} unlocked</p>`).join('')}`;
+    receipt.scrollTop = 0;
   }
 }

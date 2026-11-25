@@ -9,10 +9,10 @@ export const GRUMBLETON = { name: 'Grumbleton', unlock: 'demon' };
 export const SHOPPING_LIST = ['pineapple', 'gnome', 'milk', 'tampons', 'loo'];
 export const LIST_NAMES = { pineapple: 'Pineapple', gnome: 'Garden gnome', milk: 'Milk', tampons: 'Tampons', loo: 'Loo roll' };
 export const TASKS = [
-  { id: 'list', label: 'Get everything on the list', short: 'SHOPPING LIST', pts: 1000 },
+  { id: 'list', label: 'Complete the shopping list', short: 'SHOPPING LIST', pts: 1000 },
   { id: 'cones', label: 'Knock over 10 traffic cones', short: '10 CONES', n: 10, pts: 500 },
   { id: 'camera', label: 'Trip the speed camera (over 30 mph)', short: 'SPEED CAMERA', pts: 500 },
-  { id: 'lollipop', label: 'Bump into the lollipop lady', short: 'LOLLIPOP LADY', pts: 700 },
+  { id: 'lollipop', label: 'Hit the lollipop lady', short: 'LOLLIPOP LADY', pts: 700 },
   { id: 'return', label: 'Return the trolley at Harrisons', short: 'TROLLEY RETURNED', pts: 5000 },
 ];
 const SPIN_NAMES = ['', '180', '360', '540', '720', '900', '1080'];
@@ -41,6 +41,7 @@ export class Game {
     this.resetRun();
   }
   persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.save)); } catch (e) {} }
+  hasTrolleyChoice() { return Object.keys(this.save.unlocked).length > 1; }
   resetRun() {
     this.run = { got: {}, done: {}, cones: 0, score: 0, taskPts: 0, time: 0, dist: 0, maxSpeed: 0, maxMph: 0, items: {}, lost: 0, broken: 0, brokenBy: {}, peds: 0, nearMisses: 0, wheels: 0, bestCombo: 0, airMax: 0, tricks: 0, ducks: false, end: null, flags: {}, speedCam: false };
     this.combo = { list: [], base: 0, mult: 0, timer: 0, live: {} };
@@ -122,12 +123,19 @@ export class Game {
   onCollision(h1, h2, started) {
     if (!started) return;
     const i1 = C.colInfo.get(h1), i2 = C.colInfo.get(h2); if (!i1 || !i2) return;
-    const tv = C.trolley.vel(), ts = Math.hypot(tv.x, tv.y, tv.z);
+    const tr = C.trolley, tv = tr.vel(), ts = Math.hypot(tv.x, tv.y, tv.z);
     const pair = (a, b) => (i1.kind === a && i2.kind === b) ? [i1, i2] : (i2.kind === a && i1.kind === b) ? [i2, i1] : null;
     let pp;
-    if ((pp = pair('trolley', 'prop'))) { const p = pp[1].prop; if (ts > 1.2 && C.props.knock(p, 'trolley', ts)) this.broke(p, ts); else if (ts > 1.2) this.sfxFor(p.type, ts); }
+    if ((pp = pair('trolley', 'prop'))) {
+      const p = pp[1].prop;
+      // Use approach speed for cones, since the solver may have slowed the trolley at contact.
+      const cone = p.type === 'cone', velocity = cone ? tr.v : tv;
+      const speed = cone ? Math.hypot(velocity.x, velocity.y, velocity.z) : ts;
+      if (speed <= (cone ? 0.45 : 1.2)) return;
+      if (C.props.knock(p, speed, velocity)) this.broke(p, speed); else this.sfxFor(p.type, speed);
+    }
     else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, tv)) { this.run.peds++; this.addCombo('LOLLIPOP LADY', 700); this.task('lollipop'); } }
-    else if ((pp = pair('prop', 'prop'))) { const a = pp[0].prop, b = pp[1].prop; const moving = p => !p.body.isFixed() && !p.body.isSleeping() && (C.time - p.hitT < 3); const src = moving(a) ? a : moving(b) ? b : null, dst = src === a ? b : a; if (src && dst && !dst.hit) { const v = src.body.linvel(), rs = Math.hypot(v.x, v.y, v.z); if (rs > 1.5 && C.props.knock(dst, 'prop', rs)) { this.broke(dst, rs, true); } } }
+    else if ((pp = pair('prop', 'prop'))) { const a = pp[0].prop, b = pp[1].prop; const moving = p => !p.body.isFixed() && !p.body.isSleeping() && (C.time - p.hitT < 3); const src = moving(a) ? a : moving(b) ? b : null, dst = src === a ? b : a; if (src && dst && !dst.hit) { const v = src.body.linvel(), rs = Math.hypot(v.x, v.y, v.z); if (rs > 1.5 && C.props.knock(dst, rs, v)) { this.broke(dst, rs, true); } } }
   }
   sfxFor(type, sp) { const k = clamp(sp / 8, 0.3, 1.2); if (type === 'bin') C.audio.sfx('bonk', k); else if (type === 'cone') C.audio.sfx('thwop', k); else if (type === 'pane') C.audio.sfx('glass'); else C.audio.sfx('thud', k * 0.7); }
   broke(p, sp, chain) {
@@ -299,14 +307,10 @@ export class Game {
     if (why === 'returned') this.task('return');
   }
   showResults() {
-    const R = this.run, tr = C.trolley; this.state = 'results'; C.audio.alarm(false);
-    const bonus = [];
-    if (R.basketPts > 0) bonus.push(['IN THE BASKET ×2', R.basketPts * 2]);
-    if (R.end === 'pond') bonus.push(['FOUND IN POND', 1500]);
-    bonus.push(['DISTANCE ' + Math.round(R.dist) + ' M', Math.round(R.dist * 2)]);
-    for (const t of TASKS) if (R.done[t.id]) bonus.push([t.short, t.pts]);
-    if (R.maxMph > 30) bonus.push(['SPEEDING (' + Math.round(R.maxMph) + ' MPH)', Math.round((R.maxMph - 30) * 40)]);
-    const total = R.score + bonus.reduce((sum, [, value]) => sum + value, 0);
+    const R = this.run; this.state = 'results'; C.audio.alarm(false);
+    const taskPoints = TASKS.reduce((sum, task) => sum + (R.done[task.id] ? task.pts : 0), 0);
+    const total = R.score + (R.basketPts ?? 0) * 2 + (R.end === 'pond' ? 1500 : 0)
+      + Math.round(R.dist * 2) + taskPoints + Math.round(Math.max(0, R.maxMph - 30) * 40);
     const prevBest = this.save.best, newBest = total > prevBest;
     if (newBest) this.save.best = total;
     const unlocked = [];
@@ -316,7 +320,7 @@ export class Game {
       unlocked.push(VARIANTS[reward].name);
     }
     this.save.runs++; this.persist();
-    C.ui.receipt({ R, total, bonus, newBest, best: this.save.best, unlocked, trolley: VARIANTS[tr.key].name });
+    C.ui.receipt({ R, total, newBest, best: this.save.best, unlocked });
     C.ui.show('results');
   }
 }

@@ -25,12 +25,12 @@ export class Input {
         const onButton = e.target?.tagName === 'BUTTON';
         if (!e.repeat && (e.code === 'KeyR' || (!onButton && (e.code === 'Enter' || e.code === 'Space')))) {
           e.preventDefault(); G.toBriefing();
-        } else if (!e.repeat && e.code === 'KeyT') G.toSelect();
+        } else if (!e.repeat && e.code === 'KeyT' && G.hasTrolleyChoice()) G.toSelect();
         return;
       }
       if (ui === 'briefing') {
         if (e.repeat && (e.code === 'Enter' || e.code === 'Space')) e.preventDefault();
-        if (!e.repeat && e.code === 'Escape') { e.preventDefault(); G.toSelect(); }
+        if (!e.repeat && e.code === 'Escape' && G.hasTrolleyChoice()) { e.preventDefault(); G.toSelect(); }
         return;
       }
       if (G.paused) { if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); C.ui.resume(); } else if (!e.repeat && e.code === 'KeyR') G.toBriefing(); return; }

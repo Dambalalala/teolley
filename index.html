@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#8fa6b8">
 <link rel="icon" href="data:,">
 <script defer src="vendor/three-r128.min.js"></script>
-<link rel="modulepreload" href="game-v2/main.js?v=stop-sign-splash">
+<link rel="modulepreload" href="game-v2/main.js?v=grumbleton-receipt">
 <style>
 /* pixel fonts for everything on screen; Bungee and Barlow are only used for signs painted in the world */
 @font-face{font-family:'Press Start 2P';font-style:normal;font-weight:400;font-display:block;src:url(fonts/press-start-2p-latin-400-normal.woff2) format('woff2')}
@@ -110,17 +110,17 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 #results{align-items:center;justify-content:safe center;background:rgba(22,22,26,.6);overflow-y:auto;touch-action:pan-y}
 .receipt{width:min(400px,92vw);max-height:calc(100% - 96px);overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.25;padding:20px 20px 24px;box-shadow:8px 8px 0 rgba(0,0,0,.45);-webkit-mask:linear-gradient(#000 calc(100% - 8px),transparent 0) top/100% 100% no-repeat,linear-gradient(90deg,#000 50%,transparent 0) bottom/16px 8px repeat-x;mask:linear-gradient(#000 calc(100% - 8px),transparent 0) top/100% 100% no-repeat,linear-gradient(90deg,#000 50%,transparent 0) bottom/16px 8px repeat-x}
 .receipt .shop{font-family:var(--display);font-size:24px;line-height:1;text-align:center;margin-bottom:8px}
-.receipt .c{text-align:center}
 .receipt .head{font-family:var(--label);font-weight:700;font-size:16px;text-align:center;margin:8px 0 4px;text-transform:uppercase}
 .receipt hr{border:0;border-top:2px dashed #6b6b6b;margin:6px 0}
-.receipt .ln{display:flex;justify-content:space-between;gap:12px}
-.receipt .ln span:first-child{min-width:0;overflow-wrap:anywhere}
-.receipt .ln span:last-child{white-space:nowrap}
-.receipt .detail{font-size:.9em;color:#555}
-.receipt .tot{font-family:var(--display);font-size:16px;line-height:2}
-.receipt .neg{color:#9a1d1d}
-.receipt .new{font-family:var(--label);font-weight:700;text-align:center;background:var(--yellow);margin:8px -6px;padding:4px}
-.receipt .stamp{font-family:var(--display);font-size:16px;line-height:1.5;color:#b3221b;border:4px solid #b3221b;text-align:center;padding:8px;margin:12px auto 4px;width:max-content;max-width:100%;opacity:.9}
+.receiptScore{text-align:center;padding:10px 4px 8px}
+.receiptScore h2{font:700 16px/1.2 var(--label);margin-bottom:8px}
+.receiptScore strong{display:block;font:400 clamp(16px,6vw,24px)/1.2 var(--display);overflow-wrap:anywhere}
+.receiptScore.new{background:var(--yellow)}
+.receipt dl{padding:3px 0}
+.receipt dl div{display:flex;justify-content:space-between;gap:8px;margin:4px 0}
+.receipt dd{text-align:right}
+.receipt .refund{border-top:2px dashed #6b6b6b;padding-top:8px;margin-top:6px;text-align:center}
+.receipt .stamp{font:700 16px/1.3 var(--label);color:#b3221b;border:3px solid #b3221b;text-align:center;padding:5px 8px;margin:8px auto 0;width:max-content;max-width:100%}
 .resbtns{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;justify-content:center}
 @media (max-width:420px){
   .resbtns{gap:12px}
@@ -148,10 +148,10 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
 #tG{right:calc(12px + var(--safe-r));bottom:calc(20px + var(--pad) + var(--safe-b))}
 #tB{right:calc(20px + var(--pad) + var(--safe-r));bottom:calc(12px + var(--safe-b))}
 #tH{right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b))}
-#loading .dots i{font-style:normal;animation:dot 1.2s steps(1) infinite;opacity:0}
-#loading .dots i:nth-child(2){animation-delay:.3s}
-#loading .dots i:nth-child(3){animation-delay:.6s}
-@keyframes dot{0%{opacity:0}25%{opacity:1}100%{opacity:1}}
+#loading .loading-tail{white-space:nowrap}
+#loading .dots{display:inline-block;animation:loading-dots 1.2s steps(3,jump-start) infinite}
+@keyframes loading-dots{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0% 0 0)}}
+@media (prefers-reduced-motion:reduce){#loading .dots{animation:none}}
 #loading,#err{position:fixed;inset:0;z-index:9;display:grid;place-items:center;text-align:center;padding:24px;background:#8fa6b8;color:var(--ink);font-family:var(--display);font-size:16px;line-height:1.5}
 #err{font-family:var(--body);background:#2a2a30;color:var(--paper)}
 
@@ -183,6 +183,16 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
   #pause .plist section+section ul{grid-template-columns:1fr 1fr;gap:0 24px}
   .receipt{max-height:calc(100% - 80px)}
   .resbtns{margin-top:8px}
+}
+@media (max-height:440px){
+  .receipt{padding:12px 18px 16px;max-height:calc(100% - 56px)}
+  .receipt .shop{font-size:16px;margin-bottom:4px}
+  .receipt .head{margin:4px 0}
+  .receiptScore{padding:6px 4px}
+  .receiptScore h2{margin-bottom:4px}
+  .receiptScore strong{font-size:18px}
+  .receipt dl div{margin:2px 0}
+  .receipt .stamp{margin-top:5px;padding:3px 6px}
 }
 @media (max-width:559px){.pad{border-width:2px}.selNav .btn{margin-left:0}}
 @media (max-width:369px){#selName{font-size:16px;--fp:2px}.selNav .btn{padding-inline:12px}.selIdx{min-width:46px}}
@@ -226,13 +236,13 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
     <header><h2 id="briefLevel"></h2><span class="briefBrand">SPENDWELLS</span></header>
     <div class="plist" id="briefList"></div>
     <p>Link stunts for a combo. Keep your shopping in the basket for a bonus.</p>
-    <div class="row"><button id="bBriefBack" class="btn alt">Trolleys</button><button id="bStartRun" class="btn">Start run</button></div>
+    <div class="row"><button id="bBriefBack" class="btn alt hidden">Trolleys</button><button id="bStartRun" class="btn">Start run</button></div>
   </div>
 </div>
 
 <div id="results" class="screen hidden" role="dialog" aria-label="Run results">
   <div class="receipt" id="receipt"></div>
-  <div class="resbtns"><button id="bAgain" class="btn">Again<span class="key-hint"> (R)</span></button><button id="bTrolleys" class="btn alt">Trolleys</button></div>
+  <div class="resbtns"><button id="bAgain" class="btn">Again<span class="key-hint"> (R)</span></button><button id="bTrolleys" class="btn alt hidden">Trolleys</button></div>
 </div>
 
 <div id="pause" class="screen hidden" role="dialog" aria-label="Paused">
@@ -252,9 +262,9 @@ kbd{font-family:var(--display);font-size:8px;line-height:1;display:inline-grid;p
   <button id="tB" class="pad" aria-label="Brake">STOP</button>
   <button id="tH" class="pad" aria-label="Hop">HOP</button>
 </div>
-<div id="loading"><span>FETCHING A TROLLEY<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>
+<div id="loading" role="status"><span>FETCHING A <span class="loading-tail">TROLLEY<span class="dots" aria-hidden="true">...</span></span></span></div>
 <div id="err" class="hidden"></div>
 
-<script type="module" src="game-v2/main.js?v=stop-sign-splash"></script>
+<script type="module" src="game-v2/main.js?v=grumbleton-receipt"></script>
 </body>
 </html>

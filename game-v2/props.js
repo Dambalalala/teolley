@@ -9,7 +9,7 @@ const SIGN_IN_BIN = new T.Quaternion().setFromEuler(new T.Euler(0.16, 0, -0.22))
 
 const SPEC = {
   bin: { shape: ['cuboid', 0.3, 0.5, 0.37], mass: 11, name: 'WHEELIE BIN', pts: 150 },
-  cone: { shape: ['cylinder', 0.34, 0.22], mass: 0.8, name: 'TRAFFIC CONE', pts: 50 }, // straight-sided so a trolley can't ride up one
+  cone: { shape: ['cylinder', 0.34, 0.26], mass: 0.45, name: 'TRAFFIC CONE', pts: 50 },
   barrier: { shape: ['cuboid', 0.95, 0.42, 0.22], off: -0.09, far: 180,  mass: 8, name: 'ROADWORKS BARRIER', pts: 100 },
   picket: { shape: ['cuboid', 1.2, 0.45, 0.05], far: 160,  mass: 6, name: 'PICKET FENCE', pts: 150, fixed: true },
   heras: { shape: ['cuboid', 1.7, 1.0, 0.25], far: 220,  mass: 14, name: 'SITE FENCE', pts: 120 },
@@ -63,6 +63,8 @@ export class Props {
     const body = C.phys.createRigidBody(bd);
     const sh = S.shape; let cd = sh[0] === 'cylinder' ? R.ColliderDesc.cylinder(sh[1], sh[2]) : R.ColliderDesc.cuboid(d.type === 'picket' ? (d.w || 2.4) / 2 : sh[1], sh[2], sh[3]);
     cd.setTranslation(0, S.off || 0, 0).setMass(S.mass).setFriction(0.6).setRestitution(0.2).setCollisionGroups(ig(G.PROP, ALL)).setActiveEvents(R.ActiveEvents.COLLISION_EVENTS);
+    // Keep cone hit events, without letting the cone steer the trolley on contact.
+    if (d.type === 'cone') cd.setSolverGroups(ig(G.PROP, ALL & ~G.TROLLEY));
     const col = C.phys.createCollider(cd, body);
     const p = { type: d.type, S, body, col, mesh, lid, lidA: 0, batch, parts, matrixDirty: true, fixed: !!S.fixed, far2: (S.far || 135) ** 2,
       home: { x: d.x, y: d.y, z: d.z, q: { x: q.x, y: q.y, z: q.z, w: q.w } }, hit: false, gone: false, hitT: -9 };
@@ -72,12 +74,21 @@ export class Props {
     C.colInfo.set(col.handle, { kind: 'prop', prop: p, name: S.name });
   }
   // called by the game when the trolley (or a flying prop) bumps a prop
-  knock(p, by, relSpeed) {
+  knock(p, relSpeed, velocity) {
     const R = C.RAPIER;
     if (p.gone) return false;
     if (p.type === 'pane') { if (relSpeed < 1.5) return false; p.gone = true; p.col.setSensor(true); p.mesh.visible = false; const q = p.body.translation(); for (let k = 0; k < 3; k++) C.fx.emit('glass', q.x, q.y + (k - 1) * 0.5, q.z, 0, 1, 0, 14, 3.5); C.audio.sfx('glass'); return true; }
     if (p.fixed) { if (relSpeed < 2.2) return false; p.body.setBodyType(R.RigidBodyType.Dynamic, true); p.fixed = false; }
     const first = !p.hit; p.hit = true; p.hitT = C.time;
+    if (p.type === 'cone' && first) {
+      const horizontal = Math.hypot(velocity.x, velocity.z);
+      const x = horizontal > 0.1 ? velocity.x / horizontal : 0, z = horizontal > 0.1 ? velocity.z / horizontal : -1;
+      const carry = clamp(2 + relSpeed * 0.45, 2, 10), spin = clamp(12 + relSpeed, 12, 26);
+      // Let the cone clear the basket cleanly while it can still strike scenery and other cones.
+      p.col.setCollisionGroups(ig(G.PROP, ALL & ~G.TROLLEY));
+      p.body.setLinvel({ x: x * carry - z * 0.85, y: 4.8 + Math.min(relSpeed, 16) * 0.16, z: z * carry + x * 0.85 }, true);
+      p.body.setAngvel({ x: -z * spin, y: 6, z: x * spin }, true);
+    }
     if (p.type === 'bin' && first) { const q = p.body.translation(); C.fx.emit('rubbish', q.x, q.y + 0.4, q.z, 0, 2.5, 0, 16, 2.2); }
     return first;
   }
@@ -87,6 +98,7 @@ export class Props {
       if (p.S.fixed && !p.fixed) { p.body.setBodyType(R.RigidBodyType.Fixed, false); p.fixed = true; }
       p.body.setTranslation(p.home, false); p.body.setRotation(p.home.q, false);
       if (p.gone) p.col.setSensor(false);
+      if (p.type === 'cone' && p.hit) p.col.setCollisionGroups(ig(G.PROP, ALL));
       if (!p.fixed) { p.body.setLinvel({ x: 0, y: 0, z: 0 }, false); p.body.setAngvel({ x: 0, y: 0, z: 0 }, false); p.body.sleep(); }
       p.hit = false; p.gone = false; p.wasMoving = false; p.matrixDirty = true; p.mesh.visible = true; p.lidA = 0; if (p.lid) p.lid.rotation.x = 0;
       p.mesh.position.set(p.home.x, p.home.y, p.home.z); p.mesh.quaternion.set(p.home.q.x, p.home.q.y, p.home.q.z, p.home.q.w);

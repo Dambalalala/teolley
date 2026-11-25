@@ -199,7 +199,7 @@ function roadworks(scene) {
   // barriered-off right lane with a hole and a sand pile, well up the hill from the plank
   // cones along the works
   for (let s = 243; s <= 271; s += 2.6) { const R = roadAt(s, {}), d = 0.45, x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'cone', x, y: prof(s, d) + 0.36, z, yaw: 0 }); }
-  for (const [s, d, turn] of [[244, 2.2, 0], [266, 2.2, 0], [255, 0.85, Math.PI / 2], [255, 3.3, Math.PI / 2]]) { const R = roadAt(s, {}), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'barrier', x, y: prof(s, d) + 0.55, z, yaw: -R.th + turn + (turn ? 0 : Math.PI / 2) }); }
+  for (const [s, d, turn] of [[244, 2.2, 0], [266, 2.2, 0], [255, 1.3, Math.PI / 2], [255, 3.3, Math.PI / 2]]) { const R = roadAt(s, {}), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'barrier', x, y: prof(s, d) + 0.55, z, yaw: -R.th + turn + (turn ? 0 : Math.PI / 2) }); }
   const hole = new T.Mesh(new T.PlaneGeometry(2.0, 18), new T.MeshLambertMaterial({ color: 0x3a2c22, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
   const hp = P(255, 2.1, 0.02); hole.position.set(hp.x, hp.y, hp.z); hole.rotation.order = 'YXZ'; hole.rotation.set(-Math.PI / 2, -hp.th, 0); scene.add(hole);
   // sand pile (static, rideable)
