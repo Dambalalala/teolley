@@ -14,7 +14,7 @@ export class Shopping {
       const g = new T.Group(); g.position.set(sp.x, sp.y, sp.z); C.scene.add(g);
       const m = makeItemMesh(sp.k); m.scale.setScalar(2.3); g.add(m);
       const ring = new T.Mesh(ringG, this.ringMat); ring.position.y = -0.45; g.add(ring);
-      this.pickups.push({ k: sp.k, g, m, ring, x: sp.x, y: sp.y, z: sp.z, taken: false, ph: Math.random() * TAU });
+      this.pickups.push({ k: sp.k, g, m, ring, x: sp.x, y: sp.y, z: sp.z, reach: sp.reach ?? 0.95, taken: false, ph: Math.random() * TAU });
     }
   }
   reset() {
@@ -51,7 +51,7 @@ export class Shopping {
       if (p.taken) continue;
       p.ph += dt; p.m.rotation.y += dt * 1.6; p.m.position.y = Math.sin(p.ph * 2.2) * 0.08;
       if (!active) continue;
-      const dx = p.x - mouth.x, dy = p.y - mouth.y, dz = p.z - mouth.z, r = 0.95 * Math.max(1, s);
+      const dx = p.x - mouth.x, dy = p.y - mouth.y, dz = p.z - mouth.z, r = p.reach * Math.max(1, s);
       if (dx * dx + dy * dy + dz * dz < r * r) {
         p.taken = true; p.g.visible = false;
         const full = this.basketCount() >= tr.capacity();

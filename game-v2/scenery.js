@@ -78,6 +78,7 @@ function house(F, yaw, r, chunk, kind) {
   colBox(F, yaw, 2.2, 2.9, 0.75, -1.15, 1.2, 0.375, { kind: 'house', name: 'BAY WINDOW' });
 }
 const GARDEN_FRONT = ['wall', 'hedge', 'wall', 'wall', 'hedge', 'picket'];
+const KILROY_HEIGHT = 1.16;
 function graffitiMaterial() {
   const map = signTex(256, 256, g => {
     g.lineJoin = g.lineCap = 'round';
@@ -87,6 +88,8 @@ function graffitiMaterial() {
     g.lineWidth = 3; g.stroke(new Path2D('M104 93 Q160 100 220 89 M34 91 L33 103 M203 76 L202 94'));
 
     g.translate(0, 128);
+    g.save();
+    g.scale(1, 0.84 / KILROY_HEIGHT);
     const face = new Path2D('M53 72 C55 38 82 18 122 19 C162 18 192 39 195 72 M95 71 C108 68 121 70 130 83 C133 90 135 102 124 108 C114 114 105 107 109 98 L110 89 M37 79 Q29 65 23 72 L27 83 M47 79 Q40 63 35 70 L40 83 M207 79 Q212 64 218 70 L213 83 M219 79 Q224 65 231 72 L227 83');
     g.strokeStyle = '#ded4bb'; g.lineWidth = 9; g.stroke(face);
     g.strokeStyle = '#252828'; g.lineWidth = 5.5; g.stroke(face);
@@ -96,16 +99,22 @@ function graffitiMaterial() {
       g.beginPath(); g.ellipse(x + 3, 58, 4.3, 6.8, 0, 0, TAU);
       g.fillStyle = '#252828'; g.fill();
     }
+    g.restore();
+    g.font = 'bold 22px sans-serif';
+    g.textAlign = 'center';
+    g.strokeStyle = '#252828'; g.lineWidth = 4;
+    g.strokeText('KILROY WAS HERE', 128, 114);
+    g.fillStyle = '#ded4bb'; g.fillText('KILROY WAS HERE', 128, 114);
   });
   return new T.MeshLambertMaterial({ map, alphaTest: 0.24, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 }
 function paintGardenWall(scene, F, yaw, material, face) {
-  const geometry = new T.PlaneGeometry(face ? 2.3 : 3.12, face ? 0.84 : 0.51);
+  const geometry = new T.PlaneGeometry(face ? 2.3 : 3.12, face ? KILROY_HEIGHT : 0.51);
   const uv = geometry.attributes.uv;
   for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * 0.5 + (face ? 0 : 0.5));
   const paint = new T.Mesh(geometry, material);
-  paint.name = face ? 'Peeking face graffiti' : '10 FOOT graffiti';
-  paint.position.copy(wp(F, -0.85, face ? 0.696 : 0.28, face ? 4.041 : 4.012));
+  paint.name = face ? 'Kilroy was here graffiti' : '10 FOOT graffiti';
+  paint.position.copy(wp(F, -0.85, face ? 1.116 - KILROY_HEIGHT / 2 : 0.28, face ? 4.041 : 4.012));
   paint.rotation.y = yaw; paint.receiveShadow = true;
   scene.add(paint);
 }
@@ -268,9 +277,10 @@ function plankAndSkip(scene) {
 }
 
 // The mesh and collider share the ramp profile. The approach follows the grade before curving up to the lip.
+const rampPower = (length, height, lipDeg) => Math.max(1.05, Math.tan(lipDeg * Math.PI / 180) * length / height);
 export function addRamp(scene, at, th, w, len, h, mat, name, lipDeg = 28, grade = 0) {
   const fx = Math.sin(th), fz = -Math.cos(th), rx = Math.cos(th), rz = Math.sin(th);
-  const pw = Math.max(1.05, Math.tan(lipDeg * Math.PI / 180) * len / h), N = 14;
+  const pw = rampPower(len, h, lipDeg), N = 14;
   const P3 = (u, v, y) => {
     const along = v - len / 2;
     return [at.x + rx * u + fx * along, at.y + y + grade * along, at.z + rz * u + fz * along];
@@ -407,7 +417,12 @@ function bottomScenery(scene) {
   // bus stop on Station Road
   { const p = BW(-24, 16.3); busShelter(scene, { x: p.x, y: 0.05, z: p.z }, Math.PI, 'bot'); W.busStop = { lx: -24 }; }
   // the pond: ramp, railings, reeds, a sign about bread
-  { const at = BW(0, 24.4); addRamp(scene, { x: at.x, y: 0.0, z: at.z }, 0, 5.2, 6.5, 2.2, 'wood', 'POND RAMP', 30);
+  { const lf = 24.4, length = 6.5, height = 2.2, lipDeg = 30;
+    const at = BW(0, lf); addRamp(scene, { x: at.x, y: 0, z: at.z }, 0, 5.2, length, height, 'wood', 'POND RAMP', lipDeg);
+    const pickupProgress = 0.74;
+    const milk = BW(0, lf + length * (pickupProgress - 0.5));
+    const rampY = height * pickupProgress ** rampPower(length, height, lipDeg);
+    W.pickups.push({ k: 'milk', x: milk.x, y: rampY + 0.85, z: milk.z, reach: 1.5 });
     const pc = BW(POND.lx, POND.lf);
     for (let k = 0; k < 70; k++) { const a = r() * TAU, rr = 1.0 + r() * 0.12, lx = POND.lx + Math.cos(a) * POND.rx * rr, lf = POND.lf + Math.sin(a) * POND.rz * rr; if (Math.abs(lx) < 4 && lf < POND.lf) continue; const p = BW(lx, lf); for (let j = 0; j < 3; j++) L.add(GEO.cone8, M(p.x + (r() - 0.5) * 0.5, botH(lx, lf) + 0.5, p.z + (r() - 0.5) * 0.5, (r() - 0.5) * 0.3, 0, (r() - 0.5) * 0.3, 0.05, 1.1 + r() * 0.5, 0.05), pick(r, [0x5a7a35, 0x6a8a3e, 0x4c6a2e])); }
     for (let k = 0; k < 12; k++) { const a = r() * TAU, rr = 0.3 + r() * 0.5; const p = BW(POND.lx + Math.cos(a) * POND.rx * rr, POND.lf + Math.sin(a) * POND.rz * rr); L.add(GEO.cyl12, M(p.x, POND.water + 0.02, p.z, 0, 0, 0, 0.45, 0.02, 0.45), 0x4c8a3a); }
@@ -435,9 +450,8 @@ function bottomScenery(scene) {
 
 // ---------------- shopping placement ----------------
 function placePickups() {
-  // one of each thing on the list, each sat over something you can jump off
+  // The remaining shopping, placed on the hill.
   const add = (k, x, y, z) => W.pickups.push({ k, x, y, z });
-  { const p = botToWorld(0, 37); add('milk', p.x, 4.8, p.z); } // over the duck pond
   { const p = P(136, 0, 1.7); add('loo', p.x, p.y, p.z); } // road hump on the hill
   { const p = P(PLANK.s + PLANK.length / 2 - 0.4, PLANK.d, PLANK.height + 0.45); add('tampons', p.x, p.y, p.z); } // on the plank ramp itself
   // pineapple: on the roundabout island (placed with the island); gnome: off the car transporter (extras)
