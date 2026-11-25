@@ -3,7 +3,7 @@ const light = { sun: 0.92, sunC: 0xffe4b3, hemi: 0.78, sky: 0xe1eed7, gnd: 0x667
 export const greenFingers = {
   id: 'greenfingers', name: 'Green Fingers Garden Centre', shop: 'Green Fingers', reward: 'green', starter: 'flatbed',
   requires: { level: 'grumbleton', goals: 4 },
-  preview: 'game-v2/greenfingers.webp', previewAlt: 'The glasshouse and planted hillside terraces at Green Fingers',
+  preview: 'game-v2/greenfingers.webp?v=garden-aisle', previewAlt: 'The paved aisle through the Green Fingers outdoor plant displays',
   shopping: ['seed', 'potPlant', 'gnome', 'fishFood', 'mincePie'],
   goals: [
     { id: 'list', label: 'Complete the shopping list', short: 'SHOPPING LIST', pts: 1000 },
@@ -24,7 +24,7 @@ export const greenFingers = {
     });
   },
   async load() {
-    const { buildGarden } = await import('./garden.js?v=green-fingers');
+    const { buildGarden } = await import('./garden.js?v=garden-aisle');
     return { build: buildGarden };
   },
 };

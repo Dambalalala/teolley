@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, fmt } from './util.js';
-import { LIST_NAMES } from './game.js?v=green-fingers';
+import { LIST_NAMES } from './game.js?v=garden-aisle';
 
 // All three fonts are drawn on an 8-pixel grid, so sizes stay at multiples of 8 and every glyph is placed on a whole
 // device pixel; that keeps the letters as hard-edged as the rest of the game.

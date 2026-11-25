@@ -6,11 +6,11 @@ import { FX } from './fx.js?v=green-fingers';
 import { Props } from './props.js?v=green-fingers';
 import { Shopping } from './shopping.js?v=green-fingers';
 import { Audio } from './audio.js?v=green-fingers';
-import { Game, LEVELS } from './game.js?v=green-fingers';
+import { Game, LEVELS } from './game.js?v=garden-aisle';
 import { Input } from './input.js?v=green-fingers';
 import { Cam } from './camera.js?v=green-fingers';
-import { HUD } from './hud.js?v=green-fingers';
-import { UI } from './ui.js?v=green-fingers';
+import { HUD } from './hud.js?v=garden-aisle';
+import { UI } from './ui.js?v=garden-aisle';
 import { Select } from './select.js?v=green-fingers';
 import { makeContactShadow } from './shadows.js?v=green-fingers';
 

@@ -4,7 +4,7 @@ import { ITEMS, VARIANTS } from './models.js?v=green-fingers';
 import { Trolley } from './trolley.js?v=green-fingers';
 
 import { grumbleton } from './levels/grumbleton.js?v=green-fingers';
-import { greenFingers } from './levels/greenfingers.js?v=green-fingers';
+import { greenFingers } from './levels/greenfingers.js?v=garden-aisle';
 
 const SAVE_KEY = 'trolley-save-v1';
 export const LEVELS = [grumbleton, greenFingers];
@@ -264,6 +264,7 @@ export class Game {
     if (this.combo.live.chain && t - this.chain.t > 1.5) this.endLive('chain');
     if (this.combo.live.spree && (!this.collectTimes.length || t - this.collectTimes[this.collectTimes.length - 1] > 4.5)) this.endLive('spree');
     // run endings
+    if (!tr.submerged && W.fellOff?.(p, L)) return this.endRun('void');
     if (W.finishes?.some(f => p.y < (f.y ?? 0) + 3 && Math.abs(p.x - f.x) < f.hx && Math.abs(p.z - f.z) < f.hz)) return this.endRun('returned');
     if (tr.submerged) {
       if (this.wetT === 0) {

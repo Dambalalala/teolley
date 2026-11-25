@@ -6,16 +6,13 @@ import { plainSign, fascia, TX } from '../textures.js?v=green-fingers';
 import { makeTrolley } from '../models.js?v=green-fingers';
 
 const T = C.T;
-const HALF = 1.9;
-// Each lettered section gets its own terrace. The middle turn looks back down the hill towards the café.
+const HALF = 2.85;
 const stations = [
-  [0, 37, 35], [0, 36.3, 12], [0, 34.3, -7], [0, 31, -24],
-  [-7, 29.8, -42], [-18, 28.7, -59], [-14, 27.7, -77], [-3, 26.6, -92],
-  [3.5, 23.1, -106], [12.5, 22.4, -121], [10, 21.8, -136], [0, 20.8, -149],
-  [-3, 17.5, -166], [5, 16.9, -183], [23, 16.4, -196], [44, 15.1, -197],
-  [56, 13.6, -187], [57, 12.9, -171], [52, 12.1, -153], [68, 11.2, -151],
-  [91, 10.6, -149], [112, 9.7, -137], [119, 8.9, -118], [119, 7.4, -99],
-  [110, 5.5, -79], [114, 4.9, -60], [115, 3.6, -43], [115, 3.1, -25],
+  [0, 29, 35], [0, 28.3, 12], [0, 26.7, -10], [1.5, 24.7, -26],
+  [5, 23.65, -46], [5, 22.55, -65], [5, 21.45, -84], [5, 20.4, -104], [5, 19.25, -123],
+  [5, 18.15, -142], [9, 17.2, -157], [20, 16.0, -170], [36, 14.85, -176],
+  [51, 13.7, -169], [59, 12.65, -154], [59, 11.55, -135], [59, 10.3, -115],
+  [59, 9.0, -95], [59, 7.8, -75], [59, 6.6, -54], [59, 6.05, -36],
 ];
 
 function makeRoute() {
@@ -63,30 +60,22 @@ function makeRoute() {
     return { x: p.x + p.rx * d, y: p.y + h + edgeHeight(d), z: p.z + p.rz * d, th: p.th };
   }
   const groundY = (x, z) => { const a = locate(x, z, local); return roadAt(a.s, sample).y + edgeHeight(a.d); };
-  return { roadAt, locate, groundY, P, total, marks, rows };
+  const sections = {
+    plants: marks[2] + 3, glass: marks[6] - 8, water: marks[9] - 1,
+    furniture: marks[15] - 5, seasonal: marks[17] + 2, tills: total - 12,
+  };
+  return { roadAt, locate, groundY, P, total, sections, rows };
 }
 function edgeHeight(d) { return Math.abs(d) > HALF + 0.08 ? 0.07 : 0; }
 const xyz = ({ x, y, z }) => [x, y, z];
 const collider = name => ({ kind: 'ground', name });
-function lineDistance(x, z, line) {
-  const { start, end } = line, vx = end.x - start.x, vz = end.z - start.z;
-  const u = clamp(((x - start.x) * vx + (z - start.z) * vz) / (vx * vx + vz * vz), 0, 1);
-  return Math.hypot(x - start.x - u * vx, z - start.z - u * vz);
-}
 function earthHeight(W, x, z) {
-  const local = W.locate(x, z, {}), r = W.roadAt(local.s, {});
-  let y = r.y - 3.8 - Math.max(0, local.dist - 7) * 0.34;
-  for (const line of W.junctions) if (lineDistance(x, z, line) < 12) {
-    const { start, end } = line;
-    const dx = end.x - start.x, dz = end.z - start.z;
-    const u = clamp(((x - start.x) * dx + (z - start.z) * dz) / (dx * dx + dz * dz), 0, 1);
-    y = Math.min(y, lerp(start.y, end.y, u) - 3.2);
-  }
-  return Math.max(-1.59, y);
+  const local = W.locate(x, z, {});
+  return Math.max(-1.59, W.roadAt(local.s).y - 3.8 - Math.max(0, local.dist - 7) * 0.34);
 }
 
 function path(W) {
-  const edges = [-8, -HALF - 0.18, -HALF, HALF, HALF + 0.18, 3.5, 4.6, 5.7, 6.8, 8, 9.5];
+  const edges = [-8.5, -HALF - 0.18, -HALF, HALF, HALF + 0.18, 4.1, 5.2, 6.3, 7.4, 8.5, 9.5];
   const surface = ['grass', 'kerb', 'pave', 'kerb', 'grass', 'grass', 'grass', 'grass', 'grass', 'grass'];
   const n = W.rows.length - 1, pond = W.pond;
   function at(s, d) {
@@ -98,18 +87,17 @@ function path(W) {
   for (let start = 0; start < n; start += 50) {
     const chunk = 'garden' + start, body = new Batch(), retaining = sb(chunk, 'brickB');
     for (let i = start; i < Math.min(n, start + 50); i++) {
-      const a = W.rows[i].s, b = W.rows[i + 1].s, winter = a > W.marks[22] + 6 && a < W.marks[26] - 5;
+      const a = W.rows[i].s, b = W.rows[i + 1].s, winter = a > W.sections.seasonal + 4 && a < W.sections.tills - 6;
       for (let j = 0; j < surface.length; j++) {
         const low = edges[j], high = edges[j + 1];
         const pts = [at(a, low), at(a, high), at(b, high), at(b, low)];
         const isGrass = surface[j] === 'grass';
-        const paint = j === 2 ? 0xe2d5bc : winter && isGrass ? 0xfaf7f0 : isGrass ? 0xa5c87e : 0xd7d0bf;
+        const paint = j === 2 ? 0xe8decc : winter && isGrass ? 0xfaf7f0 : isGrass ? 0xa5c87e : 0xd7d0bf;
         sb(chunk, winter && isGrass ? 'lam' : surface[j]).quad(...pts, paint, [low / 1.8, a / 1.8, high / 1.8, b / 1.8]);
         body.quad(...pts);
       }
-      for (const d of [-8, 9.5]) {
+      for (const d of [-8.5, 9.5]) {
         const u = at(a, d), v = at(b, d);
-        if (W.junctions.some(line => lineDistance((u[0] + v[0]) / 2, (u[2] + v[2]) / 2, line) < 3.2)) continue;
         const uBase = [u[0], earthHeight(W, u[0], u[2]) - 0.6, u[2]], vBase = [v[0], earthHeight(W, v[0], v[2]) - 0.6, v[2]];
         const quad = d < 0 ? [vBase, uBase, u, v] : [uBase, vBase, v, u];
         retaining.quad(...quad, 0xab9c7a, [a / 1.4, -1.12, b / 1.4, (u[1] + v[1]) / 2.8]);
@@ -170,7 +158,7 @@ function carPark(scene, W) {
   const start = W.P(7, 0);
   W.start = { x: start.x, y: start.y, z: start.z, yaw: -start.th };
   for (const side of [-1, 1]) {
-    const S = [xyz(W.P(0, side * 8)), xyz(W.P(0, side * 2.1)), xyz(W.P(26, side * 2.1)), xyz(W.P(26, side * 8))];
+    const S = [xyz(W.P(0, side * 8)), xyz(W.P(0, side * HALF)), xyz(W.P(26, side * HALF)), xyz(W.P(26, side * 8))];
     if (side > 0) S.reverse();
     ground.quad(...S.map(p => [p[0], p[1] + 0.016, p[2]]), 0xeee8d9, [0, 0, 4, 8]);
     for (let k = 0; k < 4; k++) {
@@ -184,8 +172,8 @@ function carPark(scene, W) {
   const trolley = makeTrolley('flatbed').root;
   trolley.position.set(bay.x, bay.y + 0.48, bay.z); scene.add(trolley);
   const arch = site(W, 29, 0);
-  for (const x of [-2.87, 2.87]) solidBox(B, arch.F, x, 1.58, 0, 0.16, 3.16, 0.17, 0x315b45, 'GARDEN CENTRE GATE');
-  const gate = new T.Mesh(new T.PlaneGeometry(5.9, 1), new T.MeshBasicMaterial({ map: plainSign(['GREEN FINGERS', 'GARDEN CENTRE'], { w: 384, h: 90, bg: '#245b3c', border: '#163b2a', fg: '#fff2ca' }) }));
+  for (const x of [-3.35, 3.35]) solidBox(B, arch.F, x, 1.58, 0, 0.16, 3.16, 0.17, 0x315b45, 'GARDEN CENTRE GATE');
+  const gate = new T.Mesh(new T.PlaneGeometry(6.9, 1), new T.MeshBasicMaterial({ map: plainSign(['GREEN FINGERS', 'GARDEN CENTRE'], { w: 384, h: 90, bg: '#245b3c', border: '#163b2a', fg: '#fff2ca' }) }));
   gate.position.copy(new T.Vector3(0, 3.13, 0.1).applyMatrix4(arch.F)); gate.rotation.y = -arch.th; scene.add(gate);
   for (const [d, s, height] of [[5.2, 19.5, 1.4], [-5.4, 24, 1.12]]) {
     const shed = site(W, s, d);
@@ -195,20 +183,20 @@ function carPark(scene, W) {
     const climb = W.P(s - 4.55, d), grade = (W.P(s - 2.55, d).y - W.P(s - 6.55, d).y) / 4;
     addRamp(scene, climb, climb.th, 2.4, 4, height + 0.04, 'wood', 'SHED DISPLAY RAMP', 31, grade);
   }
-  const kicker = W.P(23, -1.35);
+  const kicker = W.P(23, -2.27);
   addRamp(scene, kicker, kicker.th, 1.1, 2.8, 0.44, 'wood', 'COMPOST BAG KICKER', 23);
   for (let i = 0; i < 4; i++) {
-    const p = W.P(21.8 + i * 0.68, -2.3, 0.16);
+    const p = W.P(21.8 + i * 0.68, -3.26, 0.16);
     W.dyn.push({ type: 'compost', ...p, yaw: -p.th });
-    bx(B, site(W, 22.3 + i * 0.58, -1.36).F, 0, 0.05 + i * 0.082, 0, 1.1, 0.15, 0.42, i % 2 ? 0x719244 : 0x48783e);
+    bx(B, site(W, 22.3 + i * 0.58, -2.27).F, 0, 0.05 + i * 0.082, 0, 1.1, 0.15, 0.42, i % 2 ? 0x719244 : 0x48783e);
   }
   pickup(W, 'seed', 31, 0);
 }
 
 function outdoor(scene, W) {
-  const start = W.marks[3], end = W.marks[7], r = rng(903);
-  for (let i = 0; i < 7; i++) {
-    const s = start + 8 + i * 8.8, side = i % 2 ? -1 : 1, p = site(W, s, side * 2.74);
+  const start = W.sections.plants, r = rng(903);
+  for (let i = 0; i < 8; i++) {
+    const s = start + 9 + Math.floor(i / 2) * 12, side = i % 2 ? -1 : 1, p = site(W, s, side * 3.91);
     const L = sb('plants' + Math.floor(i / 2), 'lam');
     surfaceBox(L, p.F, 0, 0.38, 0, 1.25, 0.12, 6.4, 0x815a3b, 'PLANT BENCH');
     for (const x of [-0.49, 0.49]) for (const z of [-2.85, 2.85]) solidBox(L, p.F, x, 0.17, z, 0.1, 0.34, 0.12, 0x4f583a, 'PLANT BENCH LEG');
@@ -219,7 +207,10 @@ function outdoor(scene, W) {
     addRamp(scene, lead, p.th, 0.83, 2.15, 0.45, 'wood', 'BENCH LEAD-IN', 21);
     const rail = new T.Vector3(railX, 0.503, 0).applyMatrix4(p.F);
     W.grinds.push({ x: rail.x, z: rail.z, y: rail.y, fx: Math.sin(p.th), fz: -Math.cos(p.th), half: 3.1 });
-    for (let n = -2; n < 3; n++) plants(L, p.F, side * 0.20, 0.44, n * 1.14, pick(r, [0xed91a3, 0xe9be54, 0xe0e0e8]), 0.75);
+    for (let n = -2; n < 3; n++) {
+      plants(L, p.F, side * 0.20, 0.44, n * 1.14, pick(r, [0xed91a3, 0xe9be54, 0xe0e0e8]), 0.75);
+      bx(L, p.F, 0.028, 0.12, 0.24, -side * 0.63, 0.4, n * 1.14, 0xf7ebce);
+    }
     for (const z of [-2.8, 2.8]) cy(L, p.F, 0.06, 2.8, side * 0.58, 1.4, z, 0x59634e, 6);
     bx(L, p.F, 0.11, 0.11, 5.9, side * 0.58, 2.79, 0, 0x59634e);
     for (const z of [-1.8, 0, 1.8]) {
@@ -228,64 +219,68 @@ function outdoor(scene, W) {
     }
   }
   for (let i = 0; i < 9; i++) {
-    const p = W.P(start + 11 + i * 5.95, i % 2 ? -0.32 : 0.34, 0.22);
+    const p = W.P(start + 8 + i * 4.75, i % 2 ? -0.29 : -0.05, 0.22);
     W.dyn.push({ type: 'pot', ...p, yaw: 0 });
   }
-  for (let s = start + 5; s < end; s += 8) {
-    const p = site(W, s, -5.1);
-    const B = sb('plantsBeds' + Math.floor(s / 40), 'lam');
-    bx(B, p.F, 2.1, 0.25, 4.6, 0, 0.125, 0, 0x7c6242);
-    for (const z of [-1.6, -0.8, 0, 0.8, 1.6]) plants(B, p.F, 0, 0.25, z, pick(r, [0xead989, 0xd67ea7, 0xbcb4dc]), 0.86);
+  for (const side of [-1, 1]) for (let i = 0; i < 4; i++) {
+    const p = site(W, start + 8 + i * 12, side * 6.16);
+    const B = sb('nursery-stock', 'lam');
+    bx(B, p.F, 2.2, 0.22, 6.1, 0, 0.11, 0, 0x7c6242);
+    for (let j = 0; j < 8; j++) plants(B, p.F, j % 2 ? -0.54 : 0.46, 0.22,
+      -2.24 + Math.floor(j / 2) * 1.48, pick(r, [0xead989, 0xd67ea7, 0xbcb4dc]), 1.02);
   }
-  parkSign(scene, W.P(start + 2.5, -2.7), ['OUTDOOR PLANTS', 'POTS & BEDDING'], 2.2);
-  pickup(W, 'potPlant', start + 36);
+  parkSign(scene, W.P(start + 1, -3.7), ['OUTDOOR PLANTS', 'BEDDING 3 FOR £6'], 2.65);
+  parkSign(scene, W.P(start + 35, 5.2), ['POTS & PLANTERS', 'TERRACOTTA'], 2.15);
+  pickup(W, 'potPlant', start + 28, -0.36);
 }
 
 function glasshouse(scene, W) {
-  const { start: entry, end: exit } = W.junctions[0];
-  const between = (t, rise = 0) => {
-    const x = lerp(entry.x, exit.x, t), z = lerp(entry.z, exit.z, t);
-    const join = Math.min(sstep(0, 0.095, t), sstep(1, 0.905, t));
-    const grade = lerp(entry.y, exit.y, t), apron = W.groundY(x, z);
-    return { x, y: lerp(grade, Math.max(grade, apron + 0.17), join) + rise, z };
-  };
-  const yaw = Math.atan2(exit.x - entry.x, entry.z - exit.z);
-  const route = [];
-  for (let i = 0; i <= 36; i++) route.push(between(i / 36));
-  ribbon(route, 3.75, 'pave', 'GREENHOUSE FLOOR');
-  const B = sb('greenhouse', 'lam');
-  for (const t of [0.18, 0.29, 0.4, 0.51, 0.62, 0.73, 0.83]) {
-    const p = between(t);
-    const F = frame(p.x, p.y, p.z, -yaw);
-    for (const x of [-3.1, 3.1]) {
-      surfaceBox(B, F, x, 1.31, 0, 0.12, 2.62, 0.14, 0x648b6e, 'GLASSHOUSE POSTS');
-      bx(B, F, 0.12, 0.14, 5.4, x, 2.58, 0, 0x638c74);
-      for (const h of [0.17, 1.36]) bx(B, F, 0.1, 0.085, 5.4, x, h, 0, 0x709f80);
-      bx(sb('greenhouse-sides', 'glass'), F, 0.04, 2.3, 5.3, x, 1.35, 0, 0xcdebe0);
+  const start = W.sections.glass, length = 31, end = start + length;
+  const at = (s, x, y) => xyz(W.P(start + s, x, y));
+  const steel = sb('greenhouse', 'lam'), sides = new Batch(), roof = new Batch(), roofCollider = new Batch();
+  const paint = sb('greenhouse-walk', 'mark');
+  const posts = [-4.15, 4.15], eave = 2.7, ridge = 3.7;
+  for (let s = 0; s <= length; s += 3.875) {
+    const p = site(W, start + s, 0);
+    for (const x of posts) {
+      solidBox(steel, p.F, x, eave / 2, 0, 0.11, eave, 0.11, 0x436955, 'GLASSHOUSE FRAME');
+      bx(steel, p.F, 0.18, 0.22, 0.18, x, 0.14, 0, 0x607465);
+      seg(steel, p.F, [x, eave, 0], [0, ridge, 0], 0.043, 0x4b715a, 6);
     }
-    bx(B, F, 6.3, 0.1, 0.13, 0, 2.64, 0, 0x7ca18b);
-    if (t < 0.79) W.dyn.push({ type: 'pane', x: p.x, y: p.y + 1.08, z: p.z, yaw: -yaw, w: 2.28 });
+    if (s === length) continue;
+    for (const x of posts) {
+      sides.quad(at(s, x, 0.28), at(s + 3.875, x, 0.28), at(s + 3.875, x, eave), at(s, x, eave), 0xa9d5be);
+      for (const y of [0.23, 1.37, eave]) seg(steel, null, at(s, x, y), at(s + 3.875, x, y), 0.045, 0x588565, 6);
+      const peak = at(s, 0, ridge), nextPeak = at(s + 3.875, 0, ridge);
+      const ends = [at(s, x, eave), at(s + 3.875, x, eave)];
+      const quad = x < 0 ? [ends[0], peak, nextPeak, ends[1]] : [peak, ends[0], ends[1], nextPeak];
+      roof.quad(...quad, 0xb8d7b9); roofCollider.quad(...quad);
+    }
+    seg(steel, null, at(s, 0, ridge), at(s + 3.875, 0, ridge), 0.06, 0x426e52, 6);
+    const shelf = site(W, start + s + 1.95, -3.35);
+    bx(steel, shelf.F, 0.83, 0.09, 2.75, 0, 0.61, 0, 0x795e46);
+    for (const z of [-0.85, 0, 0.85]) plants(steel, shelf.F, 0, 0.65, z, 0xecc48b, 0.58);
+    const lane = [at(s + 0.035, -0.23, 0.015), at(s + 0.035, -0.17, 0.015), at(s + 0.48, -0.17, 0.015), at(s + 0.48, -0.23, 0.015)];
+    paint.quad(...lane, 0xf0d987);
   }
-  const high = W.P(W.marks[7] + 6, -0.95);
-  const roofStart = between(0.17, 2.79), roofEnd = between(0.79, 2.79);
-  const roofExit = W.P(W.marks[12] + 1.75, -4.3);
-  ribbon([high, roofStart, roofEnd, roofExit], 2.65, 'glass', 'SLOPING GLASS ROOF');
-  // The side of the roof stays open so a missed shortcut can rejoin the paving.
-  const arrows = sb('glass-arrows', 'mark');
-  for (const t of [0.05, 0.1]) {
-    const p = between(t, 0.035), F = frame(p.x, p.y, p.z, -yaw);
-    bx(arrows, F, 0.13, 0.01, 0.48, -0.13, 0, 0, 0xe5e5a7, 0, -0.55);
-    bx(arrows, F, 0.13, 0.01, 0.48, 0.13, 0, 0, 0xe5e5a7, 0, 0.55);
+  const glass = new T.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.38, side: T.DoubleSide, depthWrite: false });
+  scene.add(sides.mesh(glass, [false, false]), roof.mesh(glass, [false, false]));
+  const mesh = roofCollider.geometry();
+  staticMeshCol(mesh, collider('GLASSHOUSE ROOF'), { friction: 0.7, rest: 0.02 }); mesh.dispose();
+  // Clear left aisle, breakable panes in the adjacent display lane.
+  for (let n = 0; n < 6; n++) {
+    const p = W.P(start + 5 + n * 4.27, 1.38, 1.08);
+    W.dyn.push({ type: 'pane', ...p, yaw: -p.th, w: 2.1 });
   }
-  // Both glasshouse routes rejoin before the gnome display.
-  pickup(W, 'gnome', W.marks[12] + 10, -0.42);
-  const sign = W.P(W.marks[8] - 3, -4.05);
-  parkSign(scene, sign, ['GLASSHOUSE', 'ROOF RAMP TO LEFT'], 2.25);
-  W.glassRoute = { entry, exit, between, yaw };
+  // A low side platform reaches the outer roof without crossing the main aisle.
+  const ramp = [W.P(start - 11, 5.45), W.P(start - 7, 5.4, 0.8), W.P(start - 2, 4.55, 2.48), W.P(start + 4, 3.3, 2.92)];
+  ribbon(ramp, 1.65, 'wood', 'GLASSHOUSE ROOF RAMP');
+  parkSign(scene, W.P(start - 5, -3.65), ['GLASSHOUSE', 'OPEN AISLE ON LEFT'], 2.6);
+  pickup(W, 'gnome', end + 4, 0);
 }
 
 function waterFeatures(scene, W) {
-  const pond = W.pond, flat = W.P(W.marks[13] + 5, 0);
+  const s = W.sections.water, pond = W.pond, flat = W.P(s + 7, 0);
   const material = new T.MeshLambertMaterial({ color: 0x70a28f, map: TX.water.clone(), transparent: true, opacity: 0.76 });
   material.map.repeat.set(2.2, 2.7);
   const geo = new T.CircleGeometry(1, 32); geo.rotateX(-Math.PI / 2);
@@ -307,60 +302,61 @@ function waterFeatures(scene, W) {
   }
   W.fish = fish;
   const B = sb('garden-water', 'lam'), fountains = [];
-  for (const d of [-1.8, 1.82]) {
-    const p = site(W, W.marks[14] + 4.4, d);
+  for (const d of [-2.15, 2.15]) {
+    const p = site(W, s + 14, d);
     bx(B, p.F, 0.42, 0.08, 0.45, 0, 0.04, 0, 0x596b65);
     cy(B, p.F, 0.14, 0.14, 0, 0.1, 0, 0xbfc9bf, 12);
     fountains.push({ x: p.x, y: p.y + 0.16, z: p.z, vx: Math.cos(p.th) * -d * 1.55, vz: Math.sin(p.th) * -d * 1.55 });
   }
-  const plinth = site(W, W.marks[14] + 9, -3.9);
+  const plinth = site(W, s + 21, -3.9);
   solidBox(B, plinth.F, 0, 0.36, 0, 1.66, 0.72, 1.5, 0x839a92, 'FOUNTAIN PLINTH');
   for (const [h, radius] of [[0.82, 0.64], [1.32, 0.48], [1.75, 0.32]]) cy(B, plinth.F, radius, 0.14, 0, h, 0, 0xc5d3c5, 12);
   cy(B, plinth.F, 0.14, 1.13, 0, 1.24, 0, 0xb1c1b7, 12);
-  parkSign(scene, W.P(W.marks[14] + 6.8, -4.8), ['£899', 'DELUXE CASCADE'], 1.38);
+  parkSign(scene, W.P(s + 18, -4.8), ['£899', 'DELUXE CASCADE'], 1.38);
   fountains.push({ x: plinth.x, y: plinth.y + 1.8, z: plinth.z, vx: 0, vz: 0 });
   W.fountains = fountains;
   W.waterSound = p => clamp(1 - Math.hypot(p.x - flat.x, p.z - flat.z) / 15, 0, 1);
-  pickup(W, 'fishFood', W.marks[14] - 1.5, 0.42);
-  parkSign(scene, W.P(W.marks[12] + 6, -2.68), ['WATER FEATURES', 'KOI POND'], 2.1);
+  pickup(W, 'fishFood', s + 12, 0.36);
+  parkSign(scene, W.P(s - 4, -4.0), ['WATER FEATURES', 'KOI POND'], 2.1);
 }
 
 function gardenFurniture(scene, W) {
-  const { start: entry, end: exit } = W.junctions[1];
-  const point = (t, rise = 0) => ({ x: lerp(entry.x, exit.x, t), y: lerp(entry.y, exit.y, t) + rise, z: lerp(entry.z, exit.z, t) });
-  const axis = new T.Vector3(exit.x - entry.x, 0, exit.z - entry.z).normalize();
-  const full = Math.hypot(exit.x - entry.x, exit.z - entry.z), half = 3.35 / full;
-  const bowl = point(0.53, 0.82), inlet = point(0.53 - half, 0.82), outlet = point(0.53 + half, 0.82);
-  ribbon([entry, point(0.30, 0.5), inlet], 3.2, 'wood', 'HOT TUB IN');
-  ribbon([outlet, point(0.73, 0.47), exit], 3.2, 'wood', 'HOT TUB OUT');
-  const rings = [new T.Vector2(0, -0.62), new T.Vector2(2, -0.60), new T.Vector2(2.48, -0.48), new T.Vector2(2.96, -0.26), new T.Vector2(3.31, 0), new T.Vector2(3.52, 0), new T.Vector2(3.53, -1.12)];
-  const geo = new T.LatheGeometry(rings, 32);
-  // Lathe's front face assumes a descending profile. Reverse it for the inside of the display bowl.
-  const indices = geo.index.array;
+  const f = W.sections.furniture, dock = W.P(f + 5, -5.35);
+  const entry = W.P(f - 2, -5.35), exit = W.P(f + 12, -5.35);
+  const bowl = { ...dock, y: dock.y + 0.62 };
+  const inlet = { ...W.P(f + 2.9, -5.35), y: bowl.y + 0.04 };
+  const outlet = { ...W.P(f + 7.32, -5.35), y: bowl.y - 0.085 };
+  const rimTop = { ...W.P(f + 7.7, -5.35), y: bowl.y + 0.01 };
+  ribbon([entry, inlet], 2, 'wood', 'HOT TUB IN');
+  ribbon([outlet, rimTop, exit], 2, 'wood', 'HOT TUB OUT');
+  const rings = [new T.Vector2(0, -0.45), new T.Vector2(1.43, -0.44), new T.Vector2(1.84, -0.32), new T.Vector2(2.17, -0.15),
+    new T.Vector2(2.45, 0), new T.Vector2(2.59, 0), new T.Vector2(2.6, -0.7)];
+  const geo = new T.LatheGeometry(rings, 32), indices = geo.index.array;
   for (let i = 0; i < indices.length; i += 3) [indices[i + 1], indices[i + 2]] = [indices[i + 2], indices[i + 1]];
   geo.translate(bowl.x, bowl.y, bowl.z); geo.computeVertexNormals();
   const bowlMesh = new T.Mesh(geo, new T.MeshLambertMaterial({ color: 0x82acaa, side: T.DoubleSide }));
   bowlMesh.receiveShadow = true; scene.add(bowlMesh);
   staticMeshCol(geo, collider('HOT TUB DISPLAY'), { friction: 0.68, rest: 0.06 });
   const B = sb('furniture', 'lam');
-  const cuff = new T.CylinderGeometry(3.5, 3.48, 1.1, 22, 1, true);
-  B.add(cuff, M(bowl.x, bowl.y - 0.58, bowl.z, 0, 0, 0, 1, 1, 1), 0x7e5540);
-  W.hotTub = { ...bowl, axis, radius: 3.5, entry, exit };
-  parkSign(scene, W.P(W.marks[18] - 4, -3.7), ['GARDEN FURNITURE', 'HOT TUB DEMO'], 2.35);
+  const cuff = new T.CylinderGeometry(2.6, 2.58, 0.7, 22, 1, true);
+  B.add(cuff, M(bowl.x, bowl.y - 0.35, bowl.z, 0, 0, 0, 1, 1, 1), 0x7e5540);
+  parkSign(scene, W.P(f - 5, -3.75), ['GARDEN FURNITURE', 'HOT TUB DEMO'], 2.55);
 
-  const f = W.marks[20], trampoline = site(W, f + 3.5, 0.15);
+  const trampoline = site(W, f + 13.5, 2.95);
   const mat = frame(trampoline.x, trampoline.y, trampoline.z, -trampoline.th);
-  addRamp(scene, W.P(f + 0.6, 0.15), trampoline.th, 2.5, 2.4, 0.34, 'wood', 'TRAMPOLINE ACCESS', 22);
+  const matEdge = { ...W.P(f + 12.32, 2.95), y: trampoline.y + 0.4425 };
+  ribbon([W.P(f + 9, 2.95), matEdge], 1.85, 'wood', 'TRAMPOLINE ACCESS');
   cy(B, mat, 1.53, 0.13, 0, 0.325, 0, 0x3d7b66, 16);
   cy(B, mat, 1.38, 0.085, 0, 0.39, 0, 0x383d42, 16);
   for (let i = 0; i < 8; i++) {
     const a = i * TAU / 8;
     cy(B, mat, 0.035, 0.29, Math.cos(a) * 1.28, 0.145, Math.sin(a) * 1.28, 0xadb1af, 6);
   }
-  staticCyl(trampoline.x, trampoline.y + 0.32, trampoline.z, 1.53, 0.12, collider('TRAMPOLINE MAT'), { friction: 0.7, rest: 0.18 });
-  W.trampoline = { x: trampoline.x, y: trampoline.y + 0.44, z: trampoline.z, r: 1.48 };
+  const matY = trampoline.y + 0.4325;
+  staticCyl(trampoline.x, matY - 0.045, trampoline.z, 1.38, 0.09, collider('TRAMPOLINE MAT'), { friction: 0.7, rest: 0.18 });
+  W.trampoline = { x: trampoline.x, y: matY, z: trampoline.z, r: 1.43 };
   for (let i = 0; i < 6; i++) {
-    const p = site(W, f - 14 + i * 4.8, i % 2 ? -4.55 : 4.75);
+    const p = site(W, f + 17 + Math.floor(i / 2) * 4.8, i % 2 ? -5.65 : 5.07);
     surfaceBox(B, p.F, 0, 0.68, 0, 1.45, 0.11, 1.62, 0x996b43, 'PICNIC TABLE');
     for (const x of [-0.87, 0.87]) surfaceBox(B, p.F, x, 0.41, 0, 0.34, 0.08, 1.62, 0x996b43, 'PICNIC BENCH');
     for (const x of [-0.5, 0.5]) for (const z of [-0.59, 0.59]) bx(B, p.F, 0.12, 0.63, 0.12, x, 0.31, z, 0x556045);
@@ -386,8 +382,8 @@ function santaModel() {
   return B.mesh(mats().lam);
 }
 function grotto(scene, W) {
-  const s = W.marks[23] + 6, B = sb('grotto', 'lam'), deer = new Batch();
-  parkSign(scene, W.P(s - 4, -2.85), ['CHRISTMAS GROTTO', 'MIND THE SLEIGH'], 2.6, '#772c35');
+  const s = W.sections.seasonal, B = sb('grotto', 'lam'), deer = new Batch();
+  parkSign(scene, W.P(s - 4, -2.85), ['SEASONAL DISPLAY', 'CHRISTMAS GROTTO'], 2.6, '#772c35');
   for (let i = 0; i < 4; i++) {
     const p = site(W, s + i * 4.75, i % 2 ? -3.65 : 4);
     B.add(GEO.ico, FM(p.F, 0, 0.73, 0, 0, 0, 0, 0.36, 0.36, 0.67), 0xa38152);
@@ -404,21 +400,21 @@ function grotto(scene, W) {
     staticBox(p.x, pY, p.z, 0.32, 0.35, 0.60, -p.th, { kind: 'wall', name: 'REINDEER DISPLAY' });
   }
   scene.add(deer.mesh(new T.MeshBasicMaterial({ vertexColors: true }), [false, false]));
-  const p = W.P(s + 10, 1.32, 1.23);
+  const p = W.P(s + 10, 2.36, 1.23);
   W.dyn.push({ type: 'santa', ...p, yaw: -p.th, mesh: santaModel() });
-  const sleigh = W.P(s + 18, -0.48);
+  const sleigh = W.P(s + 18, -2.32);
   addRamp(scene, sleigh, sleigh.th, 1.75, 3.8, 0.77, 'wood', 'SANTA’S SLEIGH', 29);
-  const sf = site(W, s + 18, -0.48).F;
+  const sf = site(W, s + 18, -2.32).F;
   for (const x of [-0.87, 0.87]) {
     bx(B, sf, 0.14, 0.59, 2.1, x, 0.35, -0.79, 0xb23338);
     seg(B, sf, [x, 0.12, 1.75], [x, 0.12, -1.50], 0.087, 0xe3b653, 8);
     seg(B, sf, [x, 0.12, -1.50], [x, 0.38, -1.84], 0.087, 0xe3b653, 8);
   }
-  pickup(W, 'mincePie', s + 17.5, -0.45, 1.11);
+  pickup(W, 'mincePie', s + 17.5, 0, 0.94);
 }
 
 function cafe(scene, W) {
-  const s = W.total - 12, center = site(W, s, 0), L = sb('cafe', 'lam'), brick = sb('cafe', 'brickY');
+  const s = W.sections.tills, center = site(W, s, 0), L = sb('cafe', 'lam'), brick = sb('cafe', 'brickY');
   const back = site(W, W.total - 1, 0);
   solidBox(brick, back.F, 0, 2.1, -3.6, 14, 4.2, 6.4, 0xcabaa0, 'GARDEN CAFÉ');
   bx(L, back.F, 14.35, 0.28, 6.7, 0, 4.35, -3.6, 0x2f694b);
@@ -427,29 +423,15 @@ function cafe(scene, W) {
   const label = fascia('CAFÉ & TILLS', { w: 512, h: 72, size: 48, bg: '#2a6043', fg: '#f0e2b4' });
   const mesh = new T.Mesh(new T.PlaneGeometry(8.3, 0.96), new T.MeshBasicMaterial({ map: label }));
   mesh.position.copy(new T.Vector3(0, 3.62, -0.29).applyMatrix4(back.F)); mesh.rotation.y = -back.th; scene.add(mesh);
-  for (const x of [-1.65, 1.65]) for (const z of [-2.16, 2.16]) solidBox(L, center.F, x, 1.15, z, 0.12, 2.3, 0.12, 0x4b6252, 'RETURN BAY POST');
-  solidBox(L, center.F, 0, 2.39, 0, 3.55, 0.14, 4.65, 0x397954, 'RETURN BAY ROOF');
-  bx(sb('cafe', 'mark'), center.F, 3.05, 0.012, 4.55, 0, 0.018, 0, 0xc9bc58);
+  for (const x of [-2.57, 2.57]) for (const z of [-2.16, 2.16]) solidBox(L, center.F, x, 1.15, z, 0.12, 2.3, 0.12, 0x4b6252, 'RETURN BAY POST');
+  solidBox(L, center.F, 0, 2.39, 0, 5.31, 0.14, 4.65, 0x397954, 'RETURN BAY ROOF');
+  bx(sb('cafe', 'mark'), center.F, 4.84, 0.012, 4.55, 0, 0.018, 0, 0xc9bc58);
   parkSign(scene, W.P(s - 7, -3.5), ['TROLLEY RETURN', 'CAFÉ & TILLS'], 2.5);
-  W.finishes = [{ x: center.x, y: center.y, z: center.z, hx: 1.39, hz: 2.1 }];
-}
-
-function terraceSteps(W) {
-  const B = sb('terrace-steps', 'lam');
-  for (const index of [2, 7, 11, 22]) {
-    const begin = W.marks[index], end = W.marks[index + 1];
-    for (let i = 0; i < 8; i++) {
-      const s = lerp(begin + 2, end - 2, (i + 0.5) / 8);
-      const p = site(W, s, index === 11 ? 4.15 : -4.15);
-      const tread = (end - begin - 4) / 8 + 0.06;
-      surfaceBox(B, p.F, 0, 0.015, 0, 1.49, 0.13, tread, 0xb2a795, 'TERRACE TREAD');
-      bx(B, p.F, 1.49, 0.015, 0.055, 0, 0.087, -tread / 2 + 0.06, 0xe5dbb9);
-    }
-  }
+  W.finishes = [{ x: center.x, y: center.y, z: center.z, hx: 2.39, hz: 2.1 }];
 }
 
 function wayfinding(scene, W) {
-  for (let s = 41; s < W.total - 24; s += 13) {
+  for (let s = 38; s < W.total - 24; s += 10) {
     const paint = sb('garden-way' + Math.floor(s / 60), 'mark');
     const at = (ahead, d) => xyz(W.P(s + ahead, d, 0.012));
     for (const side of [-1, 1]) {
@@ -458,14 +440,32 @@ function wayfinding(scene, W) {
       paint.quad(...points, 0xeee6c8);
     }
   }
-  const vista = W.P(W.marks[16] + 4.5, -3.6);
+  const vista = W.P(W.sections.furniture - 16, -4.35);
   parkSign(scene, vista, ['CAFÉ & TILLS', 'FOLLOW THE PATH'], 2.22);
+}
+
+function terraceRails(W) {
+  for (const [begin, end, d] of [[1, 31, -7.65], [1, 31, 7.65], [W.sections.water + 22, W.sections.furniture - 8, 7.65]]) {
+    const wood = sb('rails' + begin, 'lam');
+    for (let s = begin; s < end; s += 3) {
+      const a = W.P(s, d), b = W.P(Math.min(s + 3, end), d);
+      const length = Math.hypot(b.x - a.x, b.z - a.z), yaw = Math.atan2(a.x - b.x, a.z - b.z);
+      const pitch = Math.atan2(b.y - a.y, length);
+      const F = frame((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, yaw, pitch);
+      bx(wood, F, 0.15, 0.74, 0.15, 0, 0.37, length / 2, 0x7f6447);
+      for (const h of [0.29, 0.61]) {
+        bx(wood, F, 0.12, 0.14, length + 0.04, 0, h, 0, 0x8f7252);
+        const p = new T.Vector3(0, h, 0).applyMatrix4(F);
+        staticBox(p.x, p.y, p.z, 0.06, 0.07, (length + 0.04) / 2, yaw, { kind: 'wall', name: 'TIMBER RAIL' }, pitch);
+      }
+    }
+  }
 }
 
 function gardenBackdrop(scene, W) {
   const B = new Batch(), r = rng(168);
-  for (let x = -170; x <= 210; x += 34) for (let z = -257; z <= 82; z += 33) {
-    if (x > -45 && x < 153 && z > -224 && z < 51) continue;
+  for (let x = -132; x <= 172; x += 34) for (let z = -238; z <= 82; z += 33) {
+    if (x > -33 && x < 89 && z > -204 && z < 51) continue;
     const y = 1 + r() * 8;
     B.add(GEO.ico1, M(x, y - 4, z, 0, r() * TAU, 0, 29 + r() * 20, y + r() * 10, 31 + r() * 14), pick(r, [0x82a373, 0x728d69, 0x9ab178]));
     for (let i = 0; i < 5; i++) {
@@ -478,9 +478,9 @@ function gardenBackdrop(scene, W) {
   field.quad([-200, -1.6, 85], [210, -1.6, 85], [210, -1.6, -264], [-200, -1.6, -264], 0xa9b78a, [0, 0, 48, 48]);
   staticBox(5, -1.71, -89.5, 205, 0.10, 174.5, 0, collider('HILLSIDE'));
   const rows = [], step = 4, dirt = sb('garden-earth', 'grass');
-  for (let z = 56; z >= -224; z -= step) {
+  for (let z = 56; z >= -208; z -= step) {
     const row = [];
-    for (let x = -48; x <= 148; x += step) row.push([x, earthHeight(W, x, z), z]);
+    for (let x = -36; x <= 96; x += step) row.push([x, earthHeight(W, x, z), z]);
     rows.push(row);
   }
   for (let i = 0; i < rows.length - 1; i++) for (let j = 0; j < rows[i].length - 1; j++) {
@@ -541,13 +541,12 @@ export function buildGarden(scene) {
   buildSky(scene, W);
   W.sky.material.uniforms.top.value.setHex(0x88afd3);
   W.sky.material.uniforms.hor.value.setHex(0xe5ebcd);
-  const pondSite = W.P(W.marks[13] + 2.4, 5.6);
-  W.pond = { x: pondSite.x, z: pondSite.z, rx: 3.45, rz: 4.8, water: pondSite.y - 0.06 };
-  W.junctions = [{ start: W.P(W.marks[8], 0), end: W.P(W.marks[12], -2.65) },
-    { start: W.P(W.marks[18] - 0.2, 0), end: W.P(W.marks[22] - 1, 0) }];
+  const pondSite = W.P(W.sections.water + 6, 6.15);
+  W.pond = { x: pondSite.x, z: pondSite.z, rx: 2.75, rz: 4.45, water: pondSite.y - 0.06 };
+  const fallHeight = {};
+  W.fellOff = (p, local) => p.y < W.roadAt(local.s, fallHeight).y - 1.6 || local.dist > 12;
   path(W); gardenBackdrop(scene, W);
-  terraceSteps(W);
-  wayfinding(scene, W);
+  terraceRails(W); wayfinding(scene, W);
   carPark(scene, W); outdoor(scene, W); glasshouse(scene, W); waterFeatures(scene, W);
   gardenFurniture(scene, W); grotto(scene, W); cafe(scene, W);
   W.reset = () => {
