@@ -78,6 +78,37 @@ function house(F, yaw, r, chunk, kind) {
   colBox(F, yaw, 2.2, 2.9, 0.75, -1.15, 1.2, 0.375, { kind: 'house', name: 'BAY WINDOW' });
 }
 const GARDEN_FRONT = ['wall', 'hedge', 'wall', 'wall', 'hedge', 'picket'];
+function graffitiMaterial() {
+  const map = signTex(256, 256, g => {
+    g.lineJoin = g.lineCap = 'round';
+    const tag = new Path2D('M14 42 L35 26 L29 88 M17 87 L44 85 M58 35 Q78 18 86 40 L83 70 Q77 93 58 87 Q46 85 50 61 Z M105 86 L111 32 L134 30 M110 56 L129 54 M146 35 Q163 24 171 39 L167 68 Q163 86 148 84 Q136 80 139 61 Z M183 34 Q200 23 207 39 L204 67 Q198 84 185 82 Q174 79 176 62 Z M216 32 L246 29 M231 33 L226 82');
+    g.strokeStyle = '#263234'; g.lineWidth = 16; g.stroke(tag);
+    g.strokeStyle = '#e3dfbf'; g.lineWidth = 8; g.stroke(tag);
+    g.lineWidth = 3; g.stroke(new Path2D('M104 93 Q160 100 220 89 M34 91 L33 103 M203 76 L202 94'));
+
+    g.translate(0, 128);
+    const face = new Path2D('M53 72 C55 38 82 18 122 19 C162 18 192 39 195 72 M95 71 C108 68 121 70 130 83 C133 90 135 102 124 108 C114 114 105 107 109 98 L110 89 M37 79 Q29 65 23 72 L27 83 M47 79 Q40 63 35 70 L40 83 M207 79 Q212 64 218 70 L213 83 M219 79 Q224 65 231 72 L227 83');
+    g.strokeStyle = '#ded4bb'; g.lineWidth = 9; g.stroke(face);
+    g.strokeStyle = '#252828'; g.lineWidth = 5.5; g.stroke(face);
+    for (const x of [100, 149]) {
+      g.beginPath(); g.ellipse(x, 55, 13, 15, 0, 0, TAU);
+      g.fillStyle = '#f0e7cf'; g.fill(); g.stroke();
+      g.beginPath(); g.ellipse(x + 3, 58, 4.3, 6.8, 0, 0, TAU);
+      g.fillStyle = '#252828'; g.fill();
+    }
+  });
+  return new T.MeshLambertMaterial({ map, alphaTest: 0.24, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+}
+function paintGardenWall(scene, F, yaw, material, face) {
+  const geometry = new T.PlaneGeometry(face ? 2.3 : 3.12, face ? 0.84 : 0.51);
+  const uv = geometry.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * 0.5 + (face ? 0 : 0.5));
+  const paint = new T.Mesh(geometry, material);
+  paint.name = face ? 'Peeking face graffiti' : '10 FOOT graffiti';
+  paint.position.copy(wp(F, -0.85, face ? 0.696 : 0.28, face ? 4.041 : 4.012));
+  paint.rotation.y = yaw; paint.receiveShadow = true;
+  scene.add(paint);
+}
 function frontGarden(F, yaw, chunk, style) {
   const wd = 5.2, gz = 4.0, L = sb(chunk, 'lam');
   // path to the front door
@@ -91,7 +122,7 @@ function frontGarden(F, yaw, chunk, style) {
   seg2(-wd / 2, 0.9); seg2(2.0, wd / 2);
 }
 function terraces(scene) {
-  const r = rng(42);
+  const r = rng(42), paint = graffitiMaterial();
   for (const side of [-1, 1]) for (const [a, b] of W.houses[side < 0 ? 'L' : 'R']) {
     for (let s = a + 2.6, n = side < 0 ? 0 : 3; s < b - 2.5; s += 5.2, n++) {
       if (side < 0 && s > 473 && s < 482) { shopFront(scene, s, side); continue; }
@@ -99,6 +130,8 @@ function terraces(scene) {
       const R = roadAt(s, {}), d = side * (R.w + 6.2), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d) - 0.01;
       const yaw = yawTo(-side * R.rx, -side * R.rz), F = frame(x, y, z, yaw), chunk = chunkOf(s);
       house(F, yaw, r, chunk); frontGarden(F, yaw, chunk, GARDEN_FRONT[n % GARDEN_FRONT.length]);
+      if (side === 1 && a === 8 && n === 15) paintGardenWall(scene, F, yaw, paint, true);
+      if (side === -1 && a === 8 && n === 42) paintGardenWall(scene, F, yaw, paint, false);
     }
   }
 }
@@ -197,14 +230,14 @@ function parkedCars(scene) {
 // ---------------- roadworks ----------------
 function roadworks(scene) {
   // barriered-off right lane with a hole and a sand pile, well up the hill from the plank
-  // cones along the works
-  for (let s = 243; s <= 271; s += 2.6) { const R = roadAt(s, {}), d = 0.45, x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'cone', x, y: prof(s, d) + 0.36, z, yaw: 0 }); }
-  for (const [s, d, turn] of [[244, 2.2, 0], [266, 2.2, 0], [255, 1.3, Math.PI / 2], [255, 3.3, Math.PI / 2]]) { const R = roadAt(s, {}), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'barrier', x, y: prof(s, d) + 0.55, z, yaw: -R.th + turn + (turn ? 0 : Math.PI / 2) }); }
+  // Keep the cone line on the open side of the road, clear of the barriers and sand pile.
+  for (let s = 243; s <= 271; s += 2.6) { const p = P(s, -0.35, 0.36); W.dyn.push({ type: 'cone', x: p.x, y: p.y, z: p.z, yaw: 0 }); }
+  for (const [s, d, turn] of [[244, 2.2, 0], [266, 2.2, 0], [255, 1.65, Math.PI / 2], [255, 3.3, Math.PI / 2]]) { const R = roadAt(s, {}), x = R.x + R.rx * d, z = R.z + R.rz * d; W.dyn.push({ type: 'barrier', x, y: prof(s, d) + 0.55, z, yaw: -R.th + turn + (turn ? 0 : Math.PI / 2) }); }
   const hole = new T.Mesh(new T.PlaneGeometry(2.0, 18), new T.MeshLambertMaterial({ color: 0x3a2c22, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
   const hp = P(255, 2.1, 0.02); hole.position.set(hp.x, hp.y, hp.z); hole.rotation.order = 'YXZ'; hole.rotation.set(-Math.PI / 2, -hp.th, 0); scene.add(hole);
   // sand pile (static, rideable)
-  { const c = P(272, 2.2), pts = []; for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; pts.push(c.x + Math.cos(a) * 1.9, c.y, c.z + Math.sin(a) * 1.4); } pts.push(c.x, c.y + 1.05, c.z); staticHull(pts, { kind: 'ground', name: 'SAND PILE' });
-    const g = new T.SphereGeometry(1, 10, 6, 0, TAU, 0, Math.PI / 2); const m = new T.Mesh(g, mats().dirt); m.scale.set(1.9, 1.05, 1.4); m.position.set(c.x, c.y, c.z); m.receiveShadow = true; m.castShadow = true; scene.add(m); }
+  { const c = P(272, 2.6), width = 1.55, pts = []; for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; pts.push(c.x + Math.cos(a) * width, c.y, c.z + Math.sin(a) * 1.4); } pts.push(c.x, c.y + 1.05, c.z); staticHull(pts, { kind: 'ground', name: 'SAND PILE' });
+    const g = new T.SphereGeometry(1, 10, 6, 0, TAU, 0, Math.PI / 2); const m = new T.Mesh(g, mats().dirt); m.scale.set(width, 1.05, 1.4); m.position.set(c.x, c.y, c.z); m.receiveShadow = true; m.castShadow = true; scene.add(m); }
   // temporary lights
   for (const s of [220, 292]) { const R = roadAt(s, {}), d = -(R.w + 0.8), x = R.x + R.rx * d, z = R.z + R.rz * d, y = prof(s, d), L = sb(chunkOf(s), 'lam'), F = frame(x, y, z, -R.th + (s > 250 ? Math.PI : 0));
     cy(L, F, 0.05, 2.4, 0, 1.2, 0, 0x2a2a2e); bx(L, F, 0.3, 0.8, 0.25, 0, 2.6, 0, 0x2a2a2e); bx(L, F, 0.5, 0.15, 0.5, 0, 0.1, 0, 0xf2c81f);

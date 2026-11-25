@@ -123,19 +123,32 @@ export class Game {
   onCollision(h1, h2, started) {
     if (!started) return;
     const i1 = C.colInfo.get(h1), i2 = C.colInfo.get(h2); if (!i1 || !i2) return;
-    const tr = C.trolley, tv = tr.vel(), ts = Math.hypot(tv.x, tv.y, tv.z);
+    const tv = C.trolley.vel(), ts = Math.hypot(tv.x, tv.y, tv.z);
     const pair = (a, b) => (i1.kind === a && i2.kind === b) ? [i1, i2] : (i2.kind === a && i1.kind === b) ? [i2, i1] : null;
     let pp;
     if ((pp = pair('trolley', 'prop'))) {
       const p = pp[1].prop;
-      // Use approach speed for cones, since the solver may have slowed the trolley at contact.
-      const cone = p.type === 'cone', velocity = cone ? tr.v : tv;
-      const speed = cone ? Math.hypot(velocity.x, velocity.y, velocity.z) : ts;
-      if (speed <= (cone ? 0.45 : 1.2)) return;
-      if (C.props.knock(p, speed, velocity)) this.broke(p, speed); else this.sfxFor(p.type, speed);
+      if (ts <= 1.2) return;
+      if (C.props.knock(p, ts, tv)) this.broke(p, ts); else this.sfxFor(p.type, ts);
     }
     else if ((pp = pair('trolley', 'ped'))) { const pd = pp[1].ped; if (ts > 1.6 && C.props.hitPed(pd, tv)) { this.run.peds++; this.addCombo('LOLLIPOP LADY', 700); this.task('lollipop'); } }
     else if ((pp = pair('prop', 'prop'))) { const a = pp[0].prop, b = pp[1].prop; const moving = p => !p.body.isFixed() && !p.body.isSleeping() && (C.time - p.hitT < 3); const src = moving(a) ? a : moving(b) ? b : null, dst = src === a ? b : a; if (src && dst && !dst.hit) { const v = src.body.linvel(), rs = Math.hypot(v.x, v.y, v.z); if (rs > 1.5 && C.props.knock(dst, rs, v)) { this.broke(dst, rs, true); } } }
+  }
+  grazeCones(from, to, velocity, speed, scale) {
+    const props = C.props;
+    if (speed < 0.35 || to.z < props.coneMinZ || to.z > props.coneMaxZ) return;
+    // Sweep from the last update so a fast pass and a small gap both count as a hit.
+    const dx = to.x - from.x, dz = to.z - from.z, length2 = dx * dx + dz * dz;
+    const reach2 = (0.67 + 0.37 * scale) ** 2;
+    for (const cone of props.cones) {
+      if (cone.hit) continue;
+      const centre = cone.body.isSleeping() ? cone.mesh.position : cone.body.translation();
+      const u = length2 > 0 && length2 < 4
+        ? clamp(((centre.x - from.x) * dx + (centre.z - from.z) * dz) / length2, 0, 1) : 1;
+      const x = centre.x - lerp(from.x, to.x, u), z = centre.z - lerp(from.z, to.z, u);
+      if (x * x + z * z > reach2 || Math.abs(centre.y - lerp(from.y, to.y, u)) > 0.78 * scale) continue;
+      if (props.knock(cone, speed, velocity)) this.broke(cone, speed);
+    }
   }
   sfxFor(type, sp) { const k = clamp(sp / 8, 0.3, 1.2); if (type === 'bin') C.audio.sfx('bonk', k); else if (type === 'cone') C.audio.sfx('thwop', k); else if (type === 'pane') C.audio.sfx('glass'); else C.audio.sfx('thud', k * 0.7); }
   broke(p, sp, chain) {
@@ -191,8 +204,9 @@ export class Game {
     }
     if (this.state === 'push') { this.pushT -= dt; if (this.pushT <= 0 || p.z < 4) this.beginRun(); }
     if (this.state === 'run') R.time += dt;
+    this.grazeCones(this.hasLastPos ? this.lastPos : p, p, v, sp, tr.s);
     if (this.hasLastPos) { const d = Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.z); if (d < 5) R.dist += d; }
-    this.lastPos.x = p.x; this.lastPos.z = p.z; this.hasLastPos = true;
+    this.lastPos.x = p.x; this.lastPos.y = p.y; this.lastPos.z = p.z; this.hasLastPos = true;
     R.maxSpeed = Math.max(R.maxSpeed, sp); R.maxMph = Math.max(R.maxMph, mph);
     // where are we on the hill?
     const L = W.locate(p.x, p.z, this.roadPosition), s = L.s;

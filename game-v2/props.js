@@ -27,6 +27,9 @@ export class Props {
     this.frustum = new T.Frustum(); this.viewProjection = new T.Matrix4(); this.sphere = new T.Sphere();
     for (const d of C.world.dyn) this.create(d);
     this.bins = this.list.filter(p => p.type === 'bin');
+    this.cones = this.list.filter(p => p.type === 'cone');
+    this.coneMinZ = Math.min(...this.cones.map(p => p.home.z)) - 3;
+    this.coneMaxZ = Math.max(...this.cones.map(p => p.home.z)) + 3;
     if (this.instances) for (const batch of this.instances.values()) {
       batch.meshes = batch.parts.map(part => {
         const mesh = new T.InstancedMesh(part.geometry, part.material, batch.props.length);
@@ -62,9 +65,9 @@ export class Props {
     const bd = (S.fixed ? R.RigidBodyDesc.fixed() : R.RigidBodyDesc.dynamic().setSleeping(true).setCcdEnabled(false)).setTranslation(d.x, d.y, d.z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }).setAngularDamping(0.3).setLinearDamping(0.1);
     const body = C.phys.createRigidBody(bd);
     const sh = S.shape; let cd = sh[0] === 'cylinder' ? R.ColliderDesc.cylinder(sh[1], sh[2]) : R.ColliderDesc.cuboid(d.type === 'picket' ? (d.w || 2.4) / 2 : sh[1], sh[2], sh[3]);
-    cd.setTranslation(0, S.off || 0, 0).setMass(S.mass).setFriction(0.6).setRestitution(0.2).setCollisionGroups(ig(G.PROP, ALL)).setActiveEvents(R.ActiveEvents.COLLISION_EVENTS);
-    // Keep cone hit events, without letting the cone steer the trolley on contact.
-    if (d.type === 'cone') cd.setSolverGroups(ig(G.PROP, ALL & ~G.TROLLEY));
+    // The trolley checks for grazes separately. Cones still collide with the world and other props.
+    const collidesWith = d.type === 'cone' ? ALL & ~G.TROLLEY : ALL;
+    cd.setTranslation(0, S.off || 0, 0).setMass(S.mass).setFriction(0.6).setRestitution(0.2).setCollisionGroups(ig(G.PROP, collidesWith)).setActiveEvents(R.ActiveEvents.COLLISION_EVENTS);
     const col = C.phys.createCollider(cd, body);
     const p = { type: d.type, S, body, col, mesh, lid, lidA: 0, batch, parts, matrixDirty: true, fixed: !!S.fixed, far2: (S.far || 135) ** 2,
       home: { x: d.x, y: d.y, z: d.z, q: { x: q.x, y: q.y, z: q.z, w: q.w } }, hit: false, gone: false, hitT: -9 };
@@ -83,11 +86,10 @@ export class Props {
     if (p.type === 'cone' && first) {
       const horizontal = Math.hypot(velocity.x, velocity.z);
       const x = horizontal > 0.1 ? velocity.x / horizontal : 0, z = horizontal > 0.1 ? velocity.z / horizontal : -1;
-      const carry = clamp(2 + relSpeed * 0.45, 2, 10), spin = clamp(12 + relSpeed, 12, 26);
-      // Let the cone clear the basket cleanly while it can still strike scenery and other cones.
-      p.col.setCollisionGroups(ig(G.PROP, ALL & ~G.TROLLEY));
-      p.body.setLinvel({ x: x * carry - z * 0.85, y: 4.8 + Math.min(relSpeed, 16) * 0.16, z: z * carry + x * 0.85 }, true);
-      p.body.setAngvel({ x: -z * spin, y: 6, z: x * spin }, true);
+      const carry = clamp(2 + relSpeed * 0.37, 2, 8), spin = clamp(15 + relSpeed, 15, 27);
+      p.body.setGravityScale(0.78, true);
+      p.body.setLinvel({ x: x * carry - z * 2.1, y: 5.8 + Math.min(relSpeed, 16) * 0.14, z: z * carry + x * 2.1 }, true);
+      p.body.setAngvel({ x: -z * spin, y: 10, z: x * spin }, true);
     }
     if (p.type === 'bin' && first) { const q = p.body.translation(); C.fx.emit('rubbish', q.x, q.y + 0.4, q.z, 0, 2.5, 0, 16, 2.2); }
     return first;
@@ -98,7 +100,7 @@ export class Props {
       if (p.S.fixed && !p.fixed) { p.body.setBodyType(R.RigidBodyType.Fixed, false); p.fixed = true; }
       p.body.setTranslation(p.home, false); p.body.setRotation(p.home.q, false);
       if (p.gone) p.col.setSensor(false);
-      if (p.type === 'cone' && p.hit) p.col.setCollisionGroups(ig(G.PROP, ALL));
+      if (p.type === 'cone' && p.hit) p.body.setGravityScale(1, false);
       if (!p.fixed) { p.body.setLinvel({ x: 0, y: 0, z: 0 }, false); p.body.setAngvel({ x: 0, y: 0, z: 0 }, false); p.body.sleep(); }
       p.hit = false; p.gone = false; p.wasMoving = false; p.matrixDirty = true; p.mesh.visible = true; p.lidA = 0; if (p.lid) p.lid.rotation.x = 0;
       p.mesh.position.set(p.home.x, p.home.y, p.home.z); p.mesh.quaternion.set(p.home.q.x, p.home.q.y, p.home.q.z, p.home.q.w);

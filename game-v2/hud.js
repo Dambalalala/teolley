@@ -1,6 +1,6 @@
 import { C } from './core.js';
 import { clamp, fmt } from './util.js';
-import { SHOPPING_LIST, LIST_NAMES } from './game.js?v=grumbleton-receipt';
+import { SHOPPING_LIST, LIST_NAMES } from './game.js?v=roadworks-graffiti';
 
 // All three fonts are drawn on an 8-pixel grid, so sizes stay at multiples of 8 and every glyph is placed on a whole
 // device pixel; that keeps the letters as hard-edged as the rest of the game.
