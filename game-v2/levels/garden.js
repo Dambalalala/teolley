@@ -7,12 +7,29 @@ import { makeTrolley } from '../models.js?v=green-fingers';
 
 const T = C.T;
 const HALF = 2.85;
+// One long flowing S down the hillside: steady ~10% grade, wide bends, no hairpin to fly off.
 const stations = [
-  [0, 29, 35], [0, 28.3, 12], [0, 26.7, -10], [1.5, 24.7, -26],
-  [5, 23.65, -46], [5, 22.55, -65], [5, 21.45, -84], [5, 20.4, -104], [5, 19.25, -123],
-  [5, 18.15, -142], [9, 17.2, -157], [20, 16.0, -170], [36, 14.85, -176],
-  [51, 13.7, -169], [59, 12.65, -154], [59, 11.55, -135], [59, 10.3, -115],
-  [59, 9.0, -95], [59, 7.8, -75], [59, 6.6, -54], [59, 6.05, -36],
+  [0, 46, 35],
+  [0, 45.4, 12],
+  [0, 44, -10],
+  [3, 41.91, -28],
+  [10, 39.81, -46],
+  [16, 37.72, -64],
+  [16, 35.62, -84],
+  [10, 33.53, -103],
+  [2, 31.44, -121],
+  [-4, 29.34, -140],
+  [-6, 27.25, -160],
+  [-2, 25.15, -180],
+  [6, 23.06, -199],
+  [14, 20.96, -218],
+  [18, 18.87, -238],
+  [16, 16.78, -258],
+  [10, 14.68, -277],
+  [4, 12.59, -296],
+  [0, 10.49, -315],
+  [0, 8.4, -334],
+  [0, 8.0, -350],
 ];
 
 function makeRoute() {
@@ -190,7 +207,7 @@ function carPark(scene, W) {
     W.dyn.push({ type: 'compost', ...p, yaw: -p.th });
     bx(B, site(W, 22.3 + i * 0.58, -2.27).F, 0, 0.05 + i * 0.082, 0, 1.1, 0.15, 0.42, i % 2 ? 0x719244 : 0x48783e);
   }
-  pickup(W, 'seed', 31, 0);
+  pickup(W, 'seed', 27.2, -2.27, 1.75); // off the compost bag kicker
 }
 
 function outdoor(scene, W) {
@@ -276,7 +293,6 @@ function glasshouse(scene, W) {
   const ramp = [W.P(start - 11, 5.45), W.P(start - 7, 5.4, 0.8), W.P(start - 2, 4.55, 2.48), W.P(start + 4, 3.3, 2.92)];
   ribbon(ramp, 1.65, 'wood', 'GLASSHOUSE ROOF RAMP');
   parkSign(scene, W.P(start - 5, -3.65), ['GLASSHOUSE', 'OPEN AISLE ON LEFT'], 2.6);
-  pickup(W, 'gnome', end + 4, 0);
 }
 
 function waterFeatures(scene, W) {
@@ -410,7 +426,7 @@ function grotto(scene, W) {
     seg(B, sf, [x, 0.12, 1.75], [x, 0.12, -1.50], 0.087, 0xe3b653, 8);
     seg(B, sf, [x, 0.12, -1.50], [x, 0.38, -1.84], 0.087, 0xe3b653, 8);
   }
-  pickup(W, 'mincePie', s + 17.5, 0, 0.94);
+  pickup(W, 'mincePie', s + 23, -2.32, 1.9); // off Santa's sleigh
 }
 
 function cafe(scene, W) {
@@ -445,19 +461,15 @@ function wayfinding(scene, W) {
 }
 
 function terraceRails(W) {
-  for (const [begin, end, d] of [[1, 31, -7.65], [1, 31, 7.65], [W.sections.water + 22, W.sections.furniture - 8, 7.65]]) {
-    const wood = sb('rails' + begin, 'lam');
-    for (let s = begin; s < end; s += 3) {
-      const a = W.P(s, d), b = W.P(Math.min(s + 3, end), d);
-      const length = Math.hypot(b.x - a.x, b.z - a.z), yaw = Math.atan2(a.x - b.x, a.z - b.z);
-      const pitch = Math.atan2(b.y - a.y, length);
-      const F = frame((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, yaw, pitch);
-      bx(wood, F, 0.15, 0.74, 0.15, 0, 0.37, length / 2, 0x7f6447);
-      for (const h of [0.29, 0.61]) {
-        bx(wood, F, 0.12, 0.14, length + 0.04, 0, h, 0, 0x8f7252);
-        const p = new T.Vector3(0, h, 0).applyMatrix4(F);
-        staticBox(p.x, p.y, p.z, 0.06, 0.07, (length + 0.04) / 2, yaw, { kind: 'wall', name: 'TIMBER RAIL' }, pitch);
-      }
+  // clipped hedges either side of the whole run: they frame the aisles and keep you on the terrace
+  const end = W.total - 14;
+  for (let s0 = 30; s0 < end; s0 += 3) {
+    const s1 = Math.min(s0 + 3, end), hedge = sb('hedge' + Math.floor(s0 / 60), 'hedge');
+    for (const d of [-8.15, 9.15]) {
+      const a = W.P(s0, d), b = W.P(s1, d), length = Math.hypot(b.x - a.x, b.z - a.z) + 0.25, yaw = Math.atan2(a.x - b.x, a.z - b.z);
+      const F = frame((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, yaw, Math.atan2(b.y - a.y, length));
+      bx(hedge, F, 0.8, 1.35, length, 0, 0.6, 0, 0x5f8f3e);
+      staticBox((a.x + b.x) / 2, (a.y + b.y) / 2 + 0.6, (a.z + b.z) / 2, 0.4, 0.75, length / 2, yaw, { kind: 'wall', name: 'HEDGE' }, Math.atan2(b.y - a.y, length));
     }
   }
 }
@@ -535,6 +547,38 @@ function updateGarden(W, dt, time) {
   if (!grinding) game.endLive('plantBench');
 }
 
+// Fill the aisles: plant displays on the verges, hanging-basket arches over the path, and a mid-hill
+// "Sheds & Summerhouses" stretch with two compost kickers and a run of pots to smash.
+function aisles(scene, W) {
+  const S = W.sections, busy = [[0, 32], [S.glass - 6, S.glass + 36], [S.water - 6, S.water + 24], [S.furniture - 8, S.furniture + 30], [S.seasonal - 4, W.total]];
+  const free = s => !busy.some(([a, b]) => s > a && s < b);
+  const r = rng(77), tints = [0xe46a8a, 0xf2d04b, 0xe9eef2, 0xb57ad8, 0xef8b3c];
+  for (let s = 34; s < W.total - 20; s += 4.2) {
+    if (!free(s)) continue;
+    for (const d of [-5.6, 6.2]) {
+      const p = site(W, s, d), B = sb('aisle' + Math.floor(s / 60), 'lam');
+      for (const z of [-1.2, 0, 1.2]) plants(B, p.F, 0, 0.68, z, pick(r, tints), 0.62 + r() * 0.2);
+      solidBox(B, p.F, 0, 0.31, 0, 1.3, 0.62, 3.6, 0x6b5039, 'PLANT BENCH');
+    }
+  }
+  for (let s = 40; s < W.total - 24; s += 26) {
+    if (!free(s)) continue;
+    const p = site(W, s, 0), B = sb('arch' + Math.floor(s / 60), 'lam');
+    for (const x of [-3.45, 3.45]) { cy(B, p.F, 0.06, 3.3, x, 1.65, 0, 0x2f4a3a, 6); staticCyl(...xyz(W.P(s, x, 1.65)), 0.07, 1.65, { kind: 'wall', name: 'ARCH POST' }); }
+    bx(B, p.F, 7.0, 0.1, 0.1, 0, 3.3, 0, 0x2f4a3a);
+    for (const x of [-2, 0, 2]) { seg(B, p.F, [x, 3.3, 0], [x, 2.75, 0], 0.012, 0x333333, 4); plants(B, p.F, x, 2.45, 0, pick(r, tints), 0.55); }
+  }
+  // Sheds & Summerhouses: the long middle stretch gets its own line
+  const mid = (S.water + 24 + S.furniture - 8) / 2;
+  parkSign(scene, W.P(mid - 30, -4.2), ['SHEDS &', 'SUMMERHOUSES'], 2.4);
+  for (const [ds, d] of [[-18, -1.3], [10, 1.3]]) {
+    const k = W.P(mid + ds, d);
+    addRamp(scene, k, k.th, 1.3, 3.0, 0.55, 'wood', 'COMPOST BAG KICKER', 25);
+    if (ds < 0) pickup(W, 'gnome', mid + ds + 4.6, d, 1.7); // off the first summerhouse kicker
+    for (let n = 0; n < 4; n++) { const q = W.P(mid + ds + 9 + n * 1.6, -d * 0.6 + (n % 2 ? 0.5 : -0.5), 0.22); W.dyn.push({ type: 'pot', ...q, yaw: 0 }); }
+  }
+}
+
 export function buildGarden(scene) {
   const W = C.world = { ...makeRoute(), dyn: [], peds: [], cars: [], wobblers: [], turbines: [],
     pickups: [], potholes: [], nearTargets: [], grinds: [], scattered: false, fountainNext: 0 };
@@ -548,7 +592,7 @@ export function buildGarden(scene) {
   path(W); gardenBackdrop(scene, W);
   terraceRails(W); wayfinding(scene, W);
   carPark(scene, W); outdoor(scene, W); glasshouse(scene, W); waterFeatures(scene, W);
-  gardenFurniture(scene, W); grotto(scene, W); cafe(scene, W);
+  gardenFurniture(scene, W); grotto(scene, W); cafe(scene, W); aisles(scene, W);
   W.reset = () => {
     W.scattered = false; W.fountainNext = 0;
     for (const fish of W.fish) {
